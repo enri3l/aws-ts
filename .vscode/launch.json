@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Dev (tsx)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "tsx", "--inspect", "src/index.ts"],
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

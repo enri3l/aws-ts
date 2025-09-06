@@ -1,0 +1,47 @@
+{
+  "name": "ts-template",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "quality": "prettier . --check && pnpm typecheck && pnpm lint && markdownlint-cli2",
+    "fix": "prettier . --write && eslint . --fix && markdownlint-cli2 --fix",
+    "prepare": "lefthook install",
+    "prebuild": "rimraf dist",
+    "dev:debug": "node --inspect-brk --loader tsx src/index.ts",
+    "release": "semantic-release",
+    "release:dry": "semantic-release --dry-run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.6.0",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.15.0",
+  "devDependencies": {
+    "@commitlint/cli": "19.8.1",
+    "@commitlint/config-conventional": "19.8.1",
+    "@eslint/js": "^9.34.0",
+    "@semantic-release/changelog": "6.0.3",
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/release-notes-generator": "14.0.3",
+    "@types/node": "^24.3.0",
+    "eslint": "^9.34.0",
+    "lefthook": "^1.12.3",
+    "markdownlint-cli2": "^0.18.1",
+    "prettier": "^3.6.2",
+    "rimraf": "6.0.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.40.0"
+  }
+}
