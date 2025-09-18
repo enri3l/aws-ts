@@ -1,3 +1,11 @@
 node_modules
 dist
 .pnpm-store
+.claude/
+CLAUDE.md
+CLAUDE.sessions.md
+cc-sessions/
+sessions/
+.mcp.json
+docs/.vitepress/cache/
+coverage/

@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    "eslint.config.mjs",
+    "commitlint.config.mjs",
+    "prettier.config.mjs",
+    "docs/.vitepress/config.ts",
+    "docs/.vitepress/theme/**/*.ts"
+  ]
+}
