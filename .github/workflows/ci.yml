@@ -1,37 +1,161 @@
-name: ci
+name: CI
+
 on:
   push:
+    branches: ["main", "next"]
   pull_request:
+    branches: ["main", "next"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  quality-checks:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type checking
+        run: pnpm typecheck
+
+      - name: Linting
+        run: pnpm lint
+
+      - name: Format checking
+        run: pnpm format
+
+      - name: Security audit
+        run: pnpm audit --audit-level moderate
+
   test:
-    name: Quality Checking
+    name: Test Suite
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24]
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm vitest run --project unit --reporter=verbose --reporter=junit --outputFile.junit=./test-results-unit.xml
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results-${{ matrix.node-version }}
+          path: test-results-unit.xml
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Setup Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          podman system service --time=0 unix:///tmp/podman.sock &
+          sleep 5
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Integration tests
+        run: pnpm vitest run --project integration --reporter=verbose --reporter=junit --outputFile.junit=./test-results-integration.xml
+        env:
+          DOCKER_HOST: unix:///tmp/podman.sock
+          TESTCONTAINERS_RYUK_DISABLED: true
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.node-version }}
+          path: test-results-integration.xml
+
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: "pnpm"
+          cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm format
-      - run: pnpm lint
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: Build
+        run: pnpm build
+
+      - name: Coverage report
+        run: pnpm test:coverage
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
         with:
-          node-version: 24
-          cache: "pnpm"
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: node dist/index.js
+          name: coverage-report
+          path: coverage/

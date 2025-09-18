@@ -1,0 +1,17 @@
+pre-commit:
+  commands:
+    format:
+      run: pnpm format
+      stage_fixed: true
+    lint:
+      run: pnpm lint
+      stage_fixed: true
+
+pre-push:
+  commands:
+    typecheck:
+      run: pnpm typecheck
+    test:
+      run: pnpm test:run
+    audit:
+      run: pnpm audit --audit-level moderate
