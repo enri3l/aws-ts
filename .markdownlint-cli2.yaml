@@ -1,3 +1,12 @@
 globs: ["**/*.md"]
-ignores: ["**/node_modules", "**/dist"]
+ignores:
+  [
+    "**/node_modules",
+    "**/dist",
+    "CLAUDE.md",
+    "CLAUDE.sessions.md",
+    "cc-sessions",
+    "sessions",
+    ".claude",
+  ]
 config: { default: true }

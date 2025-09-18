@@ -1,0 +1,24 @@
+AWS TypeScript CLI Tool
+Copyright 2025 Enrico Lionello
+
+This product includes software developed by Enrico Lionello.
+
+This software contains the following third-party components:
+
+AWS SDK for JavaScript v3
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Licensed under the Apache License, Version 2.0
+
+TestContainers for Node.js
+Copyright TestContainers
+Licensed under the MIT License
+
+Vitest
+Copyright 2021-present Anthony Fu, Matias Capeletto and contributors
+Licensed under the MIT License
+
+TypeScript
+Copyright Microsoft Corporation. All rights reserved.
+Licensed under the Apache License, Version 2.0
+
+For a complete list of dependencies and their licenses, see package.json and the respective license files in node_modules.
