@@ -97,7 +97,16 @@ export default class AuthProfilesCommand extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(AuthProfilesCommand);
 
-    // Ensure JSON format is preserved even for OCLIF-level errors
+    /**
+     * Maintain consistent JSON output format across all error scenarios.
+     * This error handler ensures that when users specify JSON output format,
+     * they receive machine-parseable JSON responses even for framework-level
+     * exceptions that would normally produce plain text errors. Critical for
+     * automated tooling and CI/CD pipelines that depend on structured output.
+     *
+     * @param error - The error that occurred during profile listing
+     * @internal
+     */
     const ensureJsonOutput = (error: unknown) => {
       if (flags.format === "json") {
         const errorObject = {
@@ -113,14 +122,28 @@ export default class AuthProfilesCommand extends Command {
 
     try {
       try {
-        // Build auth profiles input
+        /**
+         * Construct authentication profiles input for the CQRS handler.
+         * This bridges the CLI layer flags to the internal service layer,
+         * ensuring proper data validation and transformation occurs according
+         * to the command-query responsibility segregation pattern.
+         *
+         * @internal
+         */
         const input: AuthProfiles = {
           detailed: flags.detailed,
           activeOnly: flags["active-only"],
           format: flags.format as "table" | "json" | "csv",
         };
 
-        // Create auth service and list profiles
+        /**
+         * Initialize authentication service with CLI-specific configuration.
+         * Progress indicators are enabled for enhanced user experience during
+         * potentially slow profile discovery operations that may involve
+         * filesystem scanning and credential validation across multiple profiles.
+         *
+         * @internal
+         */
         const authService = new AuthService({
           enableDebugLogging: flags.verbose,
           enableProgressIndicators: true,
@@ -142,7 +165,15 @@ export default class AuthProfilesCommand extends Command {
           return;
         }
 
-        // Output profiles in requested format
+        /**
+         * Render profiles in user-specified format with appropriate formatting.
+         * Format selection enables integration with different consumption patterns:
+         * - JSON for programmatic access and API integration
+         * - CSV for data analysis and spreadsheet import
+         * - Table (default) for human-readable terminal output
+         *
+         * @internal
+         */
         switch (flags.format) {
           case "json": {
             this.log(JSON.stringify(profiles, undefined, 2));
