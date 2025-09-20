@@ -40,7 +40,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          cache: "pnpm"
+
+      # Enable corepack to install pnpm
+      - name: Enable corepack
+        run: corepack enable
 
       # Install dependencies including VitePress and documentation toolchain
       - name: Install dependencies

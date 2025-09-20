@@ -55,7 +55,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
+
+      # Enable corepack to install pnpm
+      - name: Enable corepack
+        run: corepack enable
 
       # Install dependencies using pnpm for consistent lockfile handling
       - name: Install dependencies
