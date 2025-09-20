@@ -1,61 +1,79 @@
-name: Release
+# Release Workflow
+#
+# Automated release pipeline using Release-Please for PR-based releases.
+# Creates Release PRs with version bumps and changelogs, then publishes
+# when Release PR is merged.
+#
+# Triggered on: Push to main branch (after PR merge)
+# Security: OIDC token for npm provenance, comprehensive dependency review
+# Output: Release PR creation or NPM package + GitHub release
 
+name: Release
 on:
   push:
-    branches:
-      - main
-      - next
+    branches: [main]
 
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  release:
-    name: Release
+  release-please:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'enri3l'
-
+    permissions:
+      contents: write # GitHub release creation and git operations
+      pull-requests: write # Release PR creation and management
+      id-token: write # OIDC token for npm provenance attestations
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # Release-Please action creates Release PRs or triggers releases
+      - uses: googleapis/release-please-action@v4
+        id: release
         with:
-          fetch-depth: 0
+          release-type: node
+          package-name: aws-ts-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: pnpm/action-setup@v4
+      # Only run when Release PR is merged (release created)
+      - name: Checkout
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: ${{ steps.release.outputs.release_created }}
         uses: actions/setup-node@v4
         with:
-          node-version: 24
-          cache: pnpm
+          node-version: "lts/*"
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        if: ${{ steps.release.outputs.release_created }}
+        run: pnpm install
 
-      - name: Quality checks
-        run: |
-          pnpm typecheck
-          pnpm lint
-          pnpm format
-
-      - name: Build
+      - name: Build package
+        if: ${{ steps.release.outputs.release_created }}
         run: pnpm build
 
-      - name: Test
-        run: |
-          pnpm test:run
-          pnpm test:integration
+      - name: Security audit
+        if: ${{ steps.release.outputs.release_created }}
+        run: pnpm audit
 
-      - name: Generate API documentation
-        run: pnpm docs:api
+      # Enhanced dependency and vulnerability review using GitHub's official action
+      - name: Dependency & Security Review
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/dependency-review-action@v4
+        with:
+          vulnerability-check: true
+          license-check: true
+          fail-on-severity: moderate
 
-      - name: Validate CLI
-        run: pnpm docs:validate
+      # Package content validation before publishing
+      - name: Pre-publish validation
+        if: ${{ steps.release.outputs.release_created }}
+        run: pnpm pack --dry-run
 
-      - name: Release
-        run: pnpm release
+      - name: Publish to NPM
+        if: ${{ steps.release.outputs.release_created }}
+        run: pnpm publish --no-git-checks
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

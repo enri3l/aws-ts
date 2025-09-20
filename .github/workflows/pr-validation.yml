@@ -1,0 +1,90 @@
+# PR Validation Workflow
+#
+# Comprehensive validation pipeline for pull requests targeting main branch.
+# Runs quality gates, security checks, and compliance validation across multiple Node.js versions.
+# This workflow ensures all changes meet production standards before merging.
+#
+# Triggered on: Pull requests to main branch
+# Matrix: Node.js 20.x, 22.x, 24.x (LTS versions, excludes EoS Node.js 18)
+# Quality Gates: TypeScript, ESLint, tests, build, security, license compliance
+
+name: PR Validation
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x, 24.x]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      # Repository checkout with full history for semantic analysis
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Node.js setup with pnpm caching for optimal performance
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      # Install dependencies using pnpm with lockfile validation
+      - name: Install dependencies
+        run: pnpm install
+
+      # TypeScript compilation check without emit
+      - name: Type check
+        run: pnpm typecheck
+
+      # ESLint + Markdownlint validation for code quality
+      - name: Lint
+        run: pnpm lint
+
+      # Full test suite execution across all test projects
+      - name: Full test suite
+        run: pnpm test
+
+      # Production build validation
+      - name: Build
+        run: pnpm build
+
+      # Security vulnerability scan using pnpm audit
+      - name: Security audit
+        run: pnpm audit
+
+      # Enhanced dependency and license review using GitHub's official action
+      # Replaces: npm audit signatures + license-checker for comprehensive compliance
+      - name: Dependency & License Review
+        uses: actions/dependency-review-action@v4
+        with:
+          vulnerability-check: true
+          license-check: true
+          fail-on-severity: moderate
+
+      # Package size and content validation
+      - name: Package validation
+        run: pnpm pack --dry-run
+
+      # Dependency health monitoring (Node.js 22.x only for efficiency)
+      - name: Dependency health check
+        uses: mansagroup/ncu-action@v1.4.0
+        if: matrix.node-version == '22.x'
+        with:
+          warning_mode: on
+
+      # Test coverage reporting with Codecov integration (Node.js 22.x only)
+      - name: Coverage check
+        run: pnpm test:coverage
+        if: matrix.node-version == '22.x'
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: matrix.node-version == '22.x'
+        with:
+          file: ./coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

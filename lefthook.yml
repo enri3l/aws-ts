@@ -7,6 +7,11 @@ pre-commit:
       run: pnpm lint
       stage_fixed: true
 
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm dlx commitlint --edit
+
 pre-push:
   commands:
     typecheck:
