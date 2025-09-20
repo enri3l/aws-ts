@@ -1,0 +1,9 @@
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlRlc3QgVXNlciIsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNTE2MjM5MDIyfQ.expired_token_signature",
+  "expiresAt": "2024-01-01T00:00:00.000Z",
+  "region": "us-east-1",
+  "startUrl": "https://example.awsapps.com/start",
+  "clientId": "example-client-id",
+  "clientSecret": "example-client-secret",
+  "registrationExpiresAt": "2024-01-01T00:00:00.000Z"
+}

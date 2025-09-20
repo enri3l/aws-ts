@@ -1,0 +1,10 @@
+{
+  "status": "success",
+  "message": "Successfully logged in with SSO",
+  "profile": "test-sso",
+  "startUrl": "https://example.awsapps.com/start",
+  "region": "us-east-1",
+  "accountId": "123456789012",
+  "roleName": "TestRole",
+  "expiresAt": "2025-12-31T23:59:59.000Z"
+}
