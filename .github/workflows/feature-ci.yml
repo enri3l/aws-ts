@@ -75,10 +75,10 @@ jobs:
         run: pnpm lint
 
       # High-level security check for source changes
-      # Uses npm audit for registry-specific vulnerability database
+      # Uses pnpm audit for registry-specific vulnerability database
       - name: Quick security check
         if: needs.changes.outputs.src == 'true'
-        run: npm audit --audit-level high
+        run: pnpm audit --audit-level high
 
       # Test execution limited to changed files for performance
       - name: Test changed files
