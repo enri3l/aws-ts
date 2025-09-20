@@ -43,8 +43,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Enable corepack
+        if: ${{ steps.release.outputs.release_created }}
+        run: corepack enable
 
       - name: Install dependencies
         if: ${{ steps.release.outputs.release_created }}
