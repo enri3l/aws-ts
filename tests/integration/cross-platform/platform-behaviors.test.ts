@@ -17,11 +17,15 @@ import {
 } from "../../../src/lib/auth-utilities.js";
 import { AuthCliWrapper } from "../../../src/services/auth-cli-wrapper.js";
 import { AuthService } from "../../../src/services/auth-service.js";
+import { CredentialService } from "../../../src/services/credential-service.js";
 import { ProfileManager } from "../../../src/services/profile-manager.js";
 import { TokenManager } from "../../../src/services/token-manager.js";
 
 // Mock CLI wrapper
 vi.mock("../../../src/services/auth-cli-wrapper.js");
+
+// Mock credential service to prevent real AWS API calls
+vi.mock("../../../src/services/credential-service.js");
 
 // Setup AWS SDK mocks
 const stsMock = mockClient(STSClient);
@@ -33,6 +37,14 @@ describe("Platform Behaviors", () => {
     // Reset all mocks
     vi.clearAllMocks();
     stsMock.reset();
+
+    // Clear AWS_PROFILE to prevent credential conflicts
+    delete process.env.AWS_PROFILE;
+
+    // Setup mock AWS credentials to prevent real network calls
+    process.env.AWS_ACCESS_KEY_ID = "test-access-key";
+    process.env.AWS_SECRET_ACCESS_KEY = "test-secret-key";
+    process.env.AWS_REGION = "us-east-1";
 
     // Setup default STS mock
     stsMock.on(GetCallerIdentityCommand).resolves({
@@ -53,11 +65,31 @@ describe("Platform Behaviors", () => {
     };
 
     vi.mocked(AuthCliWrapper).mockImplementation(() => mockCliWrapper);
+
+    // Mock credential service to prevent real AWS API calls
+    const mockCredentialService = {
+      validateCredentials: vi.fn().mockResolvedValue({
+        userId: "AROA123456789EXAMPLE:test-user",
+        account: "123456789012",
+        arn: "arn:aws:sts::123456789012:assumed-role/TestRole/test-user",
+      }),
+      getActiveProfile: vi.fn().mockReturnValue("default"),
+      setActiveProfile: vi.fn(),
+      clearCredentialCache: vi.fn(),
+      getCredentialInfo: vi.fn().mockResolvedValue({
+        credentialsAvailable: true,
+        providerUsed: "test",
+      }),
+    };
+
+    vi.mocked(CredentialService).mockImplementation(() => mockCredentialService as any);
   });
 
   afterEach(() => {
-    // Restore original values (though process.platform is read-only)
-    // This is just for documentation purposes
+    // Clean up AWS credential environment variables
+    delete process.env.AWS_ACCESS_KEY_ID;
+    delete process.env.AWS_SECRET_ACCESS_KEY;
+    delete process.env.AWS_REGION;
   });
 
   describe("Platform detection", () => {
