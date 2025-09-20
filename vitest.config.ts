@@ -82,6 +82,8 @@ export default defineConfig({
           setupFiles: ["./tests/setup.ts"],
           testTimeout: 180_000,
           hookTimeout: 120_000,
+          // Fix console intercept for forked processes in E2E tests
+          disableConsoleIntercept: true,
           // Run E2E tests sequentially for stability
           pool: "forks",
           poolOptions: {
