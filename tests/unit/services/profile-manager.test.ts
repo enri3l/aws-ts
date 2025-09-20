@@ -5,7 +5,7 @@
  * for comprehensive INI parsing, profile validation, and error handling scenarios.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileError } from "../../../src/lib/auth-errors.js";
 import { ProfileManager } from "../../../src/services/profile-manager.js";
 
