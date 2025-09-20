@@ -44,6 +44,7 @@ beforeAll(async () => {
   // Set environment variables for tests
   process.env.DYNAMODB_ENDPOINT = dynamoEndpoint;
   process.env.AWS_REGION = "local";
+  process.env.AWS_INTEGRATION_TEST = "true";
 }, 60_000);
 
 /**
