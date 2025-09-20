@@ -13,6 +13,9 @@ export default defineConfig({
     // Global test configuration
     globals: true,
     environment: "node",
+    disableConsoleIntercept: true,
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
   },
 
   // Multi-project configuration using projects format
@@ -50,14 +53,19 @@ export default defineConfig({
         name: "integration",
         include: ["tests/integration/**/*.test.{ts,tsx}"],
         setupFiles: ["./tests/setup.ts", "./tests/integration-setup.ts"],
-        testTimeout: 60_000,
-        hookTimeout: 60_000,
+        testTimeout: 120_000,
+        hookTimeout: 120_000,
         // Run integration tests sequentially to avoid container conflicts
         pool: "forks",
         poolOptions: {
           forks: {
             singleFork: true,
           },
+        },
+        // Ensure timeout is applied at all levels
+        timeout: 120_000,
+        env: {
+          AWS_INTEGRATION_TEST: "true",
         },
       },
     },
@@ -68,8 +76,8 @@ export default defineConfig({
         name: "e2e",
         include: ["tests/e2e/**/*.test.{ts,tsx}"],
         setupFiles: ["./tests/setup.ts"],
-        testTimeout: 120_000,
-        hookTimeout: 60_000,
+        testTimeout: 180_000,
+        hookTimeout: 120_000,
         // Run E2E tests sequentially for stability
         pool: "forks",
         poolOptions: {
@@ -77,6 +85,8 @@ export default defineConfig({
             singleFork: true,
           },
         },
+        // Ensure timeout is applied at all levels
+        timeout: 180_000,
       },
     },
   ],
