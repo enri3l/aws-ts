@@ -10,18 +10,18 @@
 Modern TypeScript-based command-line interface for AWS operations with
 comprehensive architecture and testing infrastructure.
 
-## ✨ Features
+## Features
 
-- **🔧 TypeScript-First**: Built with TypeScript v5.9 and strict type checking
-- **🏗️ Modular Architecture**: CQRS pattern with clean separation of concerns
-- **🧪 Comprehensive Testing**: Unit, integration, and E2E testing with TestContainers
-- **⚡ AWS SDK v3**: Latest AWS SDK with SSO credential provider integration
-- **📚 TSDoc Documentation**: Machine-readable documentation with automated API docs
-- **🔍 Quality Tooling**: ESLint, Prettier, and automated quality gates
-- **🚀 Developer Experience**: Hot reload, debug support, and semantic versioning
-- **📊 Data Processing**: Built-in support for JSON, JSONL, CSV, and TSV formats
-- **🔐 Input Validation**: Zod schemas for comprehensive input validation
-- **🎯 Error Handling**: Structured error types with user-friendly messages
+- **TypeScript-First**: Built with TypeScript v5.9 and strict type checking
+- **Modular Architecture**: CQRS pattern with clean separation of concerns
+- **Comprehensive Testing**: Unit, integration, and E2E testing with TestContainers
+- **AWS SDK v3**: Latest AWS SDK with SSO credential provider integration
+- **TSDoc Documentation**: Machine-readable documentation with automated API docs
+- **Quality Tooling**: ESLint, Prettier, and automated quality gates
+- **Developer Experience**: Hot reload, debug support, and semantic versioning
+- **AWS Authentication**: SSO session management and multi-profile support
+- **Input Validation**: Zod schemas for comprehensive input validation
+- **Error Handling**: Structured error types with user-friendly messages
 
 ## 🚀 Quick Start
 
@@ -32,12 +32,28 @@ comprehensive architecture and testing infrastructure.
 
 ### Installation
 
-```bash
-# Install globally
-npm install -g aws-ts-cli
+For development and local testing:
 
-# Or use directly with npx
-npx aws-ts-cli --help
+```bash
+# Clone and setup for development
+git clone https://github.com/enri3l/aws-ts.git
+cd aws-ts
+pnpm install
+pnpm build
+
+# Link globally for development use
+pnpm link --global
+
+# Verify installation
+aws-ts --help
+```
+
+For production installation (when available):
+
+```bash
+# Install from local package
+pnpm pack
+npm install -g ./aws-ts-cli-0.1.0.tgz
 ```
 
 ### Basic Usage
@@ -46,55 +62,42 @@ npx aws-ts-cli --help
 # Display help
 aws-ts --help
 
-# Set AWS configuration
-aws-ts config set --region us-east-1 --profile my-profile
+# Check your current AWS authentication status
+aws-ts auth:status
 
-# List DynamoDB tables
-aws-ts dynamo tables list
+# List all available AWS profiles
+aws-ts auth:profiles
 
-# Export table data
-aws-ts dynamo table export MyTable --format json --output data.json
+# Log in using a specific SSO profile
+aws-ts auth:login --profile my-sso-profile
 ```
 
-## 📖 Documentation
+## Documentation
 
 This project follows the [Diataxis framework](https://diataxis.fr/) for
 comprehensive documentation:
 
-- **[📚 Documentation Site](https://enri3l.github.io/aws-ts/)** - Complete documentation
-- **[🎓 Tutorials](https://enri3l.github.io/aws-ts/tutorials/)** - Step-by-step
+- **[Documentation Site](https://enri3l.github.io/aws-ts/)** - Complete documentation
+- **[Tutorials](https://enri3l.github.io/aws-ts/tutorials/)** - Step-by-step
   learning guides
-- **[📋 How-To Guides](https://enri3l.github.io/aws-ts/how-to/)** - Problem-solving
+- **[How-To Guides](https://enri3l.github.io/aws-ts/how-to/)** - Problem-solving
   guides
-- **[📖 API Reference](https://enri3l.github.io/aws-ts/api/)** - Complete API
+- **[API Reference](https://enri3l.github.io/aws-ts/api/)** - Complete API
   documentation
-- **[💡 Architecture](https://enri3l.github.io/aws-ts/explanation/)** - Design
+- **[Architecture](https://enri3l.github.io/aws-ts/explanation/)** - Design
   decisions and concepts
 
-## 🏗️ Architecture
+## Architecture
 
-This CLI follows modern software architecture principles:
+This CLI is built on [Oclif](https://oclif.io/) and follows modern software design
+principles, emphasizing a clear separation of concerns between commands and core
+business logic. The authentication functionality is encapsulated within a dedicated
+`AuthService`, ensuring modularity and testability.
 
-```text
-src/
-├── commands/           # Oclif command definitions
-├── handlers/          # CQRS command/query handlers
-├── lib/
-│   ├── data-processing.ts  # Multi-format data processing
-│   ├── errors.ts          # Structured error handling
-│   ├── logger.ts          # Structured logging
-│   └── schemas.ts         # Zod validation schemas
-└── index.ts           # CLI entry point
-```
+For a detailed breakdown of the design patterns, CQRS principles, and architectural
+decisions, please see the **[full Architecture documentation](https://enri3l.github.io/aws-ts/explanation/)**.
 
-### Key Patterns
-
-- **CQRS (Command Query Responsibility Segregation)**: Separate read and write operations
-- **Factory Pattern**: Centralized handler creation with dependency injection
-- **Strategy Pattern**: Pluggable data processing for multiple formats
-- **Validation Layer**: Comprehensive input validation with Zod schemas
-
-## 🛠️ Development
+## Development
 
 ### Setup
 
@@ -177,7 +180,7 @@ tests/
 └── utils/            # Test utilities and helpers
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -205,7 +208,7 @@ aws-ts config set --region us-east-1 --profile production
 aws-ts dynamo tables list --region us-west-2 --output json
 ```
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md)
 for details.
@@ -228,19 +231,21 @@ for details.
 - **Conventional Commits**: Semantic commit messages for automated versioning
 - **Test Coverage**: Minimum 90% coverage for new code
 
-## 📋 Requirements
+## Requirements
 
 - **Node.js**: 24.6.0 or higher
 - **pnpm**: 10.0 or higher
 - **TypeScript**: 5.9 or higher
 
-## 📦 Dependencies
+## Dependencies
 
 ### Core Dependencies
 
 - **[@oclif/core](https://oclif.io/)**: CLI framework
-- **[@aws-sdk/client-dynamodb](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/)**:
-  AWS SDK v3
+- **[@aws-sdk/client-sts](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/)**:
+  AWS SDK v3 for credential validation
+- **[@aws-sdk/credential-providers](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/)**:
+  AWS credential provider chain
 - **[zod](https://zod.dev/)**: Schema validation
 - **[ora](https://github.com/sindresorhus/ora)**: Terminal spinners
 
@@ -251,7 +256,7 @@ for details.
 - **[typescript-eslint](https://typescript-eslint.io/)**: TypeScript linting
 - **[semantic-release](https://semantic-release.gitbook.io/)**: Automated versioning
 
-## 🤖 AI Development
+## AI Development
 
 This project was developed with assistance from [Claude Code](https://claude.ai/code),
 Anthropic's agentic coding tool that understands codebases and helps with:
@@ -261,12 +266,12 @@ Anthropic's agentic coding tool that understands codebases and helps with:
 - **Documentation**: TSDoc standards and comprehensive README
 - **Quality Assurance**: Linting rules and testing strategies
 
-## 📝 License
+## License
 
 This project is licensed under the [Apache License 2.0](LICENSE) - see the
 LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **[Oclif](https://oclif.io/)** - Excellent CLI framework
 - **[AWS SDK Team](https://aws.amazon.com/sdk-for-javascript/)** -
@@ -278,7 +283,7 @@ LICENSE file for details.
 
 ---
 
-**Built with ❤️ by [Enrico Lionello](https://github.com/enri3l) and 🤖 [Claude Code](https://claude.ai/code)**
+**Built by [Enrico Lionello](https://github.com/enri3l) and [Claude Code](https://claude.ai/code)**
 
 For questions, issues, or contributions, please visit our
 [GitHub repository](https://github.com/enri3l/aws-ts).
