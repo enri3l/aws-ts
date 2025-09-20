@@ -14,7 +14,11 @@ import type {
   AuthStatus,
   AuthSwitch,
 } from "../../../src/lib/auth-schemas.js";
+import { AuthCliWrapper } from "../../../src/services/auth-cli-wrapper.js";
 import { AuthService } from "../../../src/services/auth-service.js";
+import { CredentialService } from "../../../src/services/credential-service.js";
+import { ProfileManager } from "../../../src/services/profile-manager.js";
+import { TokenManager } from "../../../src/services/token-manager.js";
 
 // Mock all service dependencies
 vi.mock("../../../src/services/auth-cli-wrapper.js", () => ({
@@ -74,21 +78,14 @@ const mockTokenManager = {
 describe("AuthService", () => {
   let authService: AuthService;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
 
     // Setup mock constructors to return mock instances
-    const { AuthCliWrapper } = vi.mocked(await import("../../../src/services/auth-cli-wrapper.js"));
-    const { CredentialService } = vi.mocked(
-      await import("../../../src/services/credential-service.js"),
-    );
-    const { ProfileManager } = vi.mocked(await import("../../../src/services/profile-manager.js"));
-    const { TokenManager } = vi.mocked(await import("../../../src/services/token-manager.js"));
-
-    AuthCliWrapper.mockReturnValue(mockAuthCliWrapper as any);
-    CredentialService.mockReturnValue(mockCredentialService as any);
-    ProfileManager.mockReturnValue(mockProfileManager as any);
-    TokenManager.mockReturnValue(mockTokenManager as any);
+    vi.mocked(AuthCliWrapper).mockReturnValue(mockAuthCliWrapper as any);
+    vi.mocked(CredentialService).mockReturnValue(mockCredentialService as any);
+    vi.mocked(ProfileManager).mockReturnValue(mockProfileManager as any);
+    vi.mocked(TokenManager).mockReturnValue(mockTokenManager as any);
 
     authService = new AuthService({
       enableDebugLogging: false,

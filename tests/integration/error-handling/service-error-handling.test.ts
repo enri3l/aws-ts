@@ -39,6 +39,17 @@ describe("Service Error Handling", () => {
     };
 
     vi.mocked(AuthCliWrapper).mockImplementation(() => mockCliWrapper);
+
+    // Mock credential service methods to prevent real AWS API calls
+    vi.spyOn(CredentialService.prototype, "validateCredentials").mockResolvedValue({
+      userId: "AROA123456789EXAMPLE:error-test-user",
+      account: "123456789012",
+      arn: "arn:aws:sts::123456789012:assumed-role/TestRole/error-test-user",
+    });
+
+    vi.spyOn(CredentialService.prototype, "getActiveProfile").mockReturnValue("default");
+    vi.spyOn(CredentialService.prototype, "setActiveProfile").mockImplementation(() => {});
+    vi.spyOn(CredentialService.prototype, "clearCredentialCache").mockImplementation(() => {});
   });
 
   describe("Network and service failures", () => {
@@ -59,6 +70,12 @@ describe("Service Error Handling", () => {
 
       // Mock ProfileManager to allow test to reach mocked CLI error
       vi.spyOn(ProfileManager.prototype, "profileExists").mockResolvedValue(true);
+
+      // Restore credential service spies to allow CLI errors to propagate
+      vi.spyOn(CredentialService.prototype, "validateCredentials").mockRestore();
+      vi.spyOn(CredentialService.prototype, "getActiveProfile").mockRestore();
+      vi.spyOn(CredentialService.prototype, "setActiveProfile").mockRestore();
+      vi.spyOn(CredentialService.prototype, "clearCredentialCache").mockRestore();
 
       await expect(
         authService.login({
@@ -138,6 +155,12 @@ describe("Service Error Handling", () => {
         enableDebugLogging: false,
         enableProgressIndicators: false,
       });
+
+      // Restore credential service spies to allow CLI errors to propagate
+      vi.spyOn(CredentialService.prototype, "validateCredentials").mockRestore();
+      vi.spyOn(CredentialService.prototype, "getActiveProfile").mockRestore();
+      vi.spyOn(CredentialService.prototype, "setActiveProfile").mockRestore();
+      vi.spyOn(CredentialService.prototype, "clearCredentialCache").mockRestore();
 
       await expect(
         authService.login({

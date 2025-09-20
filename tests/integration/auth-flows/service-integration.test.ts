@@ -49,6 +49,17 @@ describe("Service Integration", () => {
     };
 
     vi.mocked(AuthCliWrapper).mockImplementation(() => mockCliWrapper);
+
+    // Mock credential service methods to prevent real AWS API calls
+    vi.spyOn(CredentialService.prototype, "validateCredentials").mockResolvedValue({
+      userId: "AROA123456789EXAMPLE:integration-test-user",
+      account: "123456789012",
+      arn: "arn:aws:sts::123456789012:assumed-role/TestRole/integration-test-user",
+    });
+
+    vi.spyOn(CredentialService.prototype, "getActiveProfile").mockReturnValue("default");
+    vi.spyOn(CredentialService.prototype, "setActiveProfile").mockImplementation(() => {});
+    vi.spyOn(CredentialService.prototype, "clearCredentialCache").mockImplementation(() => {});
   });
 
   describe("Service instantiation", () => {
@@ -131,6 +142,9 @@ describe("Service Integration", () => {
     });
 
     it("should handle STS credential validation errors", async () => {
+      // Restore real behavior for this specific test
+      vi.spyOn(CredentialService.prototype, "validateCredentials").mockRestore();
+
       stsMock
         .on(GetCallerIdentityCommand)
         .rejects(new Error("The security token included in the request is invalid"));
