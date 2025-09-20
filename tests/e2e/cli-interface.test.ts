@@ -27,9 +27,7 @@ describe("CLI Interface E2E", () => {
    */
   async function runCliCommand(arguments_: string[]): Promise<CliOutput> {
     try {
-      const { stdout, stderr } = await runCommand(arguments_, {
-        root: import.meta.url,
-      });
+      const { stdout, stderr } = await runCommand(arguments_);
 
       return {
         stdout: stdout || "",
