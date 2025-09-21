@@ -30,7 +30,6 @@ jobs:
         id: release
         with:
           release-type: node
-          package-name: aws-ts-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # Only run when Release PR is merged (release created)
@@ -73,7 +72,7 @@ jobs:
       # Package content validation before publishing
       - name: Pre-publish validation
         if: ${{ steps.release.outputs.release_created }}
-        run: pnpm pack --dry-run
+        run: pnpm publish --dry-run --no-git-checks
 
       - name: Publish to NPM
         if: ${{ steps.release.outputs.release_created }}
