@@ -1,12 +1,12 @@
-# Documentation Deployment Workflow
+# Documentation Build Validation and Link Checking
 #
-# Automated documentation build and deployment to GitHub Pages.
-# Triggered on documentation changes or manual dispatch for immediate updates.
-# Uses VitePress for static site generation with TypeDoc API documentation.
+# Validates documentation builds correctly and checks for broken links.
+# Cloudflare Pages handles automatic deployment from main branch.
+# Ensures documentation quality and link integrity in CI pipeline.
 #
-# Triggered on: Push to main with docs changes, manual workflow dispatch
-# Environment: GitHub Pages deployment with proper OIDC authentication
-# Output: Published documentation site at GitHub Pages URL
+# Triggered on: Push to main with docs changes, pull requests, manual dispatch
+# Environment: Build validation and link checking - no deployment
+# Output: Build validation and comprehensive link checking for documentation
 
 name: Documentation
 on:
@@ -16,21 +16,19 @@ on:
       - "docs/**" # VitePress documentation content
       - "*.md" # Root-level markdown files
       - "package.json" # Dependency changes affecting docs build
-  workflow_dispatch: # Manual deployment trigger
+  pull_request:
+    paths:
+      - "docs/**"
+      - "*.md"
+      - "package.json"
+  workflow_dispatch: # Manual validation trigger
 
 permissions:
   contents: read # Repository content access
-  pages: write # GitHub Pages deployment
-  id-token: write # OIDC token for secure Pages deployment
-
-# Prevent concurrent deployments to avoid conflicts
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
-  # Documentation build job
-  build:
+  # Documentation build and validation job
+  build-and-validate:
     runs-on: ubuntu-latest
     steps:
       # Repository checkout for documentation source files
@@ -54,22 +52,63 @@ jobs:
       - name: Build documentation
         run: pnpm docs:build
 
-      # Upload built documentation as Pages artifact
-      # Artifact contains: VitePress static site, TypeDoc API docs
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/.vitepress/dist
+      # Validate built documentation structure and content
+      - name: Validate build output
+        run: |
+          if [ ! -d "docs/.vitepress/dist" ]; then
+            echo "❌ Build output directory missing"
+            exit 1
+          fi
+          if [ ! -f "docs/.vitepress/dist/index.html" ]; then
+            echo "❌ Index file missing from build"
+            exit 1
+          fi
 
-  # GitHub Pages deployment job
-  deploy:
-    environment:
-      name: GitHub Pages # Exactly named environment as requested
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      # Deploy documentation to GitHub Pages using official action
-      # Provides: Secure OIDC-based deployment, automatic URL generation
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          # Check for essential documentation sections
+          if [ ! -f "docs/.vitepress/dist/tutorials/index.html" ]; then
+            echo "❌ Tutorials section missing"
+            exit 1
+          fi
+          if [ ! -f "docs/.vitepress/dist/how-to/index.html" ]; then
+            echo "❌ How-to guides section missing"
+            exit 1
+          fi
+          if [ ! -f "docs/.vitepress/dist/reference/index.html" ]; then
+            echo "❌ Reference section missing"
+            exit 1
+          fi
+          if [ ! -f "docs/.vitepress/dist/api/index.html" ]; then
+            echo "❌ API documentation missing"
+            exit 1
+          fi
+
+          echo "✅ Documentation build validation successful"
+
+      # Check for broken links (internal and external)
+      # Uses lychee for comprehensive link checking with optimized configuration
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2.0.2
+        with:
+          # Check all HTML files in the built documentation
+          args: >-
+            --no-progress
+            --verbose
+            --accept 200,204,429,999
+            --timeout 20
+            --max-concurrency 8
+            --exclude-all-private
+            --exclude "localhost|127.0.0.1"
+            --exclude "github.com/.*/(edit|blame)"
+            --exclude "linkedin.com"
+            --format markdown
+            docs/.vitepress/dist/**/*.html
+          fail: false # Don't fail initially - report issues for review
+          format: detailed # Detailed output for debugging
+
+      # Generate link checking summary
+      - name: Link check summary
+        if: always()
+        run: |
+          echo "📊 Link checking completed"
+          echo "Check the 'Check links' step above for detailed results"
+          echo "Note: Link check failures are reported but don't fail the workflow"
