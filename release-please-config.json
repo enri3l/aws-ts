@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "pull-request-title-pattern": "release: v${version}",
+  "pull-request-header": "Release v${version} contains the following changes:",
+  "pull-request-footer": "Generated with [Release Please](https://github.com/googleapis/release-please)",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features", "hidden": false },
+    { "type": "fix", "section": "Bug Fixes", "hidden": false },
+    { "type": "deps", "section": "Dependencies", "hidden": false },
+    { "type": "chore", "section": null, "hidden": true }
+  ],
+  "extra-files": ["README.md"],
+  "packages": {
+    ".": {}
+  }
+}
