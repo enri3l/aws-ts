@@ -1,0 +1,31 @@
+# Dependabot Configuration
+#
+# Automated dependency updates for security and maintenance.
+# Integrates with existing CI pipeline for comprehensive validation.
+# Weekly schedule balances freshness with review overhead.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "enri3l"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Group patch updates to reduce PR noise
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    # Ignore specific packages if needed
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]

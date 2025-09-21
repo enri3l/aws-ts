@@ -83,6 +83,28 @@ export default tseslint.config(
     },
   },
 
+  // Test-specific configuration
+  {
+    files: ["**/*.test.ts", "**/tests/**/*.ts"],
+    rules: {
+      // Relax TypeScript safety rules for test files where mocking is common
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/unbound-method": "off",
+      // Allow nested functions in tests for better organization
+      "sonarjs/no-nested-functions": "off",
+      // Relax JSDoc requirements for test files
+      "jsdoc/require-jsdoc": "off",
+      "jsdoc/require-param-description": "off",
+      "jsdoc/require-returns-description": "off",
+      "jsdoc/require-throws": "off",
+    },
+  },
+
   {
     files: ["**/*.js", "**/*.mjs", "**/*.cjs"],
     extends: [eslint.configs.recommended],
