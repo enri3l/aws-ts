@@ -7,11 +7,24 @@ pre-commit:
       run: pnpm lint
       stage_fixed: true
 
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm dlx commitlint --edit
+
 pre-push:
   commands:
+    # Always run: Fast checks for immediate feedback
     typecheck:
       run: pnpm typecheck
-    test:
-      run: pnpm test:run
+    lint:
+      run: pnpm lint
     audit:
       run: pnpm audit --audit-level moderate
+
+    # Conditional: Run unit tests only when source code changes
+    test-unit:
+      glob: "{src/**/*,tests/unit/**/*}"
+      run: pnpm test:unit:changed
+
+    # Note: Integration and E2E tests run in CI for comprehensive validation

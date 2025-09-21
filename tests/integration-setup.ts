@@ -10,6 +10,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 import { afterAll, beforeAll } from "vitest";
+import { getQualifiedImageName } from "./lib/runtime-detector.js";
 
 // Global container instance for sharing across tests
 let dynamoContainer: StartedTestContainer;
@@ -22,10 +23,13 @@ let dynamoClient: DynamoDBClient;
  * and configures the AWS SDK to use the local endpoint.
  */
 beforeAll(async () => {
-  // Start DynamoDB Local container
-  dynamoContainer = await new GenericContainer("amazon/dynamodb-local:latest")
+  // Start DynamoDB Local container with runtime-appropriate image name
+  dynamoContainer = await new GenericContainer(
+    getQualifiedImageName("amazon/dynamodb-local:latest"),
+  )
     .withExposedPorts(8000)
     .withCommand(["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"])
+    .withReuse()
     .start();
 
   const dynamoPort = dynamoContainer.getMappedPort(8000);
@@ -44,6 +48,7 @@ beforeAll(async () => {
   // Set environment variables for tests
   process.env.DYNAMODB_ENDPOINT = dynamoEndpoint;
   process.env.AWS_REGION = "local";
+  process.env.AWS_INTEGRATION_TEST = "true";
 }, 60_000);
 
 /**

@@ -366,7 +366,15 @@ export class DataProcessor {
   private formatCsv(records: DataRecord[]): string {
     if (records.length === 0) return "";
 
-    // Get all unique keys across all records
+    /**
+     * Extract comprehensive column schema from heterogeneous data records.
+     * This approach handles varying record structures by collecting all possible
+     * field names, ensuring CSV output includes all data points even when
+     * individual records have different schemas. Critical for maintaining
+     * data integrity during format transformations.
+     *
+     * @internal
+     */
     const allKeys = new Set<string>();
     for (const record of records) {
       for (const key of Object.keys(record.data)) allKeys.add(key);
@@ -375,12 +383,26 @@ export class DataProcessor {
 
     const lines: string[] = [];
 
-    // Add headers if requested
+    /**
+     * Include column headers when requested by configuration.
+     * Header inclusion is configurable to support both human-readable
+     * CSV files (with headers) and raw data exports (without headers)
+     * for different consumption patterns and data pipeline requirements.
+     *
+     * @internal
+     */
     if (this.options.includeHeaders) {
       lines.push(headers.join(this.options.delimiter));
     }
 
-    // Add data rows
+    /**
+     * Transform each data record into CSV row format.
+     * Maps record values to the standardized column schema, handling
+     * missing fields gracefully and applying proper CSV value formatting
+     * (escaping, quoting) to ensure data integrity in the output format.
+     *
+     * @internal
+     */
     for (const record of records) {
       const values = headers.map((header) => {
         const value = record.data[header];
