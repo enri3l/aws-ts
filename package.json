@@ -1,6 +1,6 @@
 {
   "name": "aws-ts-cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "TypeScript-based CLI for AWS operations with modular architecture and comprehensive testing",
   "keywords": [
     "aws",
