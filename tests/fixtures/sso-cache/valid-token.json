@@ -1,0 +1,9 @@
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkVVIFRlc3QgVXNlciIsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNzMzNzM5MDIyfQ.EU_token_signature",
+  "expiresAt": "2025-12-31T23:59:59.000Z",
+  "region": "eu-west-1",
+  "startUrl": "https://company.awsapps.com/start",
+  "clientId": "eu-client-id",
+  "clientSecret": "eu-client-secret",
+  "registrationExpiresAt": "2025-12-31T23:59:59.000Z"
+}
