@@ -162,7 +162,7 @@ export class CredentialService {
    *
    * @param profile - AWS profile name to get credentials for
    * @returns Promise resolving to AWS credentials
-   * @throws AuthenticationError When credential resolution fails
+   * @throws \{AuthenticationError\} When credential resolution fails
    */
   async getCredentials(profile?: string): Promise<AwsCredentialIdentity> {
     // Use environment credentials when they exist and no explicit profile given
@@ -218,7 +218,7 @@ export class CredentialService {
    *
    * @param config - Client configuration options
    * @returns Configured STS client
-   * @throws ServiceError When client creation fails
+   * @throws \{ServiceError\} When client creation fails
    */
   async createStsClient(config: AwsClientConfig = {}): Promise<STSClient> {
     try {
@@ -247,7 +247,7 @@ export class CredentialService {
    *
    * @param profile - AWS profile to validate credentials for
    * @returns Promise resolving to caller identity information
-   * @throws AuthenticationError When credential validation fails
+   * @throws \{AuthenticationError\} When credential validation fails
    */
   async validateCredentials(profile?: string): Promise<CallerIdentity> {
     // Use environment credentials when they exist and no explicit profile given
@@ -385,7 +385,7 @@ export class CredentialService {
    * @param ClientClass - AWS SDK client class constructor
    * @param config - Client configuration options
    * @returns Promise resolving to configured AWS client
-   * @throws ServiceError When client creation fails
+   * @throws \{ServiceError\} When client creation fails
    *
    * @example
    * ```typescript
@@ -426,7 +426,7 @@ export class CredentialService {
    *
    * @param profile - AWS profile to test
    * @returns Promise resolving to credential provider chain information
-   * @throws AuthenticationError When credential chain resolution fails
+   * @throws \{AuthenticationError\} When credential chain resolution fails
    */
   async testCredentialChain(profile?: string): Promise<{
     profile?: string;

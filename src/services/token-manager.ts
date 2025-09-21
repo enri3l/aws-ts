@@ -175,7 +175,7 @@ export class TokenManager {
    *
    * @param startUrl - SSO start URL to get token for
    * @returns Promise resolving to token information
-   * @throws TokenError When token retrieval fails
+   * @throws \{TokenError\} When token retrieval fails
    */
   async getTokenInfo(startUrl: string): Promise<SsoTokenInfo | undefined> {
     try {
