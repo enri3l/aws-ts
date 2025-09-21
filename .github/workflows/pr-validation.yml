@@ -82,13 +82,9 @@ jobs:
       - name: Package validation
         run: pnpm publish --dry-run --no-git-checks
 
-      # Dependency health monitoring (Node.js 22.x only for efficiency)
-      - name: Dependency health check
-        uses: Fzwael/ncu-action@v1.1.0
-        if: matrix.node-version == '22.x'
-        with:
-          warning_mode: true
-          upgrade: false
+      # NOTE: Dependency update monitoring removed from PR validation.
+      # Dependency updates should be handled in separate scheduled workflows
+      # to avoid blocking PR merges for routine maintenance updates.
 
       # Test coverage reporting with Codecov integration (Node.js 22.x only)
       - name: Coverage check
