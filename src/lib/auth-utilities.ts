@@ -377,8 +377,9 @@ export function sanitizeSubprocessArguments(arguments_: string[]): string[] {
  */
 export function formatSubprocessCommand(command: string, arguments_: string[]): string {
   const sanitizedArguments = arguments_.map((argument) => {
-    // Quote arguments that contain spaces or special characters
     if (argument.includes(" ") || argument.includes("\t") || argument.includes("\n")) {
+      // String escaping requires nested template literals for proper quote handling in shell commands.
+      // SonarJS flags this pattern but it's necessary for secure subprocess argument sanitization.
       // eslint-disable-next-line sonarjs/no-nested-template-literals
       return `"${argument.replaceAll('"', String.raw`\"`)}"`;
     }

@@ -290,7 +290,7 @@ export type AuthStatusResponse = z.infer<typeof AuthStatusResponseSchema>;
  *
  * @param config - SSO configuration to validate
  * @returns Validated SSO configuration
- * @throws z.ZodError When SSO configuration validation fails
+ * @throws \{z.ZodError\} When SSO configuration validation fails
  *
  * @public
  */
@@ -303,7 +303,7 @@ export function validateSsoConfig(config: unknown): SsoConfig {
  *
  * @param profileInfo - Profile information to validate
  * @returns Validated profile information
- * @throws z.ZodError When profile information validation fails
+ * @throws \{z.ZodError\} When profile information validation fails
  *
  * @public
  */

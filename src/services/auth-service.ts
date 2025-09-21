@@ -125,7 +125,7 @@ export class AuthService {
    *
    * @param input - Login command input
    * @returns Promise resolving when login is complete
-   * @throws AuthenticationError When login fails
+   * @throws \{AuthenticationError\} When login fails
    */
   async login(input: AuthLogin): Promise<void> {
     const spinner = this.createSpinner("Authenticating with AWS...");
@@ -210,11 +210,9 @@ export class AuthService {
       spinner.text = `Logging in with SSO for profile '${profileName}'...`;
       await this.cliWrapper.ssoLogin(profileName);
 
-      // Validate credentials after login
       spinner.text = "Validating credentials...";
       await this.credentialService.validateCredentials(profileName);
 
-      // Set as active profile
       this.credentialService.setActiveProfile(profileName);
 
       spinner.succeed(`Successfully authenticated with profile '${profileName}'`);
@@ -245,11 +243,9 @@ export class AuthService {
     const spinner = this.createSpinner("Checking authentication status...");
 
     try {
-      // Check AWS CLI installation
       const cliCheck = await this.checkAwsCliStatus();
 
       if (input.allProfiles) {
-        // Get status for all profiles
         const profiles = await this.profileManager.discoverProfiles();
         const profileInfos: ProfileInfo[] = [];
 
@@ -271,7 +267,6 @@ export class AuthService {
           awsCliVersion: cliCheck.version,
         };
       } else {
-        // Get status for specific or active profile
         const profileName = input.profile ?? this.credentialService.getActiveProfile();
         const profileInfo = await this.getProfileStatus(profileName);
 
@@ -325,7 +320,6 @@ export class AuthService {
       await this.attemptProfileLogout(profileName);
     }
 
-    // Clear all credential caches
     this.credentialService.clearAllCredentialCaches();
     spinner.succeed(`Logged out from ${ssoProfiles.length} SSO profiles`);
   }
@@ -344,7 +338,6 @@ export class AuthService {
     spinner.text = `Logging out from profile '${profileName}'...`;
     await this.cliWrapper.ssoLogout(profileName);
 
-    // Clear credential cache for the profile
     this.credentialService.clearCredentialCache(profileName);
     spinner.succeed(`Successfully logged out from profile '${profileName}'`);
   }
@@ -386,7 +379,6 @@ export class AuthService {
       for (const profile of profiles) {
         const profileInfo = await this.getProfileStatus(profile.name);
 
-        // Filter by active status if requested
         if (input.activeOnly && !profileInfo.active) {
           continue;
         }
