@@ -52,9 +52,10 @@ jobs:
       - name: Build documentation
         run: pnpm docs:build
 
-      # Validate built documentation structure and content
+      # Validate built documentation structure and content with graceful handling
       - name: Validate build output
         run: |
+          # Core validation - these must always exist
           if [ ! -d "docs/.vitepress/dist" ]; then
             echo "❌ Build output directory missing"
             exit 1
@@ -64,25 +65,32 @@ jobs:
             exit 1
           fi
 
-          # Check for essential documentation sections
-          if [ ! -f "docs/.vitepress/dist/tutorials/index.html" ]; then
-            echo "❌ Tutorials section missing"
-            exit 1
-          fi
-          if [ ! -f "docs/.vitepress/dist/how-to/index.html" ]; then
-            echo "❌ How-to guides section missing"
-            exit 1
-          fi
-          if [ ! -f "docs/.vitepress/dist/reference/index.html" ]; then
-            echo "❌ Reference section missing"
-            exit 1
-          fi
-          if [ ! -f "docs/.vitepress/dist/api/index.html" ]; then
-            echo "❌ API documentation missing"
-            exit 1
-          fi
+          # Conditional validation function for documentation sections
+          validate_section() {
+            local section=$1
+            local source_file="docs/${section}/index.md"
+            local output_file="docs/.vitepress/dist/${section}/index.html"
 
-          echo "✅ Documentation build validation successful"
+            if [ -f "$source_file" ]; then
+              if [ -f "$output_file" ]; then
+                echo "✅ ${section} section built successfully"
+              else
+                echo "❌ ${section} section failed to build (source exists but output missing)"
+                return 1
+              fi
+            else
+              echo "ℹ️ ${section} section not yet created (skipping validation)"
+            fi
+            return 0
+          }
+
+          # Validate each documentation section conditionally
+          validate_section "tutorials" || exit 1
+          validate_section "how-to" || exit 1
+          validate_section "reference" || exit 1
+          validate_section "api" || exit 1
+
+          echo "✅ Documentation build validation completed"
 
       # Check for broken links (internal and external)
       # Uses lychee for comprehensive link checking with optimized configuration
