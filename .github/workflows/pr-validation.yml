@@ -80,7 +80,7 @@ jobs:
 
       # Package size and content validation
       - name: Package validation
-        run: pnpm publish --dry-run
+        run: pnpm publish --dry-run --no-git-checks
 
       # Dependency health monitoring (Node.js 22.x only for efficiency)
       - name: Dependency health check
