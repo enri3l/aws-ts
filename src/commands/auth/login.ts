@@ -83,6 +83,8 @@ export default class AuthLoginCommand extends Command {
       description: "SSO account ID for profile configuration",
       helpValue: "123456789012",
       dependsOn: ["configure"],
+      // TypeScript requires async for Oclif flag parse function interface compliance,
+      // but synchronous validation is sufficient for this simple regex pattern check
       // eslint-disable-next-line @typescript-eslint/require-await
       parse: async (input: string): Promise<string> => {
         if (!/^\d{12}$/.test(input)) {
@@ -109,13 +111,12 @@ export default class AuthLoginCommand extends Command {
    * Execute the auth login command
    *
    * @returns Promise resolving when command execution is complete
-   * @throws {@link AuthenticationError} When authentication fails
+   * @throws \{AuthenticationError\} When authentication fails
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(AuthLoginCommand);
 
     try {
-      // Build SSO configuration if provided
       let ssoConfig: SsoConfig | undefined;
       if (flags.configure) {
         if (
@@ -139,7 +140,6 @@ export default class AuthLoginCommand extends Command {
         });
       }
 
-      // Build auth login input
       const input: AuthLogin = {
         profile: flags.profile,
         force: flags.force,
@@ -147,15 +147,12 @@ export default class AuthLoginCommand extends Command {
         ssoConfig,
       };
 
-      // Create auth service and perform login
       const authService = new AuthService({
         enableDebugLogging: flags.verbose,
         enableProgressIndicators: true,
       });
 
       await authService.login(input);
-
-      // Success message is handled by the spinner in AuthService
     } catch (error) {
       if (error instanceof AuthenticationError) {
         this.error(formatError(error, flags.verbose), { exit: 1 });
