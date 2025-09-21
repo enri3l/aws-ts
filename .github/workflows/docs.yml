@@ -63,7 +63,7 @@ jobs:
   # GitHub Pages deployment job
   deploy:
     environment:
-      name: GitHub Pages # Exactly named environment as requested
+      name: github-pages # Align with GitHub Pages system environment
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
