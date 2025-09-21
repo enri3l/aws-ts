@@ -84,10 +84,11 @@ jobs:
 
       # Dependency health monitoring (Node.js 22.x only for efficiency)
       - name: Dependency health check
-        uses: mansagroup/ncu-action@v1.4.0
+        uses: Fzwael/ncu-action@v1.1.0
         if: matrix.node-version == '22.x'
         with:
-          warning_mode: on
+          warning_mode: true
+          upgrade: false
 
       # Test coverage reporting with Codecov integration (Node.js 22.x only)
       - name: Coverage check
