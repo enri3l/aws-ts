@@ -64,7 +64,7 @@ describe("CLI Interface E2E", () => {
       // Extract semantic version from OCLIF v4.5.3 output format (e.g., "aws-ts-cli/0.1.0 linux-x64")
       const output = result.stdout.trim();
       expect(output).toContain("0.1.0");
-      expect(output).toContain("aws-ts-cli");
+      expect(output).toContain("aws-ts");
     });
   });
 

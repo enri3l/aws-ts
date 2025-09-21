@@ -93,6 +93,7 @@ export default class AuthProfilesCommand extends Command {
    * Execute the auth profiles command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws \{Error\} When profile listing fails or configuration errors occur
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(AuthProfilesCommand);
@@ -105,6 +106,7 @@ export default class AuthProfilesCommand extends Command {
      * automated tooling and CI/CD pipelines that depend on structured output.
      *
      * @param error - The error that occurred during profile listing
+     * @throws \{unknown\} Re-throws the original error when format is not JSON
      * @internal
      */
     const ensureJsonOutput = (error: unknown) => {
@@ -193,7 +195,6 @@ export default class AuthProfilesCommand extends Command {
       }
     } catch (error) {
       if (flags.format === "json") {
-        // Output JSON error format
         const errorObject = {
           error: "Failed to list profiles",
           message: error instanceof Error ? formatError(error, flags.verbose) : String(error),
@@ -222,7 +223,6 @@ export default class AuthProfilesCommand extends Command {
     this.log(`=== AWS Profiles (${profiles.length} found) ===`);
     this.log("");
 
-    // Create table data
     const tableData = profiles.map((profile: DisplayProfileInfo) => {
       const row: Record<string, string> = {
         Profile: profile.name,
@@ -256,10 +256,8 @@ export default class AuthProfilesCommand extends Command {
       return row;
     });
 
-    // Display table
     console.table(tableData);
 
-    // Summary information
     const activeProfiles = profiles.filter((p) => p.active);
     const validProfiles = profiles.filter((p) => p.credentialsValid);
     const ssoProfiles = profiles.filter((p) => p.type === "sso");
@@ -271,7 +269,6 @@ export default class AuthProfilesCommand extends Command {
     this.log(`Profiles with valid credentials: ${validProfiles.length}`);
     this.log(`SSO profiles: ${ssoProfiles.length}`);
 
-    // Check for expired or near-expiry tokens
     const expiredProfiles = profiles.filter(
       (p: DisplayProfileInfo) => p.tokenExpiry && new Date(p.tokenExpiry).getTime() <= Date.now(),
     );
@@ -304,7 +301,6 @@ export default class AuthProfilesCommand extends Command {
    * @internal
    */
   private displayProfilesCsv(profiles: DisplayProfileInfo[], detailed: boolean): void {
-    // CSV headers
     const headers = ["Profile", "Type", "Active", "Valid"];
 
     if (detailed) {
@@ -321,7 +317,6 @@ export default class AuthProfilesCommand extends Command {
 
     this.log(headers.join(","));
 
-    // CSV rows
     for (const profile of profiles) {
       const row = this.buildCsvRow(profile, detailed);
       const escapedRow = this.escapeCsvValues(row);
