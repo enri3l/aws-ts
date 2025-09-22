@@ -28,7 +28,7 @@
     { "type": "chore", "section": "🧹 Maintenance", "hidden": true },
     { "type": "revert", "section": "⏪ Reverts", "hidden": false }
   ],
-  "extra-files": ["README.md"],
+  "extra-files": ["README.md", "jsr.json"],
   "path-based-scopes": [
     { "pattern": "src/commands/auth/**", "scope": "auth" },
     { "pattern": "src/commands/**", "scope": "commands" },

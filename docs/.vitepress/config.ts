@@ -72,14 +72,14 @@ export default defineConfig({
       ],
     },
 
-    socialLinks: [{ icon: "github", link: "https://github.com/enri3l/aws-ts" }],
+    socialLinks: [{ icon: "github", link: "https://github.com/monte3l/aws-ts" }],
 
     search: {
       provider: "local",
     },
 
     editLink: {
-      pattern: "https://github.com/enri3l/aws-ts/edit/main/docs/:path",
+      pattern: "https://github.com/monte3l/aws-ts/edit/main/docs/:path",
       text: "Edit this page on GitHub",
     },
   },
