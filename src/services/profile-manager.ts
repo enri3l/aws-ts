@@ -188,7 +188,7 @@ export class ProfileManager {
    * Discover all available AWS profiles
    *
    * @returns Promise resolving to array of discovered profiles
-   * @throws \{ProfileError\} When profile discovery fails
+   * @throws When profile discovery fails
    */
   async discoverProfiles(): Promise<AwsProfileConfig[]> {
     try {
@@ -239,7 +239,7 @@ export class ProfileManager {
    *
    * @param profileName - Name of the profile to get information for
    * @returns Promise resolving to profile information
-   * @throws \{ProfileError\} When profile is not found or invalid
+   * @throws When profile is not found or invalid
    */
   async getProfileInfo(profileName: string): Promise<ProfileInfo> {
     try {
@@ -389,7 +389,7 @@ export class ProfileManager {
    *
    * @param profileName - Name of the profile to switch to
    * @returns Promise resolving when profile switch is complete
-   * @throws \{ProfileError\} When profile switch fails
+   * @throws When profile switch fails
    */
   async switchProfile(profileName: string): Promise<void> {
     try {
@@ -462,7 +462,7 @@ export class ProfileManager {
    * Parse AWS config file
    *
    * @returns Promise resolving to array of profiles from config file
-   * @throws \{ProfileError\} When config file parsing fails
+   * @throws When config file parsing fails
    * @internal
    */
   private async parseConfigFile(): Promise<AwsProfileConfig[]> {
@@ -511,7 +511,7 @@ export class ProfileManager {
    * Parse AWS credentials file
    *
    * @returns Promise resolving to array of profiles from credentials file
-   * @throws \{ProfileError\} When credentials file parsing fails
+   * @throws When credentials file parsing fails
    * @internal
    */
   private async parseCredentialsFile(): Promise<AwsProfileConfig[]> {

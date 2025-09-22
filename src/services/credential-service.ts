@@ -162,10 +162,9 @@ export class CredentialService {
    *
    * @param profile - AWS profile name to get credentials for
    * @returns Promise resolving to AWS credentials
-   * @throws \{AuthenticationError\} When credential resolution fails
+   * @throws When credential resolution fails
    */
   async getCredentials(profile?: string): Promise<AwsCredentialIdentity> {
-    // Use environment credentials when they exist and no explicit profile given
     const profileName =
       profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
     const cacheKey = `credentials-${profileName ?? "env"}`;
@@ -201,7 +200,6 @@ export class CredentialService {
 
       return credentials;
     } catch (error) {
-      // Clear cache entry on error
       this.credentialCache.delete(cacheKey);
 
       throw new AuthenticationError(
@@ -218,7 +216,7 @@ export class CredentialService {
    *
    * @param config - Client configuration options
    * @returns Configured STS client
-   * @throws \{ServiceError\} When client creation fails
+   * @throws When client creation fails
    */
   async createStsClient(config: AwsClientConfig = {}): Promise<STSClient> {
     try {
@@ -247,15 +245,13 @@ export class CredentialService {
    *
    * @param profile - AWS profile to validate credentials for
    * @returns Promise resolving to caller identity information
-   * @throws \{AuthenticationError\} When credential validation fails
+   * @throws When credential validation fails
    */
   async validateCredentials(profile?: string): Promise<CallerIdentity> {
-    // Use environment credentials when they exist and no explicit profile given
     const profileName =
       profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
 
     try {
-      // Only include profile in config if it's defined
       const clientConfig: AwsClientConfig = {};
       if (profileName) {
         clientConfig.profile = profileName;
@@ -333,7 +329,6 @@ export class CredentialService {
    * @param profile - AWS profile to clear credentials for
    */
   clearCredentialCache(profile?: string): void {
-    // Use environment credentials when they exist and no explicit profile given
     const profileName =
       profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
     const cacheKey = `credentials-${profileName ?? "env"}`;
@@ -385,7 +380,7 @@ export class CredentialService {
    * @param ClientClass - AWS SDK client class constructor
    * @param config - Client configuration options
    * @returns Promise resolving to configured AWS client
-   * @throws \{ServiceError\} When client creation fails
+   * @throws When client creation fails
    *
    * @example
    * ```typescript
@@ -426,7 +421,7 @@ export class CredentialService {
    *
    * @param profile - AWS profile to test
    * @returns Promise resolving to credential provider chain information
-   * @throws \{AuthenticationError\} When credential chain resolution fails
+   * @throws When credential chain resolution fails
    */
   async testCredentialChain(profile?: string): Promise<{
     profile?: string;
@@ -434,7 +429,6 @@ export class CredentialService {
     providerUsed: string;
     identity?: CallerIdentity;
   }> {
-    // Use environment credentials when they exist and no explicit profile given
     const profileName =
       profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
 

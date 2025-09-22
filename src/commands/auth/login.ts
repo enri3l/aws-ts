@@ -111,7 +111,7 @@ export default class AuthLoginCommand extends Command {
    * Execute the auth login command
    *
    * @returns Promise resolving when command execution is complete
-   * @throws \{AuthenticationError\} When authentication fails
+   * @throws When authentication fails
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(AuthLoginCommand);
