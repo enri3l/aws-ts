@@ -10,13 +10,13 @@
     "dynamo",
     "sdk"
   ],
-  "homepage": "https://github.com/enri3l/aws-ts#readme",
+  "homepage": "https://github.com/monte3l/aws-ts#readme",
   "bugs": {
-    "url": "https://github.com/enri3l/aws-ts/issues"
+    "url": "https://github.com/monte3l/aws-ts/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/enri3l/aws-ts.git"
+    "url": "https://github.com/monte3l/aws-ts.git"
   },
   "main": "./dist/index.js",
   "bin": {
