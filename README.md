@@ -1,7 +1,7 @@
 # AWS TypeScript CLI
 
-[![Build Status](https://github.com/enri3l/aws-ts/workflows/CI/badge.svg)](https://github.com/enri3l/aws-ts/actions)
-[![Coverage Status](https://img.shields.io/codecov/c/github/enri3l/aws-ts)](https://codecov.io/gh/enri3l/aws-ts)
+[![Build Status](https://github.com/monte3l/aws-ts/workflows/CI/badge.svg)](https://github.com/monte3l/aws-ts/actions)
+[![Coverage Status](https://img.shields.io/codecov/c/github/monte3l/aws-ts)](https://codecov.io/gh/monte3l/aws-ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-24.6+-green.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -36,7 +36,7 @@ For development and local testing:
 
 ```bash
 # Clone and setup for development
-git clone https://github.com/enri3l/aws-ts.git
+git clone https://github.com/monte3l/aws-ts.git
 cd aws-ts
 pnpm install
 pnpm build
@@ -108,7 +108,7 @@ decisions, please see the **[full Architecture documentation](https://enri3l.git
 
 ```bash
 # Clone the repository
-git clone https://github.com/enri3l/aws-ts.git
+git clone https://github.com/monte3l/aws-ts.git
 cd aws-ts
 
 # Install dependencies
@@ -295,4 +295,4 @@ LICENSE file for details.
 **Built by [Enrico Lionello](https://github.com/enri3l) and [Claude Code](https://claude.ai/code)**
 
 For questions, issues, or contributions, please visit our
-[GitHub repository](https://github.com/enri3l/aws-ts).
+[GitHub repository](https://github.com/monte3l/aws-ts).
