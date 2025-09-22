@@ -206,7 +206,7 @@ export class AutoRepairService {
         ];
       }
 
-      console.log(`\n🔧 Found ${repairOpportunities.length} potential repair operations:`);
+      console.log(`\nFound ${repairOpportunities.length} potential repair operations:`);
 
       for (const opportunity of repairOpportunities) {
         const { proceed } = await enquirer.prompt<{ proceed: boolean }>({

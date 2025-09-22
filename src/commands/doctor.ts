@@ -283,7 +283,7 @@ export default class DoctorCommand extends Command {
     try {
       if (autoFix) {
         if (!jsonMode) {
-          this.log("\n🔧 Executing safe auto-repair operations...");
+          this.log("\nExecuting safe auto-repair operations...");
         }
         const safeRepairs = await this.autoRepairService.executeSafeRepairs(
           context,
