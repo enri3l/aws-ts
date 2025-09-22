@@ -23,7 +23,7 @@ aws --version
 
 ```bash
 # Clone the repository
-git clone https://github.com/enri3l/aws-ts.git
+git clone https://github.com/monte3l/aws-ts.git
 cd aws-ts
 
 # Install dependencies with pnpm
