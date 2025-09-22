@@ -6,7 +6,17 @@
   "pull-request-footer": "Generated with [Release Please](https://github.com/googleapis/release-please)",
   "changelog-sections": [
     { "type": "feat", "section": "✨ Features", "hidden": false },
+    { "type": "feat", "scope": "auth", "section": "🔑 Authentication Updates", "hidden": false },
+    {
+      "type": "feat",
+      "scope": "doctor",
+      "section": "🩺 Diagnostics Enhancements",
+      "hidden": false
+    },
+    { "type": "feat", "scope": "commands", "section": "🚀 CLI Commands", "hidden": false },
     { "type": "fix", "section": "🐛 Bug Fixes", "hidden": false },
+    { "type": "fix", "scope": "auth", "section": "🔐 Authentication Fixes", "hidden": false },
+    { "type": "fix", "scope": "doctor", "section": "⚕️ Diagnostics Fixes", "hidden": false },
     { "type": "perf", "section": "⚡ Performance Improvements", "hidden": false },
     { "type": "refactor", "section": "♻️ Code Refactoring", "hidden": false },
     { "type": "docs", "section": "📚 Documentation", "hidden": false },
@@ -19,6 +29,23 @@
     { "type": "revert", "section": "⏪ Reverts", "hidden": false }
   ],
   "extra-files": ["README.md"],
+  "path-based-scopes": [
+    { "pattern": "src/commands/auth/**", "scope": "auth" },
+    { "pattern": "src/commands/**", "scope": "commands" },
+    { "pattern": "src/services/doctor/**", "scope": "doctor" },
+    { "pattern": "src/services/**", "scope": "services" },
+    { "pattern": "src/handlers/**", "scope": "handlers" },
+    { "pattern": "src/lib/**", "scope": "lib" },
+    { "pattern": "src/queries/**", "scope": "queries" },
+    { "pattern": ".github/workflows/**", "scope": "ci" },
+    { "pattern": "docs/**", "scope": "docs" },
+    { "pattern": "tests/**", "scope": "tests" },
+    { "pattern": "package.json", "scope": "deps" },
+    { "pattern": "package-lock.json", "scope": "deps" },
+    { "pattern": "pnpm-lock.yaml", "scope": "deps" },
+    { "pattern": "*.config.*", "scope": "config" },
+    { "pattern": "tsconfig*.json", "scope": "build" }
+  ],
   "packages": {
     ".": {}
   }
