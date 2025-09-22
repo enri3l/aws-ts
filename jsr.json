@@ -1,5 +1,5 @@
 {
-  "name": "@monte3l/aws-cli",
+  "name": "@monte3l/aws-ts",
   "version": "0.1.0",
   "exports": {
     ".": "./src/index.ts"

@@ -85,7 +85,7 @@ jobs:
 
       # Package size and content validation
       - name: Package validation
-        run: pnpm publish --dry-run --no-git-checks
+        run: pnpm dlx jsr publish --dry-run --allow-dirty
 
       # NOTE: Dependency update monitoring removed from PR validation.
       # Dependency updates should be handled in separate scheduled workflows

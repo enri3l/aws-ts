@@ -52,13 +52,13 @@ For production installation (when available):
 
 ```bash
 # Install from JSR registry
-npx jsr add @monte3l/aws-cli
+npx jsr add @monte3l/aws-ts
 
 # Or using pnpm
-pnpm dlx jsr add @monte3l/aws-cli
+pnpm dlx jsr add @monte3l/aws-ts
 
 # Or using deno
-deno add @monte3l/aws-cli
+deno add @monte3l/aws-ts
 ```
 
 ### Basic Usage

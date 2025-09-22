@@ -77,5 +77,3 @@ jobs:
       - name: Publish to JSR
         if: ${{ steps.release.outputs.release_created }}
         run: pnpm dlx jsr publish
-        env:
-          JSR_TOKEN: ${{ secrets.JSR_TOKEN }}
