@@ -1,10 +1,6 @@
 # Pull Request
 
 <!--
-Thank you for your pull request!
-
-Please ensure your commit messages follow our Conventional Commits guidelines:
-https://www.conventionalcommits.org/en/v1.0.0/
 
 Required Format: type(scope): description
 
