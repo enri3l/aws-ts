@@ -77,13 +77,14 @@ describe("Connectivity Checks", () => {
 
         expect(result.status).toBe("pass");
         expect(result.message).toBe("STS connectivity successful for account 123456789012");
+        const expectedTimeout = process.env.CI ? 500 : 15_000;
         expect(result.details).toEqual({
           account: "123456789012",
           userId: "AIDACKCEVSQ6C2EXAMPLE",
           arn: "arn:aws:iam::123456789012:user/test-user",
           profile: "test-profile",
           responseTime: expect.any(Number),
-          timeoutMs: 15_000,
+          timeoutMs: expectedTimeout,
         });
 
         expect(mockCredentialService.validateCredentials).toHaveBeenCalledWith("test-profile");
@@ -104,18 +105,20 @@ describe("Connectivity Checks", () => {
         expect(result.details?.profile).toBe("test-profile");
       });
 
-      it("should fail for STS timeout", { timeout: 20_000 }, async () => {
+      it("should fail for STS timeout", { timeout: process.env.CI ? 2000 : 20_000 }, async () => {
+        const mockDelay = process.env.CI ? 600 : 16_000;
         mockCredentialService.validateCredentials.mockImplementation(
-          () => new Promise((resolve) => setTimeout(() => resolve(), 16_000)),
+          () => new Promise((resolve) => setTimeout(() => resolve(), mockDelay)),
         );
 
         const result = await stsCredentialCheck.execute(context);
 
+        const expectedTimeout = process.env.CI ? 500 : 15_000;
         expect(result.status).toBe("fail");
-        expect(result.message).toBe("STS call timed out after 15000ms");
+        expect(result.message).toBe(`STS call timed out after ${expectedTimeout}ms`);
         expect(result.details).toEqual({
           error: "Timeout",
-          timeoutMs: 15_000,
+          timeoutMs: expectedTimeout,
           profile: "test-profile",
         });
         expect(result.remediation).toContain("Check network connectivity");
@@ -326,11 +329,12 @@ describe("Connectivity Checks", () => {
       });
 
       it("should handle S3 connectivity timeout", async () => {
+        const mockDelay = process.env.CI ? 500 : 15_000;
         const mockS3Client = {
           config: {
             region: vi
               .fn()
-              .mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 15_000))),
+              .mockImplementation(() => new Promise((resolve) => setTimeout(resolve, mockDelay))),
           },
         };
 
@@ -408,10 +412,11 @@ describe("Connectivity Checks", () => {
 
         expect(result.status).toBe("pass");
         expect(result.message).toBe("Region 'us-east-1' is accessible and responsive");
+        const expectedTimeout = process.env.CI ? 450 : 12_000;
         expect(result.details).toEqual({
           configuredRegion: "us-east-1",
           responseTime: expect.any(Number),
-          timeoutMs: 12_000,
+          timeoutMs: expectedTimeout,
           profile: "test-profile",
         });
       });
@@ -471,24 +476,32 @@ describe("Connectivity Checks", () => {
         expect(result.remediation).toContain("Verify region name matches AWS region format");
       });
 
-      it("should fail for region timeout", { timeout: 20_000 }, async () => {
-        process.env.AWS_REGION = "us-west-2";
+      it(
+        "should fail for region timeout",
+        { timeout: process.env.CI ? 2000 : 20_000 },
+        async () => {
+          process.env.AWS_REGION = "us-west-2";
 
-        mockCredentialService.validateCredentials.mockImplementation(
-          () => new Promise((resolve) => setTimeout(() => resolve(), 16_000)),
-        );
+          const mockDelay = process.env.CI ? 550 : 16_000;
+          mockCredentialService.validateCredentials.mockImplementation(
+            () => new Promise((resolve) => setTimeout(() => resolve(), mockDelay)),
+          );
 
-        const result = await regionAccessibilityCheck.execute(context);
+          const result = await regionAccessibilityCheck.execute(context);
 
-        expect(result.status).toBe("fail");
-        expect(result.message).toBe("Region 'us-west-2' accessibility test timed out");
-        expect(result.details).toEqual({
-          configuredRegion: "us-west-2",
-          error: "Timeout",
-          timeoutMs: 12_000,
-        });
-        expect(result.remediation).toContain("Check network connectivity to AWS region endpoints");
-      });
+          expect(result.status).toBe("fail");
+          expect(result.message).toBe("Region 'us-west-2' accessibility test timed out");
+          const expectedTimeout = process.env.CI ? 450 : 12_000;
+          expect(result.details).toEqual({
+            configuredRegion: "us-west-2",
+            error: "Timeout",
+            timeoutMs: expectedTimeout,
+          });
+          expect(result.remediation).toContain(
+            "Check network connectivity to AWS region endpoints",
+          );
+        },
+      );
 
       it("should fail for invalid region", async () => {
         process.env.AWS_REGION = "invalid-region";

@@ -11,7 +11,8 @@ import { vol } from "memfs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AuthLoginCommand from "../../../../src/commands/auth/login.js";
-import { AuthenticationError } from "../../../../src/lib/auth-errors.js";
+import { AuthenticationError, ProfileError } from "../../../../src/lib/auth-errors.js";
+import { ConfigurationError } from "../../../../src/lib/errors.js";
 import { AuthService } from "../../../../src/services/auth-service.js";
 
 // Mock filesystem
@@ -578,6 +579,391 @@ region = eu-west-1`,
 
       // Verify STS mock is properly configured
       expect(stsMock).toBeDefined();
+    });
+  });
+
+  describe("error path testing", () => {
+    describe("invalid input scenarios", () => {
+      it("should handle invalid profile name with special characters", async () => {
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ProfileError(
+              "Invalid profile name: contains special characters",
+              "invalid-profile-name",
+            ),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test@profile!#$",
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle empty profile name", async () => {
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ProfileError("Profile name cannot be empty", "empty-profile-name"),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "",
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle extremely long profile names", async () => {
+        const longProfileName = "a".repeat(256);
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ProfileError("Profile name too long (max 64 characters)", "profile-name-too-long"),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: longProfileName,
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle conflicting flags combination", async () => {
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: true,
+            configure: true, // Conflicting with force
+            verbose: false,
+          },
+          args: {},
+        });
+
+        // The command should handle this gracefully or throw appropriate error
+        await expect(command.run()).rejects.toThrow();
+      });
+    });
+
+    describe("malformed configuration scenarios", () => {
+      beforeEach(() => {
+        vi.clearAllMocks();
+        vol.reset();
+        stsMock.reset();
+      });
+
+      it("should handle corrupted AWS config file", async () => {
+        vol.fromJSON(
+          {
+            "/home/user/.aws/config": `[profile test-profile]
+sso_session = company
+sso_account_id = invalid-account
+region = {invalid-region}
+malformed line without equals
+[incomplete-section`,
+          },
+          true,
+        );
+
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ConfigurationError("Failed to parse AWS config file", "config-parse-error"),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle missing SSO session configuration", async () => {
+        vol.fromJSON(
+          {
+            "/home/user/.aws/config": `[profile test-profile]
+sso_session = missing-session
+sso_account_id = 123456789012
+sso_role_name = TestRole
+region = us-east-1`,
+          },
+          true,
+        );
+
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ConfigurationError(
+              "SSO session 'missing-session' not found",
+              "sso-session-not-found",
+            ),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle invalid JSON in SSO cache", async () => {
+        vol.fromJSON(
+          {
+            "/home/user/.aws/config": `[profile test-profile]
+sso_session = company
+sso_account_id = 123456789012
+sso_role_name = TestRole
+region = us-east-1
+
+[sso-session company]
+sso_region = us-east-1
+sso_start_url = https://company.awsapps.com/start`,
+            "/home/user/.aws/sso/cache/corrupted-token.json": "{ invalid json structure",
+          },
+          true,
+        );
+
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ConfigurationError("Failed to parse SSO cache file", "sso-cache-parse-error"),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle missing required SSO configuration fields", async () => {
+        vol.fromJSON(
+          {
+            "/home/user/.aws/config": `[profile test-profile]
+sso_session = company
+# Missing sso_account_id and sso_role_name
+region = us-east-1
+
+[sso-session company]
+sso_region = us-east-1
+# Missing sso_start_url`,
+          },
+          true,
+        );
+
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ConfigurationError(
+              "Missing required SSO configuration: sso_account_id, sso_role_name, sso_start_url",
+              "missing-sso-config",
+            ),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+    });
+
+    describe("permission and file system errors", () => {
+      it("should handle permission denied on config directory", async () => {
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ConfigurationError(
+              "Permission denied: Cannot read AWS config directory",
+              "permission-denied",
+            ),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: false,
+            configure: false,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle disk full errors during config write", async () => {
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(new ConfigurationError("No space left on device", "disk-full"));
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: false,
+            configure: true,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
+
+      it("should handle read-only file system errors", async () => {
+        const mockAuthService = vi.mocked(AuthService);
+        const mockLogin = vi
+          .fn()
+          .mockRejectedValue(
+            new ConfigurationError("Read-only file system", "readonly-filesystem"),
+          );
+        mockAuthService.mockImplementation(
+          () =>
+            ({
+              login: mockLogin,
+            }) as any,
+        );
+
+        const command = new AuthLoginCommand([], {} as any);
+
+        vi.spyOn(command, "parse").mockResolvedValue({
+          flags: {
+            profile: "test-profile",
+            force: false,
+            configure: true,
+            verbose: false,
+          },
+          args: {},
+        });
+
+        await expect(command.run()).rejects.toThrow();
+      });
     });
   });
 });

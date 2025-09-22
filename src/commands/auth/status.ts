@@ -8,7 +8,7 @@
 
 import { Command, Flags } from "@oclif/core";
 import type { AuthStatus, AuthStatusResponse, ProfileInfo } from "../../lib/auth-schemas.js";
-import { formatError } from "../../lib/errors.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
 import { TokenManager } from "../../services/token-manager.js";
 
@@ -91,14 +91,12 @@ export default class AuthStatusCommand extends Command {
     const { flags } = await this.parse(AuthStatusCommand);
 
     try {
-      // Build auth status input
       const input: AuthStatus = {
         profile: flags.profile,
         detailed: flags.detailed,
         allProfiles: flags["all-profiles"],
       };
 
-      // Create auth service and get status
       const authService = new AuthService({
         enableDebugLogging: flags.verbose,
         enableProgressIndicators: true,
@@ -111,13 +109,15 @@ export default class AuthStatusCommand extends Command {
         return;
       }
 
-      // Display table format
       this.displayStatusTable(status, flags.detailed);
     } catch (error) {
       if (error instanceof Error) {
-        this.error(`Failed to get authentication status: ${formatError(error, flags.verbose)}`, {
-          exit: 1,
-        });
+        this.error(
+          `Failed to get authentication status: ${formatErrorWithGuidance(error, flags.verbose)}`,
+          {
+            exit: 1,
+          },
+        );
       }
 
       this.error(`Failed to get authentication status: ${String(error)}`, { exit: 1 });
@@ -132,7 +132,6 @@ export default class AuthStatusCommand extends Command {
    * @internal
    */
   private displayStatusTable(status: AuthStatusResponse, detailed: boolean): void {
-    // AWS CLI Status
     this.log("=== AWS CLI Status ===");
     this.log(`Installed: ${status.awsCliInstalled ? "✓" : "✗"}`);
     if (status.awsCliVersion) {
@@ -140,7 +139,6 @@ export default class AuthStatusCommand extends Command {
     }
     this.log("");
 
-    // Overall Authentication Status
     this.log("=== Authentication Status ===");
     this.log(`Overall Status: ${status.authenticated ? "✓ Authenticated" : "✗ Not Authenticated"}`);
     if (status.activeProfile) {
@@ -148,7 +146,6 @@ export default class AuthStatusCommand extends Command {
     }
     this.log("");
 
-    // Profile Status
     this.log("=== Profile Status ===");
 
     if (status.profiles.length === 0) {
@@ -156,7 +153,6 @@ export default class AuthStatusCommand extends Command {
       return;
     }
 
-    // Create table data
     const tableData = status.profiles.map((profile: ProfileInfo) => {
       const row: Record<string, string> = {
         Profile: profile.name,

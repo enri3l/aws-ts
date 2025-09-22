@@ -1,0 +1,221 @@
+# CI Workflow
+#
+# Consolidated continuous integration pipeline for all branches.
+# Runs comprehensive validation on main branch and pull requests, with optimized
+# validation on feature branches. Provides build status badge accuracy and complete coverage reporting.
+#
+# Performance Optimizations:
+# - Environment-aware test timeouts (CI: 500ms vs Local: 15s for connectivity tests)
+# - Optimized coverage reporting (lcov for CI, html for local development)
+# - Parallel test execution with V8 coverage performance flags
+#
+# Triggered on:
+# - Push to main (for accurate build badge status)
+# - Pull requests to main (for pre-merge validation)
+# - Push to feature/fix/chore branches (for developer feedback)
+# Matrix: Node.js 20.x, 22.x, 24.x (LTS versions)
+# Coverage: Codecov integration with OIDC (secure, tokenless)
+
+name: CI
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
+      - "chore/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read # Repository content access
+  checks: write # Post check results and status updates
+  actions: read # Access to workflow run data
+  id-token: write # Required for Codecov OIDC authentication
+
+jobs:
+  # Changed file detection for conditional job execution (feature branches only)
+  changes:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    outputs:
+      src: ${{ steps.changes.outputs.src }}
+      tests: ${{ steps.changes.outputs.tests }}
+      workflows: ${{ steps.changes.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            src:
+              - 'src/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+            tests:
+              - 'tests/**'
+              - 'vitest.config.ts'
+            workflows:
+              - '.github/workflows/**'
+
+  validate:
+    needs: [changes]
+    # This job runs if the 'changes' job was successful (on a feature branch)
+    # or if it was skipped (on main/PRs, where path filtering isn't needed).
+    if: always() && (needs.changes.result == 'skipped' || needs.changes.result == 'success')
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x, 24.x]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      # Repository checkout with full history for semantic analysis
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Node.js setup with pnpm caching for optimal performance
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Enable corepack to install pnpm
+      - name: Enable corepack
+        run: corepack enable
+
+      # Install dependencies using pnpm with lockfile validation
+      - name: Install dependencies
+        run: pnpm install
+
+      # TypeScript compilation check without emit
+      - name: Type check
+        if: |
+          github.ref == 'refs/heads/main' ||
+          github.event_name == 'pull_request' ||
+          needs.changes.outputs.src == 'true' ||
+          needs.changes.outputs.workflows == 'true'
+        run: pnpm typecheck
+
+      # ESLint + Markdownlint validation for code quality
+      - name: Lint
+        if: |
+          github.ref == 'refs/heads/main' ||
+          github.event_name == 'pull_request' ||
+          needs.changes.outputs.src == 'true' ||
+          needs.changes.outputs.workflows == 'true'
+        run: pnpm lint
+
+      # Unit tests execution on all Node.js versions (fast feedback)
+      - name: Unit tests
+        if: |
+          github.ref == 'refs/heads/main' ||
+          github.event_name == 'pull_request' ||
+          needs.changes.outputs.src == 'true' ||
+          needs.changes.outputs.tests == 'true'
+        timeout-minutes: 3
+        run: pnpm test:unit
+
+      # Production build validation (required before E2E tests)
+      - name: Build
+        if: |
+          github.ref == 'refs/heads/main' ||
+          github.event_name == 'pull_request' ||
+          needs.changes.outputs.src == 'true' ||
+          needs.changes.outputs.workflows == 'true'
+        run: pnpm build
+
+      # Integration tests on Node.js 22.x only (representative coverage)
+      - name: Integration tests
+        if: |
+          matrix.node-version == '22.x' &&
+          (github.ref == 'refs/heads/main' ||
+           github.event_name == 'pull_request' ||
+           needs.changes.outputs.src == 'true' ||
+           needs.changes.outputs.tests == 'true')
+        timeout-minutes: 8
+        run: pnpm test:integration
+
+      # E2E tests on Node.js 22.x only (comprehensive but slow)
+      - name: E2E tests
+        if: |
+          matrix.node-version == '22.x' &&
+          (github.ref == 'refs/heads/main' ||
+           github.event_name == 'pull_request' ||
+           needs.changes.outputs.src == 'true' ||
+           needs.changes.outputs.tests == 'true')
+        run: pnpm test:e2e
+
+      # Security vulnerability scan using pnpm audit (main/PR only)
+      - name: Security audit
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        run: pnpm audit
+
+      # Enhanced dependency and license review (main/PR only)
+      - name: Dependency & License Review
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          vulnerability-check: true
+          license-check: true
+          fail-on-severity: moderate
+
+      # Package size and content validation (main/PR only)
+      - name: Package validation
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        run: pnpm dlx jsr publish --dry-run
+
+      # Generate coverage report
+      - name: Generate Coverage Report
+        if: |
+          matrix.node-version == '22.x' &&
+          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+        timeout-minutes: 4
+        run: pnpm test:coverage
+
+      # CI performance metrics collection
+      - name: Record CI Performance Metrics
+        if: |
+          matrix.node-version == '22.x' &&
+          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+        run: |
+          echo "## CI Performance Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- Connectivity test timeout: CI=500ms, Local=15s" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage reporter: CI=lcov, Local=html+lcov" >> $GITHUB_STEP_SUMMARY
+          echo "- V8 coverage flags: skipFull, cleanOnRerun, perFile enabled" >> $GITHUB_STEP_SUMMARY
+
+      # Upload coverage report to Codecov
+      - name: Upload Coverage Report to Codecov
+        if: |
+          matrix.node-version == '22.x' &&
+          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+        uses: codecov/codecov-action@v4
+        with:
+          use_oidc: true
+          file: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+      # Upload test results to Codecov Test Analytics
+      - name: Upload Test Results to Codecov
+        if: |
+          matrix.node-version == '22.x' &&
+          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+        uses: codecov/test-results-action@v1
+        with:
+          file: ./test-results.xml
+          flags: test-analytics
+          fail_ci_if_error: false
+
+      # Artifact upload for test results and coverage (debugging and analytics)
+      - name: Upload Test Artifacts
+        if: |
+          matrix.node-version == '22.x' &&
+          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: |
+            ./test-results.xml
+            ./test-results.json
+            ./coverage/coverage-summary.json
+          retention-days: 30

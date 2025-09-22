@@ -8,7 +8,7 @@
 
 import { Command, Flags } from "@oclif/core";
 import type { AuthProfiles, ProfileInfo } from "../../lib/auth-schemas.js";
-import { formatError } from "../../lib/errors.js";
+import { formatError, formatErrorWithGuidance } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
 import { TokenManager } from "../../services/token-manager.js";
 
@@ -169,7 +169,9 @@ export default class AuthProfilesCommand extends Command {
       }
 
       if (error instanceof Error) {
-        this.error(`Failed to list profiles: ${formatError(error, flags.verbose)}`, { exit: 1 });
+        this.error(`Failed to list profiles: ${formatErrorWithGuidance(error, flags.verbose)}`, {
+          exit: 1,
+        });
       }
 
       this.error(`Failed to list profiles: ${String(error)}`, { exit: 1 });

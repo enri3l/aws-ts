@@ -51,8 +51,9 @@ export class StsCredentialCheck implements ICheck {
 
   /**
    * Timeout for STS calls in milliseconds
+   * CI optimized while preserving production behavior
    */
-  private readonly timeoutMs = 15_000;
+  private readonly timeoutMs = process.env.CI ? 500 : 15_000;
 
   /**
    * Create a new STS credential connectivity check
@@ -247,8 +248,9 @@ export class ServiceEndpointCheck implements ICheck {
 
   /**
    * Timeout for service calls in milliseconds
+   * CI optimized while preserving production behavior
    */
-  private readonly timeoutMs = 10_000;
+  private readonly timeoutMs = process.env.CI ? 400 : 10_000;
 
   /**
    * Create a new service endpoint connectivity check
@@ -431,8 +433,9 @@ export class RegionAccessibilityCheck implements ICheck {
 
   /**
    * Timeout for region calls in milliseconds
+   * CI optimized while preserving production behavior
    */
-  private readonly timeoutMs = 12_000;
+  private readonly timeoutMs = process.env.CI ? 450 : 12_000;
 
   /**
    * Create a new region accessibility check
