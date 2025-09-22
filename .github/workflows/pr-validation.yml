@@ -85,13 +85,20 @@ jobs:
 
       # Package size and content validation
       - name: Package validation
-        run: pnpm dlx jsr publish --dry-run --allow-dirty
+        run: pnpm dlx jsr publish --dry-run
 
       # NOTE: Dependency update monitoring removed from PR validation.
       # Dependency updates should be handled in separate scheduled workflows
       # to avoid blocking PR merges for routine maintenance updates.
 
-      # Test coverage reporting with Codecov integration (Node.js 22.x only)
+      # Test coverage reporting with Codecov integration
+      #
+      # Coverage runs on Node.js 22.x only for CI efficiency:
+      # - Coverage data is version-agnostic (measures code execution, not runtime behavior)
+      # - Node.js compatibility already verified by unit tests on all versions (20.x, 22.x, 24.x)
+      # - Running expensive coverage generation 3x provides no additional value
+      # - Node.js 22.x represents current LTS environment for representative coverage
+      # - This optimization saves ~60% CI time while maintaining same quality assurance
       - name: Coverage check
         run: pnpm test:coverage
         if: matrix.node-version == '22.x'
