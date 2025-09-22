@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.0...aws-ts-v0.2.1) (2025-09-22)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** remove dependency review from release workflow ([acda61e](https://github.com/monte3l/aws-ts/commit/acda61e82d651f500780d7fcb4391263d172307d))
+
 ## [0.2.0](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.1.0...aws-ts-v0.2.0) (2025-09-22)
 
 ### ✨ Features
