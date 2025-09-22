@@ -13,6 +13,10 @@ on:
   push:
     branches-ignore: [main]
 
+permissions:
+  contents: read # Repository content access
+  actions: read # Access to workflow run data
+
 jobs:
   # Changed file detection for conditional job execution
   changes:

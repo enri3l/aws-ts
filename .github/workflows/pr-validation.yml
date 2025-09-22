@@ -13,6 +13,11 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read # Repository content access
+  actions: read # Access to workflow run data
+  checks: write # Post check results and status updates
+
 jobs:
   validate:
     strategy:
