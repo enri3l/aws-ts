@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.1...aws-ts-v0.2.2) (2025-09-22)
+
+
+### 🐛 Bug Fixes
+
+* resolve JSR version sync and complete repository migration ([f46fe21](https://github.com/monte3l/aws-ts/commit/f46fe21df69eb1b094dcc4f3a757d99730458054))
+
 ## [0.2.1](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.0...aws-ts-v0.2.1) (2025-09-22)
 
 
