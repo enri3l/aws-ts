@@ -21,9 +21,9 @@ export interface BaseHandler<TInput = unknown, TOutput = unknown> {
    *
    * @param input - The input data for handler execution
    * @returns Promise resolving to the handler output
-   * @throws \{ValidationError\} When input validation fails
-   * @throws \{ServiceError\} When AWS service operations fail
-   * @throws \{ConfigurationError\} When configuration is invalid
+   * @throws When input validation fails
+   * @throws When AWS service operations fail
+   * @throws When configuration is invalid
    */
   handle(input: TInput): Promise<TOutput>;
 }
@@ -42,7 +42,7 @@ export interface CommandHandler<TInput = unknown, TOutput = unknown>
    * Validate command input before execution
    *
    * @param input - The command input to validate
-   * @throws \{ValidationError\} When validation fails
+   * @throws When validation fails
    */
   validateInput(input: TInput): Promise<void>;
 }
@@ -61,7 +61,7 @@ export interface QueryHandler<TInput = unknown, TOutput = unknown>
    * Validate query parameters before execution
    *
    * @param input - The query parameters to validate
-   * @throws \{ValidationError\} When validation fails
+   * @throws When validation fails
    */
   validateQuery(input: TInput): Promise<void>;
 }

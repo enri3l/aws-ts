@@ -157,7 +157,7 @@ export class DataProcessor {
    * @param sourceFormat - Format of the input data
    * @returns Processing result with parsed records
    *
-   * @throws \{Error\} When input format is unsupported or parsing fails
+   * @throws When input format is unsupported or parsing fails
    */
   parseInput(input: string, sourceFormat: DataFormat): ProcessingResult {
     const startTime = Date.now();
@@ -203,7 +203,7 @@ export class DataProcessor {
    * @param records - Data records to format
    * @returns Formatted output string
    *
-   * @throws \{Error\} When output format is unsupported
+   * @throws When output format is unsupported
    */
   formatOutput(records: DataRecord[]): string {
     switch (this.options.format) {

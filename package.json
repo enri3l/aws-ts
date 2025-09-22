@@ -1,5 +1,5 @@
 {
-  "name": "aws-ts",
+  "name": "@monte3l/aws-ts",
   "version": "0.1.0",
   "description": "TypeScript-based CLI for AWS operations with modular architecture and comprehensive testing",
   "keywords": [
@@ -63,7 +63,9 @@
     "docs:dev": "vitepress dev docs",
     "docs:preview": "vitepress preview docs",
     "docs:api": "typedoc --out docs/api src/index.ts",
-    "docs:validate": "pnpm build && node dist/index.js --help > /dev/null"
+    "docs:validate": "pnpm build && node dist/index.js --help > /dev/null",
+    "publish:jsr": "pnpm dlx jsr publish",
+    "publish:jsr:dry-run": "pnpm dlx jsr publish --dry-run"
   },
   "author": "Enrico Lionello",
   "license": "Apache-2.0",
@@ -88,11 +90,11 @@
     "aws-sdk-client-mock": "4.1.0",
     "aws-sdk-client-mock-vitest": "6.2.0",
     "eslint": "^9.34.0",
-    "eslint-plugin-jsdoc": "60.1.0",
+    "eslint-plugin-jsdoc": "60.1.1",
     "eslint-plugin-sonarjs": "3.0.5",
     "eslint-plugin-tsdoc": "0.4.0",
     "eslint-plugin-unicorn": "61.0.2",
-    "lefthook": "^1.12.3",
+    "lefthook": "^1.13.2",
     "markdownlint-cli2": "^0.18.1",
     "memfs": "4.43.0",
     "prettier": "^3.6.2",
@@ -109,6 +111,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "3.893.0",
+    "@aws-sdk/client-s3": "3.893.0",
     "@aws-sdk/client-sts": "3.893.0",
     "@aws-sdk/credential-provider-sso": "3.893.0",
     "@aws-sdk/credential-providers": "3.893.0",
@@ -117,12 +120,11 @@
     "@oclif/core": "4.5.4",
     "@oclif/plugin-help": "6.2.33",
     "@oclif/plugin-plugins": "5.4.47",
+    "enquirer": "2.4.1",
+    "execa": "9.4.1",
+    "listr2": "9.0.4",
     "ora": "9.0.0",
     "zod": "4.1.11"
-  },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
   },
   "oclif": {
     "bin": "aws-ts",

@@ -89,7 +89,7 @@ export class AuthCliWrapper {
    * Check if AWS CLI is installed and accessible
    *
    * @returns Promise resolving to AWS CLI version information
-   * @throws \{AwsCliError\} When AWS CLI is not found or inaccessible
+   * @throws When AWS CLI is not found or inaccessible
    */
   async checkInstallation(): Promise<{ version: string; installed: boolean }> {
     try {
@@ -132,7 +132,7 @@ export class AuthCliWrapper {
    * @param profileName - AWS profile name to configure
    * @param ssoConfig - Optional SSO configuration for non-interactive setup
    * @returns Promise resolving when configuration is complete
-   * @throws \{AuthenticationError\} When SSO configuration fails
+   * @throws When SSO configuration fails
    */
   async configureSso(profileName: string = "default", ssoConfig?: SsoConfig): Promise<void> {
     const arguments_ = ["configure", "sso"];
@@ -181,7 +181,7 @@ export class AuthCliWrapper {
    *
    * @param profileName - AWS profile name to login with
    * @returns Promise resolving when login is complete
-   * @throws \{AuthenticationError\} When SSO login fails
+   * @throws When SSO login fails
    */
   async ssoLogin(profileName: string = "default"): Promise<void> {
     const arguments_ = ["sso", "login"];
@@ -230,7 +230,7 @@ export class AuthCliWrapper {
    *
    * @param profileName - AWS profile name to logout from
    * @returns Promise resolving when logout is complete
-   * @throws \{AuthenticationError\} When SSO logout fails
+   * @throws When SSO logout fails
    */
   async ssoLogout(profileName: string = "default"): Promise<void> {
     const arguments_ = ["sso", "logout"];
@@ -279,7 +279,7 @@ export class AuthCliWrapper {
    *
    * @param profileName - AWS profile name to validate
    * @returns Promise resolving to caller identity information
-   * @throws \{AuthenticationError\} When credential validation fails
+   * @throws When credential validation fails
    */
   async validateCredentials(profileName: string = "default"): Promise<{
     userId: string;

@@ -74,26 +74,21 @@ export default class AuthLogoutCommand extends Command {
     const { flags } = await this.parse(AuthLogoutCommand);
 
     try {
-      // Validate flags
       if (flags.profile && flags["all-profiles"]) {
         this.error("Cannot specify both --profile and --all-profiles", { exit: 1 });
       }
 
-      // Build auth logout input
       const input: AuthLogout = {
         profile: flags.profile,
         allProfiles: flags["all-profiles"],
       };
 
-      // Create auth service and perform logout
       const authService = new AuthService({
         enableDebugLogging: flags.verbose,
         enableProgressIndicators: true,
       });
 
       await authService.logout(input);
-
-      // Success message is handled by the spinner in AuthService
     } catch (error) {
       if (error instanceof Error) {
         this.error(`Logout failed: ${formatError(error, flags.verbose)}`, { exit: 1 });

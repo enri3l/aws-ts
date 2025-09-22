@@ -125,36 +125,17 @@ export class AuthService {
    *
    * @param input - Login command input
    * @returns Promise resolving when login is complete
-   * @throws \{AuthenticationError\} When login fails
+   * @throws When login fails
    */
   async login(input: AuthLogin): Promise<void> {
     const spinner = this.createSpinner("Authenticating with AWS...");
 
     try {
-      /**
-       * Verify AWS CLI availability before attempting authentication operations.
-       * This validation ensures the underlying CLI tools required for SSO flows
-       * are properly installed and accessible in the system PATH, preventing
-       * runtime failures during authentication attempts.
-       *
-       * @internal
-       */
       spinner.text = "Checking AWS CLI installation...";
       await this.cliWrapper.checkInstallation();
 
       const profileName = input.profile ?? this.credentialService.getActiveProfile();
 
-      /**
-       * Ensure target profile exists or create it when configuration is requested.
-       * This conditional setup flow handles two scenarios:
-       * 1. Explicit profile configuration via --configure flag
-       * 2. Automatic profile creation when target profile doesn't exist
-       *
-       * Requires SSO configuration parameters to establish the profile's
-       * authentication context and prevent incomplete profile setup.
-       *
-       * @internal
-       */
       if (input.configure || !(await this.profileManager.profileExists(profileName))) {
         if (!input.ssoConfig) {
           throw new AuthenticationError(
@@ -168,45 +149,18 @@ export class AuthService {
         await this.cliWrapper.configureSso(profileName, input.ssoConfig);
       }
 
-      /**
-       * Skip re-authentication for valid existing credentials unless forced.
-       * This optimization reduces unnecessary SSO round-trips and improves
-       * user experience by leveraging cached valid credentials. Force flag
-       * allows explicit credential refresh for troubleshooting scenarios.
-       *
-       * Even when credentials are already valid, the profile is set as active
-       * to ensure consistent environment state for subsequent operations.
-       *
-       * @internal
-       */
       if (!input.force) {
         spinner.text = "Checking existing authentication...";
         try {
           await this.credentialService.validateCredentials(profileName);
-          /**
-           * Set as active profile even when already authenticated to ensure
-           * consistent environment state for subsequent operations.
-           */
           this.credentialService.setActiveProfile(profileName);
           spinner.succeed(`Already authenticated with profile '${profileName}'`);
           return;
         } catch {
-          /**
-           * Continue with login flow if credential validation fails.
-           * This ensures robust authentication recovery from invalid
-           * or expired credential states.
-           */
+          // Ignore validation errors - proceed with login if not already authenticated
         }
       }
 
-      /**
-       * Execute SSO authentication flow through AWS CLI integration.
-       * This delegates to the CLI wrapper which handles the complex SSO
-       * browser-based authentication flow, token exchange, and credential
-       * caching. The operation may open a browser window for user interaction.
-       *
-       * @internal
-       */
       spinner.text = `Logging in with SSO for profile '${profileName}'...`;
       await this.cliWrapper.ssoLogin(profileName);
 
@@ -245,6 +199,8 @@ export class AuthService {
     try {
       const cliCheck = await this.checkAwsCliStatus();
 
+      let result: AuthStatusResponse;
+
       if (input.allProfiles) {
         const profiles = await this.profileManager.discoverProfiles();
         const profileInfos: ProfileInfo[] = [];
@@ -257,9 +213,7 @@ export class AuthService {
         const activeProfile = this.credentialService.getActiveProfile();
         const authenticated = profileInfos.some((p) => p.active && p.credentialsValid);
 
-        spinner.succeed("Status check complete");
-
-        return {
+        result = {
           activeProfile,
           profiles: profileInfos,
           authenticated,
@@ -270,9 +224,7 @@ export class AuthService {
         const profileName = input.profile ?? this.credentialService.getActiveProfile();
         const profileInfo = await this.getProfileStatus(profileName);
 
-        spinner.succeed("Status check complete");
-
-        return {
+        result = {
           activeProfile: profileName,
           profiles: [profileInfo],
           authenticated: profileInfo.credentialsValid,
@@ -280,6 +232,9 @@ export class AuthService {
           awsCliVersion: cliCheck.version,
         };
       }
+
+      spinner.succeed("Status check complete");
+      return result;
     } catch (error) {
       spinner.fail("Status check failed");
       throw error;
@@ -521,9 +476,9 @@ export class AuthService {
       ? ora(text).start()
       : {
           text,
-          succeed: (message?: string) => console.log(`✓ ${message ?? text}`),
-          fail: (message?: string) => console.error(`✗ ${message ?? text}`),
-          warn: (message?: string) => console.warn(`⚠ ${message ?? text}`),
+          succeed: () => {},
+          fail: () => {},
+          warn: () => {},
         };
   }
 }

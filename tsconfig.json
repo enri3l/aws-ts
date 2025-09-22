@@ -12,6 +12,7 @@
     "skipLibCheck": true,
     "moduleDetection": "force",
     "incremental": true,
+    "declaration": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
