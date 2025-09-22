@@ -152,6 +152,7 @@ export default class DoctorCommand extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(DoctorCommand);
 
+    let summary: DiagnosticSummary;
     try {
       this.initializeCheckRegistry();
 
@@ -176,10 +177,7 @@ export default class DoctorCommand extends Command {
         autoFix: flags.fix,
       };
 
-      const summary = await this.executeDiagnostics(
-        context,
-        flags.category as CheckStage | undefined,
-      );
+      summary = await this.executeDiagnostics(context, flags.category as CheckStage | undefined);
 
       let repairResults: RepairResult[] = [];
       if (
@@ -203,11 +201,12 @@ export default class DoctorCommand extends Command {
           this.outputRepairResults(repairResults);
         }
       }
-
-      this.exitWithAppropriateCode(summary);
     } catch (error) {
       this.handleDiagnosticError(error, flags.verbose);
+      return;
     }
+
+    this.exitWithAppropriateCode(summary);
   }
 
   /**

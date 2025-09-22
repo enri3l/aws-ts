@@ -114,6 +114,7 @@ export class DoctorService {
 
     // Initialize service dependencies following established patterns
     this.authService = new AuthService({
+      enableProgressIndicators: false, // Disable UI for diagnostic checks
       enableDebugLogging: this.options.enableDebugLogging,
       ...this.options.authService,
     });

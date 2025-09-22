@@ -476,9 +476,9 @@ export class AuthService {
       ? ora(text).start()
       : {
           text,
-          succeed: (message?: string) => console.log(`✓ ${message ?? text}`),
-          fail: (message?: string) => console.error(`✗ ${message ?? text}`),
-          warn: (message?: string) => console.warn(`⚠ ${message ?? text}`),
+          succeed: () => {},
+          fail: () => {},
+          warn: () => {},
         };
   }
 }
