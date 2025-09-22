@@ -199,6 +199,8 @@ export class AuthService {
     try {
       const cliCheck = await this.checkAwsCliStatus();
 
+      let result: AuthStatusResponse;
+
       if (input.allProfiles) {
         const profiles = await this.profileManager.discoverProfiles();
         const profileInfos: ProfileInfo[] = [];
@@ -211,9 +213,7 @@ export class AuthService {
         const activeProfile = this.credentialService.getActiveProfile();
         const authenticated = profileInfos.some((p) => p.active && p.credentialsValid);
 
-        spinner.succeed("Status check complete");
-
-        return {
+        result = {
           activeProfile,
           profiles: profileInfos,
           authenticated,
@@ -224,9 +224,7 @@ export class AuthService {
         const profileName = input.profile ?? this.credentialService.getActiveProfile();
         const profileInfo = await this.getProfileStatus(profileName);
 
-        spinner.succeed("Status check complete");
-
-        return {
+        result = {
           activeProfile: profileName,
           profiles: [profileInfo],
           authenticated: profileInfo.credentialsValid,
@@ -234,6 +232,9 @@ export class AuthService {
           awsCliVersion: cliCheck.version,
         };
       }
+
+      spinner.succeed("Status check complete");
+      return result;
     } catch (error) {
       spinner.fail("Status check failed");
       throw error;
