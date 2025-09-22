@@ -37,15 +37,19 @@ vi.mock("../../../src/services/token-manager.js", () => ({
   TokenManager: vi.fn(),
 }));
 
-// Mock ora spinner
+// Mock ora spinner with stderr suppression
+const mockSpinner = {
+  start: vi.fn().mockReturnThis(),
+  succeed: vi.fn().mockReturnThis(),
+  fail: vi.fn().mockReturnThis(),
+  warn: vi.fn().mockReturnThis(),
+  stop: vi.fn().mockReturnThis(),
+  text: "",
+  isSpinning: false,
+};
+
 vi.mock("ora", () => ({
-  default: vi.fn(() => ({
-    start: vi.fn().mockReturnThis(),
-    succeed: vi.fn().mockReturnThis(),
-    fail: vi.fn().mockReturnThis(),
-    warn: vi.fn().mockReturnThis(),
-    text: "",
-  })),
+  default: vi.fn(() => mockSpinner),
 }));
 
 const mockAuthCliWrapper = {
@@ -80,6 +84,11 @@ describe("AuthService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock console methods to prevent stderr contamination
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Setup mock constructors to return mock instances
     vi.mocked(AuthCliWrapper).mockReturnValue(mockAuthCliWrapper as any);

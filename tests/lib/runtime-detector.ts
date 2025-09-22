@@ -132,9 +132,34 @@ export function getQualifiedImageName(shortName: string): string {
   const runtime = process.env.CONTAINER_RUNTIME;
 
   // Podman typically needs fully qualified names from docker.io
-  if (runtime === "podman" && !shortName.includes("docker.io/")) {
+  if (runtime === "podman" && !isFullyQualifiedImageName(shortName)) {
     return `docker.io/${shortName}`;
   }
 
   return shortName;
+}
+
+/**
+ * Checks if an image name is already fully qualified with a registry
+ *
+ * @param imageName - Image name to check
+ * @returns True if the image name includes a registry hostname
+ * @internal
+ */
+function isFullyQualifiedImageName(imageName: string): boolean {
+  // Image names with registry hostnames contain at least one dot or colon before the first slash
+  // Examples: docker.io/library/nginx, localhost:5000/myapp, registry.example.com/myapp
+  const firstSlashIndex = imageName.indexOf("/");
+
+  if (firstSlashIndex === -1) {
+    // No slash means it's a simple name like "nginx" - not fully qualified
+    return false;
+  }
+
+  // eslint-disable-next-line unicorn/prefer-set-has -- False positive: this is a string hostname, not a collection
+  const registryHost = imageName.slice(0, firstSlashIndex);
+
+  // Check if the part before the first slash looks like a registry
+  // Registry hostnames contain dots (for domains) or colons (for ports)
+  return registryHost.includes(".") || registryHost.includes(":");
 }

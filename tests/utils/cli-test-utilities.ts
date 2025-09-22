@@ -7,6 +7,7 @@
  */
 
 import type { Command, Config } from "@oclif/core";
+import { vi } from "vitest";
 
 /**
  * Captured CLI output for testing assertions
@@ -109,19 +110,14 @@ export async function runCommand(
 ): Promise<CapturedOutput> {
   context.resetOutput();
 
-  // Mock stdout and stderr
-  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  // Spy on console.log and console.error to capture OCLIF command output
+  const logSpy = vi.spyOn(console, "log").mockImplementation((...arguments__) => {
+    context.output.stdout += arguments__.join(" ") + "\n";
+  });
 
-  process.stdout.write = (chunk: string | Uint8Array) => {
-    context.output.stdout += String(chunk);
-    return true;
-  };
-
-  process.stderr.write = (chunk: string | Uint8Array) => {
-    context.output.stderr += String(chunk);
-    return true;
-  };
+  const errorSpy = vi.spyOn(console, "error").mockImplementation((...arguments__) => {
+    context.output.stderr += arguments__.join(" ") + "\n";
+  });
 
   try {
     const command = new commandClass(arguments_, context.config) as Command;
@@ -132,9 +128,9 @@ export async function runCommand(
     context.output.exitCode =
       error instanceof Error && "exitCode" in error ? (error.exitCode as number) : 1;
   } finally {
-    // Restore original stdout and stderr
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
+    // Restore original console methods
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
   }
 
   return { ...context.output };
@@ -145,7 +141,7 @@ export async function runCommand(
  *
  * @param output - Captured command output
  * @param expectedExitCode - Expected exit code (default: 0)
- * @throws \{Error\} When command execution fails or exit code doesn't match expected
+ * @throws When command execution fails or exit code doesn't match expected
  *
  * @public
  */
@@ -169,7 +165,7 @@ export function assertCommandSuccess(output: CapturedOutput, expectedExitCode = 
  * @param output - Captured command output
  * @param expectedErrorPattern - Expected error message pattern
  * @param expectedExitCode - Expected exit code (default: 1)
- * @throws \{Error\} When command succeeds unexpectedly or error pattern doesn't match
+ * @throws When command succeeds unexpectedly or error pattern doesn't match
  *
  * @public
  */
@@ -211,7 +207,7 @@ export function assertCommandFailure(
  * @param output - Captured command output
  * @param expectedText - Expected text in stdout
  * @param stream - Stream to check (default: "stdout")
- * @throws \{Error\} When expected text is not found in the specified stream
+ * @throws When expected text is not found in the specified stream
  *
  * @public
  */
@@ -235,7 +231,7 @@ export function assertOutputContains(
  * @param output - Captured command output
  * @param pattern - Expected pattern in stdout
  * @param stream - Stream to check (default: "stdout")
- * @throws \{Error\} When output doesn't match the expected pattern
+ * @throws When output doesn't match the expected pattern
  *
  * @public
  */
