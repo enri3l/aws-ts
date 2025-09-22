@@ -2,15 +2,50 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "node",
   "pull-request-title-pattern": "release: v${version}",
-  "pull-request-header": "Release v${version} contains the following changes:",
+  "pull-request-header": "Release v{{version}} contains the following changes:",
   "pull-request-footer": "Generated with [Release Please](https://github.com/googleapis/release-please)",
   "changelog-sections": [
-    { "type": "feat", "section": "Features", "hidden": false },
-    { "type": "fix", "section": "Bug Fixes", "hidden": false },
-    { "type": "deps", "section": "Dependencies", "hidden": false },
-    { "type": "chore", "section": null, "hidden": true }
+    { "type": "feat", "section": "✨ Features", "hidden": false },
+    { "type": "feat", "scope": "auth", "section": "🔑 Authentication Updates", "hidden": false },
+    {
+      "type": "feat",
+      "scope": "doctor",
+      "section": "🩺 Diagnostics Enhancements",
+      "hidden": false
+    },
+    { "type": "feat", "scope": "commands", "section": "🚀 CLI Commands", "hidden": false },
+    { "type": "fix", "section": "🐛 Bug Fixes", "hidden": false },
+    { "type": "fix", "scope": "auth", "section": "🔐 Authentication Fixes", "hidden": false },
+    { "type": "fix", "scope": "doctor", "section": "⚕️ Diagnostics Fixes", "hidden": false },
+    { "type": "perf", "section": "⚡ Performance Improvements", "hidden": false },
+    { "type": "refactor", "section": "♻️ Code Refactoring", "hidden": false },
+    { "type": "docs", "section": "📚 Documentation", "hidden": false },
+    { "type": "style", "section": "💄 Code Style", "hidden": true },
+    { "type": "test", "section": "🧪 Testing", "hidden": true },
+    { "type": "build", "section": "🏗️ Build System", "hidden": true },
+    { "type": "ci", "section": "👷 CI/CD", "hidden": true },
+    { "type": "deps", "section": "📦 Dependencies", "hidden": false },
+    { "type": "chore", "section": "🧹 Maintenance", "hidden": true },
+    { "type": "revert", "section": "⏪ Reverts", "hidden": false }
   ],
   "extra-files": ["README.md"],
+  "path-based-scopes": [
+    { "pattern": "src/commands/auth/**", "scope": "auth" },
+    { "pattern": "src/commands/**", "scope": "commands" },
+    { "pattern": "src/services/doctor/**", "scope": "doctor" },
+    { "pattern": "src/services/**", "scope": "services" },
+    { "pattern": "src/handlers/**", "scope": "handlers" },
+    { "pattern": "src/lib/**", "scope": "lib" },
+    { "pattern": "src/queries/**", "scope": "queries" },
+    { "pattern": ".github/workflows/**", "scope": "ci" },
+    { "pattern": "docs/**", "scope": "docs" },
+    { "pattern": "tests/**", "scope": "tests" },
+    { "pattern": "package.json", "scope": "deps" },
+    { "pattern": "package-lock.json", "scope": "deps" },
+    { "pattern": "pnpm-lock.yaml", "scope": "deps" },
+    { "pattern": "*.config.*", "scope": "config" },
+    { "pattern": "tsconfig*.json", "scope": "build" }
+  ],
   "packages": {
     ".": {}
   }
