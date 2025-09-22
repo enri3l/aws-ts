@@ -1,0 +1,26 @@
+{
+  "name": "@monte3l/aws-cli",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publish": {
+    "exclude": [
+      "tests/**/*",
+      "coverage/**/*",
+      ".nyc_output/**/*",
+      "docs/**/*",
+      "node_modules/**/*",
+      ".git/**/*",
+      "**/*.test.*",
+      "**/*.spec.*",
+      "dist/**/*",
+      "*.log",
+      ".env*",
+      "lefthook.yml",
+      "vitest.config.ts",
+      "eslint.config.mjs",
+      "tsconfig*.json"
+    ]
+  }
+}

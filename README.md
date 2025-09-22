@@ -51,9 +51,14 @@ aws-ts --help
 For production installation (when available):
 
 ```bash
-# Install from local package
-pnpm pack
-npm install -g ./aws-ts-cli-0.1.0.tgz
+# Install from JSR registry
+npx jsr add @monte3l/aws-cli
+
+# Or using pnpm
+pnpm dlx jsr add @monte3l/aws-cli
+
+# Or using deno
+deno add @monte3l/aws-cli
 ```
 
 ### Basic Usage
@@ -145,6 +150,10 @@ pnpm validate              # Full validation pipeline
 pnpm docs:dev              # Start documentation server
 pnpm docs:build            # Build documentation
 pnpm docs:api              # Generate API docs
+
+# Publishing
+pnpm publish:jsr           # Publish to JSR registry
+pnpm publish:jsr:dry-run   # Test publish to JSR (dry run)
 ```
 
 ## 🧪 Testing Strategy
