@@ -1,6 +1,6 @@
 {
   "name": "@monte3l/aws-ts",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "TypeScript-based CLI for AWS operations with modular architecture and comprehensive testing",
   "keywords": [
     "aws",
