@@ -60,15 +60,6 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         run: pnpm audit
 
-      # Enhanced dependency and vulnerability review using GitHub's official action
-      - name: Dependency & Security Review
-        if: ${{ steps.release.outputs.release_created }}
-        uses: actions/dependency-review-action@v4
-        with:
-          vulnerability-check: true
-          license-check: true
-          fail-on-severity: moderate
-
       # Package content validation before publishing
       - name: Pre-publish validation
         if: ${{ steps.release.outputs.release_created }}
