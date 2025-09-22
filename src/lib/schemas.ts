@@ -305,7 +305,7 @@ export type Environment = z.infer<typeof EnvironmentSchema>;
  *
  * @param environment - Process environment object
  * @returns Parsed and validated environment configuration
- * @throws \{z.ZodError\} When environment validation fails
+ * @throws When environment validation fails
  *
  * @public
  */
@@ -320,7 +320,7 @@ export function validateEnvironment(
  *
  * @param config - Configuration object to validate
  * @returns Validated configuration
- * @throws \{z.ZodError\} When configuration validation fails
+ * @throws When configuration validation fails
  *
  * @public
  */
