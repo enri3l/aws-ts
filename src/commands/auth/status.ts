@@ -8,7 +8,8 @@
 
 import { Command, Flags } from "@oclif/core";
 import type { AuthStatus, AuthStatusResponse, ProfileInfo } from "../../lib/auth-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
+import { ApiError, formatErrorWithGuidance, TimeoutError } from "../../lib/errors.js";
+import { safeDisplayTable } from "../../lib/ui-utilities.js";
 import { AuthService } from "../../services/auth-service.js";
 import { TokenManager } from "../../services/token-manager.js";
 
@@ -111,15 +112,33 @@ export default class AuthStatusCommand extends Command {
 
       this.displayStatusTable(status, flags.detailed);
     } catch (error) {
-      if (error instanceof Error) {
-        this.error(
-          `Failed to get authentication status: ${formatErrorWithGuidance(error, flags.verbose)}`,
-          {
-            exit: 1,
-          },
-        );
-      }
+      this.handleAuthStatusError(error, flags.verbose);
+    }
+  }
 
+  /**
+   * Handle authentication status errors with appropriate error messages
+   *
+   * @param error - The error that occurred
+   * @param verbose - Whether to include verbose error information
+   * @private
+   */
+  private handleAuthStatusError(error: unknown, verbose: boolean): never {
+    // Handle configuration and API errors with specific guidance
+    if (error instanceof ApiError) {
+      this.error(`Failed to get authentication status: AWS API error - ${error.message}`, {
+        exit: 1,
+      });
+    } else if (error instanceof TimeoutError) {
+      this.error(`Failed to get authentication status: Operation timed out - ${error.message}`, {
+        exit: 1,
+      });
+    } else if (error instanceof Error) {
+      this.error(
+        `Failed to get authentication status: ${formatErrorWithGuidance(error, verbose)}`,
+        { exit: 1 },
+      );
+    } else {
       this.error(`Failed to get authentication status: ${String(error)}`, { exit: 1 });
     }
   }
@@ -179,7 +198,7 @@ export default class AuthStatusCommand extends Command {
     });
 
     // Display table
-    console.table(tableData);
+    safeDisplayTable(tableData);
 
     // Additional warnings for expired or near-expiry tokens
     const ssoProfiles = status.profiles.filter(
