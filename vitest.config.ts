@@ -95,6 +95,11 @@ export default defineConfig({
           },
           // Ensure timeout is applied at all levels
           timeout: 120_000,
+          reporter: ["default", "junit", "json"],
+          outputFile: {
+            junit: "./test-results-integration.xml",
+            json: "./test-results-integration.json",
+          },
           env: {
             AWS_INTEGRATION_TEST: "true",
             // Enable TestContainers reuse for performance
@@ -124,6 +129,11 @@ export default defineConfig({
           },
           // Ensure timeout is applied at all levels
           timeout: 180_000,
+          reporter: ["default", "junit", "json"],
+          outputFile: {
+            junit: "./test-results-e2e.xml",
+            json: "./test-results-e2e.json",
+          },
         },
       },
     ],
