@@ -369,7 +369,6 @@ export class AuthCliWrapper {
       let stderr = "";
       let timeoutId: NodeJS.Timeout | undefined;
 
-      // Set up timeout
       if (this.options.timeoutMs > 0) {
         timeoutId = setTimeout(() => {
           child.kill("SIGTERM");
@@ -385,7 +384,6 @@ export class AuthCliWrapper {
         }, this.options.timeoutMs);
       }
 
-      // Collect output
       child.stdout?.on("data", (data: Buffer) => {
         stdout += data.toString();
       });
@@ -394,7 +392,6 @@ export class AuthCliWrapper {
         stderr += data.toString();
       });
 
-      // Handle process completion
       child.on("close", (code) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -415,7 +412,6 @@ export class AuthCliWrapper {
         resolve(result);
       });
 
-      // Handle process errors
       child.on("error", (error) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -464,7 +460,6 @@ export class AuthCliWrapper {
       let stderr = "";
       let timeoutId: NodeJS.Timeout | undefined;
 
-      // Set up timeout
       if (this.options.timeoutMs > 0) {
         timeoutId = setTimeout(() => {
           child.kill("SIGTERM");
@@ -489,7 +484,6 @@ export class AuthCliWrapper {
         child.stdin.end();
       }
 
-      // Collect output
       child.stdout?.on("data", (data: Buffer) => {
         stdout += data.toString();
       });
@@ -498,7 +492,6 @@ export class AuthCliWrapper {
         stderr += data.toString();
       });
 
-      // Handle process completion
       child.on("close", (code) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -519,7 +512,6 @@ export class AuthCliWrapper {
         resolve(result);
       });
 
-      // Handle process errors
       child.on("error", (error) => {
         if (timeoutId) {
           clearTimeout(timeoutId);

@@ -622,4 +622,47 @@ aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       expect(profileInfo.type).toBe("iam");
     });
   });
+
+  describe("SSO session caching", () => {
+    beforeEach(() => {
+      const configContent = `
+[sso-session dev]
+sso_start_url = https://dev.awsapps.com/start
+sso_region = us-east-1
+
+[profile test-sso]
+sso_session = dev
+sso_account_id = 123456789012
+sso_role_name = TestRole
+region = us-west-2
+`;
+
+      mockFs.access.mockResolvedValue();
+      mockFs.readFile.mockResolvedValue(configContent);
+    });
+
+    it("should cache complete SSO session configurations", async () => {
+      const profileInfo = await profileManager.getProfileInfo("test-sso");
+
+      expect(profileInfo.ssoSession).toBe("dev");
+      expect(profileInfo.ssoStartUrl).toBe("https://dev.awsapps.com/start");
+      expect(profileInfo.ssoRegion).toBe("us-east-1");
+    });
+
+    it("should handle SSO session property assignment", async () => {
+      const configContent = `
+[profile test-profile]
+sso_session = production
+sso_account_id = 987654321098
+sso_role_name = PowerUserAccess
+region = us-east-1
+`;
+
+      mockFs.readFile.mockResolvedValue(configContent);
+
+      const profileInfo = await profileManager.getProfileInfo("test-profile");
+
+      expect(profileInfo.ssoSession).toBe("production");
+    });
+  });
 });

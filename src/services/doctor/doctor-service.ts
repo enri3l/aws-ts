@@ -112,7 +112,6 @@ export class DoctorService {
 
     this.checkRegistry = checkRegistry;
 
-    // Initialize service dependencies following established patterns
     this.authService = new AuthService({
       enableProgressIndicators: false, // Disable UI for diagnostic checks
       enableDebugLogging: this.options.enableDebugLogging,
@@ -150,7 +149,6 @@ export class DoctorService {
     const results = new Map<string, CheckResult>();
 
     try {
-      // Execute stages progressively with dependency management
       const stages: CheckStage[] = [
         "environment",
         "configuration",
@@ -161,15 +159,12 @@ export class DoctorService {
       for (const stage of stages) {
         const stageResults = await this.executeStage(stage, context);
 
-        // Merge stage results into overall results
         for (const [checkId, result] of stageResults.entries()) {
           results.set(checkId, result);
         }
 
-        // Update context with stage results for subsequent stages
         this.updateContextWithStageResults(context, stage, stageResults);
 
-        // Stop execution if critical stage failures prevent progression
         if (this.shouldStopExecution(stage, stageResults)) {
           break;
         }
@@ -177,7 +172,6 @@ export class DoctorService {
 
       return this.createDiagnosticSummary(results, Date.now() - startTime);
     } catch (error) {
-      // Ensure proper error categorization and user guidance
       throw error instanceof Error
         ? error
         : new Error(`Diagnostic execution failed: ${String(error)}`);
@@ -200,7 +194,6 @@ export class DoctorService {
       return results;
     }
 
-    // Create listr2 tasks for enhanced progress visualization
     const tasks = checks.map(
       (check): DiagnosticTask => ({
         title: check.name,
@@ -209,7 +202,6 @@ export class DoctorService {
     );
 
     if (this.options.enableProgressIndicators) {
-      // Use listr2 for concurrent task visualization
       const listr = new Listr(
         tasks.map((task) => ({
           title: task.title,
@@ -217,7 +209,6 @@ export class DoctorService {
             const result = await task.task();
             results.set(checks.find((c) => c.name === task.title)!.id, result);
 
-            // Update task status based on check result
             if (result.status === "pass") {
               listrTask.title = `${task.title} ✓`;
             } else if (result.status === "warn") {
@@ -235,7 +226,6 @@ export class DoctorService {
 
       await listr.run();
     } else {
-      // Execute checks sequentially without UI for testing/CI environments
       for (const task of tasks) {
         const check = checks.find((c) => c.name === task.title)!;
         const result = await task.task();
@@ -290,23 +280,17 @@ export class DoctorService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _results: Map<string, CheckResult>,
   ): void {
-    // Update context based on stage completion
-    // This enables subsequent stages to use validated information
     switch (stage) {
       case "environment": {
-        // Extract environment validation results
         break;
       }
       case "configuration": {
-        // Extract configuration validation results
         break;
       }
       case "authentication": {
-        // Extract authentication validation results
         break;
       }
       case "connectivity": {
-        // Extract connectivity validation results
         break;
       }
     }
@@ -321,7 +305,6 @@ export class DoctorService {
    * @internal
    */
   private shouldStopExecution(stage: CheckStage, results: Map<string, CheckResult>): boolean {
-    // Stop execution if environment stage has critical failures
     if (stage === "environment") {
       return [...results.values()].some((result) => result.status === "fail");
     }
@@ -363,7 +346,6 @@ export class DoctorService {
       }
     }
 
-    // Determine overall status based on check results
     let overallStatus: CheckStatus = "pass";
     if (failedChecks > 0) {
       overallStatus = "fail";

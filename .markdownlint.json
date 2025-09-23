@@ -6,5 +6,8 @@
     "line_length": 120,
     "code_blocks": false,
     "tables": false
+  },
+  "MD004": {
+    "style": "dash"
   }
 }

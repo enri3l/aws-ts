@@ -1,7 +1,7 @@
 # AWS TypeScript CLI
 
-[![Build Status](https://github.com/monte3l/aws-ts/workflows/CI/badge.svg)](https://github.com/monte3l/aws-ts/actions)
-[![Coverage Status](https://img.shields.io/codecov/c/github/monte3l/aws-ts)](https://codecov.io/gh/monte3l/aws-ts)
+[![CI](https://github.com/monte3l/aws-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/monte3l/aws-ts/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/monte3l/aws-ts/graph/badge.svg?branch=main)](https://codecov.io/gh/monte3l/aws-ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-24.6+-green.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)

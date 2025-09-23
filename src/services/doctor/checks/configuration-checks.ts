@@ -120,7 +120,6 @@ export class ConfigFileExistsCheck implements ICheck {
           };
         }
 
-        // Re-throw unexpected errors for proper error categorization
         throw error;
       }
     } catch (error) {
@@ -202,18 +201,15 @@ export class ConfigFileExistsCheck implements ICheck {
   } {
     const trimmedLine = line.trim();
 
-    // Skip empty lines and comments
     if (!trimmedLine || trimmedLine.startsWith("#")) {
       return { skip: true, isSection: false, isProfileSection: false };
     }
 
-    // Check for section headers
     if (trimmedLine.startsWith("[") && trimmedLine.endsWith("]")) {
       const isProfileSection = trimmedLine.includes("profile ") || trimmedLine === "[default]";
       return { skip: false, isSection: true, isProfileSection };
     }
 
-    // Check for key-value pairs
     if (trimmedLine.includes("=")) {
       const error = this.validateKeyValuePair(trimmedLine, lineNumber);
       return error
@@ -221,7 +217,6 @@ export class ConfigFileExistsCheck implements ICheck {
         : { skip: false, isSection: false, isProfileSection: false };
     }
 
-    // Unknown line format
     return {
       skip: false,
       isSection: false,
@@ -544,7 +539,6 @@ export class CredentialsFileCheck implements ICheck {
           };
         }
 
-        // Re-throw unexpected errors for proper error categorization
         throw error;
       }
     } catch (error) {
@@ -636,7 +630,6 @@ export class CredentialsFileCheck implements ICheck {
   } {
     const trimmedLine = line.trim();
 
-    // Skip empty lines and comments
     if (!trimmedLine || trimmedLine.startsWith("#")) {
       return { skip: true, isProfileSection: false };
     }
@@ -672,7 +665,6 @@ export class CredentialsFileCheck implements ICheck {
       return { skip: false, isProfileSection: false, credentialKey: cleanKey };
     }
 
-    // Unknown line format
     return {
       skip: false,
       isProfileSection: false,
