@@ -18,6 +18,13 @@ export default defineConfig({
     testTimeout: 120_000,
     hookTimeout: 120_000,
 
+    // Global reporters for coverage runs - ensures junit XML is generated
+    reporter: ["default", "junit", "json"],
+    outputFile: {
+      junit: "./test-results.xml",
+      json: "./test-results.json",
+    },
+
     // Multi-project configuration using projects format
     projects: [
       // Unit tests project
