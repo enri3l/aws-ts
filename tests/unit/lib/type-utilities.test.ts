@@ -256,7 +256,7 @@ describe("Type Utilities", () => {
       });
 
       it("should handle hexadecimal BigInt", () => {
-        expect(toSafeString(0x1f_ff_ff_ff_ff_ff_ffn)).toBe("9007199254740991");
+        expect(toSafeString(0x1F_FF_FF_FF_FF_FF_FFn)).toBe("9007199254740991");
       });
     });
 
