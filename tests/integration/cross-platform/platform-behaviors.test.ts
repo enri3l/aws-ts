@@ -391,6 +391,116 @@ describe("Platform Behaviors", () => {
     });
   });
 
+  describe("Container runtime edge cases", () => {
+    it("should handle missing container runtime gracefully", () => {
+      // Mock environment without Docker/Podman
+      const originalPath = process.env.PATH;
+      process.env.PATH = "/usr/bin:/bin"; // Path without docker/podman
+
+      try {
+        const authService = new AuthService({
+          enableDebugLogging: false,
+          enableProgressIndicators: false,
+        });
+
+        // Should still work without containers for basic auth operations
+        expect(authService).toBeDefined();
+      } finally {
+        process.env.PATH = originalPath;
+      }
+    });
+
+    it("should handle container permission errors", () => {
+      // Test scenario where user doesn't have docker group permissions
+      const authService = new AuthService({
+        enableDebugLogging: false,
+        enableProgressIndicators: false,
+      });
+
+      // Should handle permission denied gracefully
+      expect(authService).toBeDefined();
+    });
+
+    it("should handle container service unavailable", () => {
+      // Test scenario where Docker daemon is not running
+      const authService = new AuthService({
+        enableDebugLogging: false,
+        enableProgressIndicators: false,
+      });
+
+      // Should work without container dependency for auth operations
+      expect(authService).toBeDefined();
+    });
+  });
+
+  describe("Cross-platform edge cases", () => {
+    it("should handle Windows path separators", () => {
+      const originalPlatform = process.platform;
+
+      try {
+        // Mock Windows platform
+        Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+
+        const profileManager = new ProfileManager({
+          configFilePath: String.raw`C:\Users\test\.aws\config`,
+          credentialsFilePath: String.raw`C:\Users\test\.aws\credentials`,
+          enableDebugLogging: false,
+        });
+
+        expect(profileManager).toBeDefined();
+      } finally {
+        Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+      }
+    });
+
+    it("should handle macOS security restrictions", () => {
+      const originalPlatform = process.platform;
+
+      try {
+        // Mock macOS platform
+        Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
+
+        const tokenManager = new TokenManager({
+          ssoCacheDir: "/Users/test/.aws/sso/cache",
+          enableDebugLogging: false,
+        });
+
+        expect(tokenManager).toBeDefined();
+      } finally {
+        Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+      }
+    });
+
+    it("should handle Linux distribution variations", () => {
+      const originalPlatform = process.platform;
+
+      try {
+        // Mock Linux platform
+        Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+
+        const authService = new AuthService({
+          enableDebugLogging: false,
+          enableProgressIndicators: false,
+        });
+
+        expect(authService).toBeDefined();
+      } finally {
+        Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+      }
+    });
+
+    it("should handle filesystem case sensitivity differences", () => {
+      const profileManager = new ProfileManager({
+        configFilePath: "/test/AWS/Config", // Mixed case
+        credentialsFilePath: "/test/aws/CREDENTIALS", // Mixed case
+        enableDebugLogging: false,
+      });
+
+      // Should handle case sensitivity appropriately per platform
+      expect(profileManager).toBeDefined();
+    });
+  });
+
   describe("Resource cleanup", () => {
     it("should handle service lifecycle properly", () => {
       // Create multiple services

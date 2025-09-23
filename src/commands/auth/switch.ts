@@ -80,14 +80,11 @@ export default class AuthSwitchCommand extends Command {
     const { args, flags } = await this.parse(AuthSwitchCommand);
 
     try {
-      // Build auth switch input
       const input: AuthSwitch = {
         profile: args.profile,
         validate: !flags["no-validate"],
         setDefault: flags["set-default"],
       };
-
-      // Create auth service and switch profile
       const authService = new AuthService({
         enableDebugLogging: flags.verbose,
         enableProgressIndicators: true,
@@ -95,7 +92,6 @@ export default class AuthSwitchCommand extends Command {
 
       await authService.switchProfile(input);
 
-      // Additional information for the user
       if (flags.verbose) {
         this.log("");
         this.log("Profile switch complete. Environment variables updated:");

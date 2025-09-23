@@ -175,7 +175,6 @@ export async function detectAwsCli(): Promise<AwsCliInfo> {
 
   for (const awsPath of paths) {
     try {
-      // Check if the path exists and is executable
       const stats = await fs.stat(awsPath);
       if (stats.isFile()) {
         return {
@@ -185,7 +184,7 @@ export async function detectAwsCli(): Promise<AwsCliInfo> {
         };
       }
     } catch {
-      // Continue to next path
+      // Path doesn't exist, continue to next path
     }
   }
 
@@ -307,10 +306,8 @@ export function getSubprocessEnvironment(
 ): Record<string, string> {
   const platformInfo = getPlatformInfo();
 
-  // Start with current environment
   const environment = { ...process.env };
 
-  // Add AWS-specific environment variables
   if (!environment.AWS_CONFIG_FILE) {
     environment.AWS_CONFIG_FILE = path.join(platformInfo.awsConfigDirectory, "config");
   }
@@ -322,9 +319,7 @@ export function getSubprocessEnvironment(
     );
   }
 
-  // Platform-specific PATH handling
   if (platformInfo.isWindows) {
-    // Ensure common Windows AWS CLI paths are in PATH
     const commonPaths = [
       path.join(process.env.PROGRAMFILES || String.raw`C:\Program Files`, "Amazon", "AWSCLIV2"),
       path.join(
@@ -342,7 +337,6 @@ export function getSubprocessEnvironment(
     }
   }
 
-  // Add any additional variables
   Object.assign(environment, additionalVariables);
 
   return environment as Record<string, string>;
@@ -358,10 +352,8 @@ export function getSubprocessEnvironment(
  */
 export function sanitizeSubprocessArguments(arguments_: string[]): string[] {
   return arguments_.map((argument) => {
-    // Remove any shell metacharacters that could be dangerous
     const sanitized = argument.replaceAll(/[;&|`$(){}[\]]/g, "");
 
-    // Ensure no empty strings
     return sanitized.trim() || '""';
   });
 }

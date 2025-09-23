@@ -427,5 +427,109 @@ describe("AuthCliWrapper", () => {
         AuthenticationError,
       );
     });
+
+    it("should handle child process error events in interactive commands", async () => {
+      const processError = new Error("Process execution failed");
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "error") {
+          setTimeout(() => callback(processError), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await expect(authCliWrapper.configureSso("test-profile")).rejects.toThrow(
+        AuthenticationError,
+      );
+    });
+  });
+
+  describe("platform compatibility", () => {
+    it("should use correct AWS CLI executable path for Windows", async () => {
+      const originalPlatform = process.platform;
+
+      // Mock platform to be Windows
+      Object.defineProperty(process, "platform", {
+        value: "win32",
+        configurable: true,
+      });
+
+      const windowsWrapper = new AuthCliWrapper({
+        enableDebugLogging: false,
+        timeoutMs: 30_000,
+      });
+
+      // Restore original platform
+      Object.defineProperty(process, "platform", {
+        value: originalPlatform,
+        configurable: true,
+      });
+
+      // Verify Windows-specific path handling by checking spawn call
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("aws-cli/2.15.30")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await windowsWrapper.checkInstallation();
+
+      expect(mockSpawn).toHaveBeenCalledWith("aws.exe", ["--version"], expect.any(Object));
+    });
+
+    it("should use correct AWS CLI executable path for Unix-like systems", async () => {
+      const originalPlatform = process.platform;
+
+      // Mock platform to be Linux
+      Object.defineProperty(process, "platform", {
+        value: "linux",
+        configurable: true,
+      });
+
+      const unixWrapper = new AuthCliWrapper({
+        enableDebugLogging: false,
+        timeoutMs: 30_000,
+      });
+
+      // Restore original platform
+      Object.defineProperty(process, "platform", {
+        value: originalPlatform,
+        configurable: true,
+      });
+
+      // Verify Unix-specific path handling by checking spawn call
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("aws-cli/2.15.30")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await unixWrapper.checkInstallation();
+
+      expect(mockSpawn).toHaveBeenCalledWith("aws", ["--version"], expect.any(Object));
+    });
   });
 });

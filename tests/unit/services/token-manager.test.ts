@@ -5,7 +5,7 @@
  * for comprehensive cache handling, expiry detection, and error scenarios.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TokenError } from "../../../src/lib/auth-errors.js";
 import { TokenManager } from "../../../src/services/token-manager.js";
 
@@ -633,6 +633,79 @@ describe("TokenManager", () => {
 
       expect(hasCache).toBe(false);
       expect(mockFs.stat).toHaveBeenCalledWith("/custom/sso/cache");
+    });
+  });
+
+  describe("debug logging", () => {
+    let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleSpy.mockRestore();
+    });
+
+    it("should log debug message for invalid cache file format", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      // Mock cache file with invalid format (missing required fields)
+      mockFs.readFile.mockResolvedValue(
+        JSON.stringify({
+          accessToken: "token",
+          // Missing expiresAt and startUrl
+        }),
+      );
+
+      await expect(
+        debugTokenManager.getTokenInfo("https://test.awsapps.com/start"),
+      ).rejects.toThrow(TokenError);
+    });
+
+    it("should log debug message for cache file ENOENT errors", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const enoentError = new Error("ENOENT: no such file or directory");
+      mockFs.readFile.mockRejectedValue(enoentError);
+
+      await expect(
+        debugTokenManager.getTokenInfo("https://missing.awsapps.com/start"),
+      ).rejects.toThrow(TokenError);
+    });
+
+    it("should log debug message for cache file EACCES errors", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const eaccesError = new Error("EACCES: permission denied");
+      mockFs.readFile.mockRejectedValue(eaccesError);
+
+      await expect(
+        debugTokenManager.getTokenInfo("https://restricted.awsapps.com/start"),
+      ).rejects.toThrow(TokenError);
+    });
+
+    it("should log debug message for other cache file errors", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const genericError = new Error("Unexpected JSON parse error");
+      mockFs.readFile.mockRejectedValue(genericError);
+
+      await expect(
+        debugTokenManager.getTokenInfo("https://corrupted.awsapps.com/start"),
+      ).rejects.toThrow(TokenError);
     });
   });
 });

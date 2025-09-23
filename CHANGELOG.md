@@ -2,10 +2,9 @@
 
 ## [0.2.3](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.2...aws-ts-v0.2.3) (2025-09-22)
 
-
 ### 🐛 Bug Fixes
 
-* resolve markdown linting and improve JSR package score ([ca09df2](https://github.com/monte3l/aws-ts/commit/ca09df2fdd271f11ffcf6a0ac09387093166c73c))
+- resolve markdown linting and improve JSR package score ([ca09df2](https://github.com/monte3l/aws-ts/commit/ca09df2fdd271f11ffcf6a0ac09387093166c73c))
 
 ## [0.2.2](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.1...aws-ts-v0.2.2) (2025-09-22)
 

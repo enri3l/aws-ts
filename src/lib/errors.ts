@@ -7,6 +7,8 @@
  *
  */
 
+import { getAuthErrorGuidance } from "./auth-guidance.js";
+
 /**
  * Base error class for all AWS CLI errors
  *
@@ -180,4 +182,27 @@ export function formatError(error: unknown, includeMetadata = false): string {
   }
 
   return String(error);
+}
+
+/**
+ * Format error for user display with SSO guidance
+ *
+ * @param error - The error to format
+ * @param includeMetadata - Whether to include error metadata in output
+ * @returns Formatted error message with guidance for user display
+ *
+ * @public
+ */
+export function formatErrorWithGuidance(error: unknown, includeMetadata = false): string {
+  const basicMessage = formatError(error, includeMetadata);
+
+  // Check if this is an authentication-related error that benefits from guidance
+  const guidance = getAuthErrorGuidance(error);
+
+  // Only add guidance if it's different from a generic fallback
+  if (guidance && !guidance.includes("Unknown authentication error")) {
+    return `${basicMessage}\n\n${guidance}`;
+  }
+
+  return basicMessage;
 }

@@ -197,19 +197,15 @@ export class ProfileManager {
         this.parseCredentialsFile(),
       ]);
 
-      // Merge profiles from both files, config takes precedence
       const profileMap = new Map<string, AwsProfileConfig>();
 
-      // Add credential-based profiles first
       for (const profile of credentialProfiles) {
         profileMap.set(profile.name, profile);
       }
 
-      // Add config-based profiles, merging with existing
       for (const profile of configProfiles) {
         const existing = profileMap.get(profile.name);
         if (existing) {
-          // Merge config profile with credentials profile
           profileMap.set(profile.name, { ...existing, ...profile });
         } else {
           profileMap.set(profile.name, profile);
@@ -262,9 +258,10 @@ export class ProfileManager {
         region: resolvedProperties.region,
         output: profile.output,
         ssoStartUrl: resolvedProperties.ssoStartUrl,
-        ssoRegion: profile.ssoRegion,
+        ssoRegion: resolvedProperties.ssoRegion,
         ssoAccountId: profile.ssoAccountId,
         ssoRoleName: profile.ssoRoleName,
+        ssoSession: profile.ssoSession,
         roleArn: profile.roleArn,
         sourceProfile: profile.sourceProfile,
       };
@@ -299,30 +296,36 @@ export class ProfileManager {
   private resolveSsoSessionProperties(profile: AwsProfileConfig): {
     ssoStartUrl?: string;
     region?: string;
+    ssoRegion?: string;
   } {
     let resolvedSsoStartUrl = profile.ssoStartUrl;
     let resolvedRegion = profile.region;
+    let resolvedSsoRegion = profile.ssoRegion;
 
     if (profile.ssoSession) {
       const ssoSession = this.ssoSessionCache.get(profile.ssoSession);
       if (ssoSession) {
-        // Inherit SSO start URL if not directly specified
         if (!resolvedSsoStartUrl) {
           resolvedSsoStartUrl = ssoSession.ssoStartUrl;
         }
-        // Inherit region from SSO session if not specified in profile
+        if (!resolvedSsoRegion) {
+          resolvedSsoRegion = ssoSession.ssoRegion;
+        }
         if (!resolvedRegion) {
           resolvedRegion = ssoSession.ssoRegion;
         }
       }
     }
 
-    const result: { ssoStartUrl?: string; region?: string } = {};
+    const result: { ssoStartUrl?: string; region?: string; ssoRegion?: string } = {};
     if (resolvedSsoStartUrl) {
       result.ssoStartUrl = resolvedSsoStartUrl;
     }
     if (resolvedRegion) {
       result.region = resolvedRegion;
+    }
+    if (resolvedSsoRegion) {
+      result.ssoRegion = resolvedSsoRegion;
     }
     return result;
   }
@@ -393,7 +396,6 @@ export class ProfileManager {
    */
   async switchProfile(profileName: string): Promise<void> {
     try {
-      // Verify profile exists
       const profileExists = await this.profileExists(profileName);
       if (!profileExists) {
         throw new ProfileError(
@@ -403,7 +405,6 @@ export class ProfileManager {
         );
       }
 
-      // Set environment variable
       process.env.AWS_PROFILE = profileName;
 
       if (this.options.enableDebugLogging) {
@@ -477,23 +478,18 @@ export class ProfileManager {
         }
       }
 
-      // Handle different error types appropriately
       if (error instanceof Error) {
-        // ENOENT errors (missing file) should be handled gracefully
         if (error.message.includes("ENOENT") || error.message.includes("no such file")) {
           return [];
         }
-        // All other errors (permission, file system errors, etc.) should be thrown
         throw error;
       }
 
-      // Default to graceful handling for unknown error types
       return [];
     }
 
     try {
       const content = await fs.readFile(this.options.configFilePath, "utf8");
-      // Parse both profiles and SSO sessions from config file
       this.parseSsoSessions(content);
       return this.parseIniFile(content, "config");
     } catch (error) {
@@ -529,17 +525,13 @@ export class ProfileManager {
         }
       }
 
-      // Handle different error types appropriately
       if (error instanceof Error) {
-        // ENOENT errors (missing file) should be handled gracefully
         if (error.message.includes("ENOENT") || error.message.includes("no such file")) {
           return [];
         }
-        // All other errors (permission, file system errors, etc.) should be thrown
         throw error;
       }
 
-      // Default to graceful handling for unknown error types
       return [];
     }
 
@@ -623,7 +615,6 @@ export class ProfileManager {
       const trimmedLine = line.trim();
 
       try {
-        // Check for profile section header
         const newProfile = this.parseProfileSection(trimmedLine, fileType);
         if (newProfile) {
           this.saveCurrentProfile(profiles, currentProfile);
@@ -631,21 +622,18 @@ export class ProfileManager {
           continue;
         }
 
-        // Parse key-value pairs
         const keyValuePair = this.parseKeyValuePair(trimmedLine);
         if (keyValuePair && currentProfile) {
           const [key, value] = keyValuePair;
           this.setProfileProperty(currentProfile, key, value);
         }
       } catch (error) {
-        // Skip malformed lines but continue parsing
         if (this.options.enableDebugLogging) {
           console.warn(`Skipping malformed line in ${fileType}: ${trimmedLine}`, error);
         }
       }
     }
 
-    // Save final profile if exists
     this.saveCurrentProfile(profiles, currentProfile);
     return profiles;
   }
@@ -674,7 +662,6 @@ export class ProfileManager {
       return undefined;
     }
 
-    // Handle config file profile naming (strip "profile " prefix)
     if (fileType === "config" && profileName.startsWith("profile ")) {
       profileName = profileName.slice(8);
     }
