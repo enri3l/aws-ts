@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.3...aws-ts-v0.3.0) (2025-09-23)
+
+
+### ✨ Features
+
+* **tests:** enhance coverage to 90%+ with Codecov analytics integration ([#25](https://github.com/monte3l/aws-ts/issues/25)) ([2fe61ca](https://github.com/monte3l/aws-ts/commit/2fe61cae1df0925e6a9a3c564bb48e63aa85ecd5))
+
 ## [0.2.3](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.2...aws-ts-v0.2.3) (2025-09-22)
 
 ### 🐛 Bug Fixes
