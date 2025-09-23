@@ -204,7 +204,7 @@ jobs:
           (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
         uses: codecov/test-results-action@v1
         with:
-          file: ./test-results.xml
+          file: ./test-results*.xml
           flags: test-analytics
           fail_ci_if_error: false
 
@@ -217,7 +217,7 @@ jobs:
         with:
           name: test-results-node-${{ matrix.node-version }}
           path: |
-            ./test-results.xml
-            ./test-results.json
+            ./test-results*.xml
+            ./test-results*.json
             ./coverage/coverage-summary.json
           retention-days: 30
