@@ -96,8 +96,13 @@ export function sanitizeErrorForVerboseOutput(error: unknown): SanitizedError {
 
   // Ensure we always have a message property for debugging
   if (!sanitized.message && "message" in error) {
-    const message = (error as Record<string, unknown>).message;
-    if (typeof message === "string") {
+    const errorObject = error as Record<string, unknown>;
+    const message = errorObject.message;
+    if (
+      typeof message === "string" && // For standard Error objects, include message even if not enumerable
+      // For other objects, only include if enumerable
+      (error instanceof Error || Object.prototype.propertyIsEnumerable.call(error, "message"))
+    ) {
       assignSafeProperty(sanitized, "message", message);
     }
   }
