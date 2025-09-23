@@ -393,6 +393,141 @@ describe("AuthCliWrapper", () => {
 
       await expect(shortTimeoutWrapper.checkInstallation()).rejects.toThrow();
     });
+
+    it("should handle interactive command timeout with SIGTERM kill", async () => {
+      const shortTimeoutWrapper = new AuthCliWrapper({
+        awsCliPath: "aws",
+        enableDebugLogging: false,
+        timeoutMs: 50, // Very short timeout
+      });
+
+      let timeoutCallback: (() => void) | undefined;
+
+      // Mock setTimeout to capture the timeout callback
+      const originalSetTimeout = globalThis.setTimeout;
+      vi.stubGlobal(
+        "setTimeout",
+        vi.fn((callback, delay) => {
+          if (delay === 50) {
+            timeoutCallback = callback;
+            return 123 as any; // Mock timer ID
+          }
+          return originalSetTimeout(callback, delay);
+        }),
+      );
+
+      // Mock a process that accumulates stdout/stderr before timeout
+      mockChildProcess.on = vi.fn();
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("partial output")), 10);
+        }
+        return mockChildProcess.stdout;
+      });
+      mockChildProcess.stderr!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("partial error")), 10);
+        }
+        return mockChildProcess.stderr;
+      });
+
+      // Start the configuration command that will timeout
+      const configPromise = shortTimeoutWrapper.configureSso("test-profile");
+
+      // Wait for stdout/stderr to accumulate, then trigger timeout
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      // Trigger the timeout callback
+      if (timeoutCallback) {
+        timeoutCallback();
+      }
+
+      // Verify timeout error is wrapped in AuthenticationError
+      await expect(configPromise).rejects.toThrow(AuthenticationError);
+
+      try {
+        await configPromise;
+      } catch (error) {
+        expect(error).toBeInstanceOf(AuthenticationError);
+        expect((error as AuthenticationError).message).toBe(
+          "Failed to configure SSO for profile 'test-profile'",
+        );
+
+        // Verify the underlying AwsCliError is preserved as the cause
+        const cause = (error as AuthenticationError).metadata.cause;
+        expect(cause).toBeInstanceOf(AwsCliError);
+        expect((cause as AwsCliError).message).toBe(
+          "Interactive AWS CLI command timed out after 50ms",
+        );
+        expect((cause as AwsCliError).metadata.command).toBe(
+          "aws configure sso --profile test-profile",
+        );
+        expect((cause as AwsCliError).metadata.exitCode).toBe(-1);
+        expect((cause as AwsCliError).metadata.stdout).toBe("partial output");
+        expect((cause as AwsCliError).metadata.stderr).toBe("partial error");
+      }
+
+      // Verify child process was killed with SIGTERM
+      expect(mockChildProcess.kill).toHaveBeenCalledWith("SIGTERM");
+
+      // Restore setTimeout
+      vi.unstubAllGlobals();
+    });
+
+    it("should not set timeout when timeoutMs is 0", async () => {
+      const noTimeoutWrapper = new AuthCliWrapper({
+        awsCliPath: "aws",
+        enableDebugLogging: false,
+        timeoutMs: 0, // No timeout
+      });
+
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await noTimeoutWrapper.configureSso("test-profile");
+
+      // Verify setTimeout was not called for timeout (only for test delays)
+      const timeoutCalls = setTimeoutSpy.mock.calls.filter((call) => call[1] === 0);
+      expect(timeoutCalls).toHaveLength(0);
+
+      setTimeoutSpy.mockRestore();
+    });
+
+    it("should clear timeout on successful command completion", async () => {
+      const shortTimeoutWrapper = new AuthCliWrapper({
+        awsCliPath: "aws",
+        enableDebugLogging: false,
+        timeoutMs: 1000, // Long enough to complete
+      });
+
+      const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await shortTimeoutWrapper.configureSso("test-profile");
+
+      // Verify clearTimeout was called to cleanup the timeout
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+
+      clearTimeoutSpy.mockRestore();
+    });
   });
 
   describe("error scenarios", () => {
@@ -404,7 +539,7 @@ describe("AuthCliWrapper", () => {
       await expect(authCliWrapper.checkInstallation()).rejects.toThrow(AwsCliError);
     });
 
-    it("should handle malformed JSON responses", async () => {
+    it("should handle malformed JSON responses with detailed error wrapping", async () => {
       const malformedJson = "{ invalid json }";
 
       mockChildProcess.on = vi.fn((event, callback) => {
@@ -426,6 +561,123 @@ describe("AuthCliWrapper", () => {
       await expect(authCliWrapper.validateCredentials("test-profile")).rejects.toThrow(
         AuthenticationError,
       );
+
+      try {
+        await authCliWrapper.validateCredentials("test-profile");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AuthenticationError);
+        expect((error as AuthenticationError).message).toBe(
+          "Failed to parse credential validation response for profile 'test-profile'",
+        );
+        expect((error as AuthenticationError).metadata.operation).toBe("credential-validation");
+        expect((error as AuthenticationError).metadata.profile).toBe("test-profile");
+
+        // Verify the original parse error is preserved as cause
+        const cause = (error as AuthenticationError).metadata.cause;
+        expect(cause).toBeInstanceOf(SyntaxError);
+      }
+    });
+
+    it("should handle empty JSON response", async () => {
+      const emptyResponse = "";
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from(emptyResponse)), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await expect(authCliWrapper.validateCredentials("test-profile")).rejects.toThrow(
+        AuthenticationError,
+      );
+    });
+
+    it("should handle non-JSON text response", async () => {
+      const textResponse = "Error: Credentials not found";
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from(textResponse)), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await expect(authCliWrapper.validateCredentials("test-profile")).rejects.toThrow(
+        AuthenticationError,
+      );
+    });
+
+    it("should handle partial JSON response", async () => {
+      const partialJson = '{"UserId": "AIDACKCEVSQ6C2EXAMPLE", "Account":';
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from(partialJson)), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await expect(authCliWrapper.validateCredentials("test-profile")).rejects.toThrow(
+        AuthenticationError,
+      );
+    });
+
+    it("should handle JSON with missing required fields", async () => {
+      const incompleteJson = JSON.stringify({
+        UserId: "AIDACKCEVSQ6C2EXAMPLE",
+        // Missing Account and Arn fields
+      });
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from(incompleteJson)), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      const result = await authCliWrapper.validateCredentials("test-profile");
+
+      // Should still parse successfully but with undefined fields
+      expect(result.userId).toBe("AIDACKCEVSQ6C2EXAMPLE");
+      expect(result.account).toBeUndefined();
+      expect(result.arn).toBeUndefined();
     });
 
     it("should handle child process error events in interactive commands", async () => {

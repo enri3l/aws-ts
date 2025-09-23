@@ -419,6 +419,249 @@ region = us-west-2
 
       await expect(profileManager.switchProfile("any-profile")).rejects.toThrow(ProfileError);
     });
+
+    it("should handle concurrent profile switches safely", async () => {
+      // Set up mock for additional profiles needed for this test
+      const extendedConfigContent = `
+[default]
+region = us-east-1
+
+[profile target]
+region = us-west-2
+
+[profile another-target]
+region = eu-west-1
+`;
+
+      mockFs.access
+        .mockResolvedValue() // Both config and credentials file access succeed
+        .mockResolvedValue();
+      mockFs.readFile.mockResolvedValue(extendedConfigContent);
+
+      // Set initial profile
+      vi.stubEnv("AWS_PROFILE", "initial");
+
+      // Launch multiple concurrent profile switches
+      const promises = [
+        profileManager.switchProfile("target"),
+        profileManager.switchProfile("another-target"),
+        profileManager.switchProfile("default"),
+      ];
+
+      // All should complete, but only one will be the final result
+      await Promise.all(promises);
+
+      // Final AWS_PROFILE should be one of the target profiles
+      const finalProfile = process.env.AWS_PROFILE;
+      expect(["target", "another-target", "default"]).toContain(finalProfile);
+    });
+
+    it("should handle profile switch with environment variable changes during operation", async () => {
+      let switchCount = 0;
+
+      // Mock that simulates environment variable being changed externally during switch
+      const originalProfileExists = profileManager.profileExists.bind(profileManager);
+      vi.spyOn(profileManager, "profileExists").mockImplementation(async (profileName) => {
+        switchCount++;
+        if (switchCount === 1) {
+          // External process changes AWS_PROFILE during existence check
+          process.env.AWS_PROFILE = "external-change";
+        }
+        return originalProfileExists(profileName);
+      });
+
+      await profileManager.switchProfile("target");
+
+      // Should still complete the switch despite external changes
+      expect(process.env.AWS_PROFILE).toBe("target");
+    });
+
+    it("should handle profile switch when cache is cleared during operation", async () => {
+      // Setup initial state
+      vi.stubEnv("AWS_PROFILE", "initial");
+
+      // Create a spy to track when clearCache is called
+      const clearCacheSpy = vi.spyOn(profileManager, "clearCache");
+
+      // Mock profile existence check to clear cache during operation
+      let callCount = 0;
+      vi.spyOn(profileManager, "profileExists").mockImplementation((profileName) => {
+        callCount++;
+        if (callCount === 1) {
+          // Clear cache during profile switch
+          profileManager.clearCache();
+        }
+        // Return true for existing profiles
+        return ["default", "target", "another-target"].includes(profileName);
+      });
+
+      await profileManager.switchProfile("target");
+
+      expect(process.env.AWS_PROFILE).toBe("target");
+      expect(clearCacheSpy).toHaveBeenCalled();
+    });
+
+    it("should handle profile switch when config files change during operation", async () => {
+      vi.stubEnv("AWS_PROFILE", "initial");
+
+      let readCount = 0;
+      mockFs.readFile.mockImplementation(() => {
+        readCount++;
+        return readCount === 1
+          ? `
+[default]
+region = us-east-1
+
+[profile target]
+region = us-west-2
+` // First read: original config
+          : `
+[default]
+region = us-east-1
+`; // Subsequent reads: config changed (profile removed)
+      });
+
+      // First switch should work
+      await profileManager.switchProfile("target");
+      expect(process.env.AWS_PROFILE).toBe("target");
+
+      // Second switch attempt should fail due to changed config
+      await expect(profileManager.switchProfile("target")).rejects.toThrow(ProfileError);
+    });
+
+    it("should handle rapid profile switching with getActiveProfileName calls", async () => {
+      // Set up mock for additional profiles needed for this test
+      const extendedConfigContent = `
+[default]
+region = us-east-1
+
+[profile target]
+region = us-west-2
+
+[profile target1]
+region = eu-west-1
+
+[profile target2]
+region = ap-southeast-1
+`;
+
+      mockFs.access
+        .mockResolvedValue() // Both config and credentials file access succeed
+        .mockResolvedValue();
+      mockFs.readFile.mockResolvedValue(extendedConfigContent);
+
+      vi.stubEnv("AWS_PROFILE", "initial");
+
+      // Launch concurrent switches and profile name retrievals
+      const switchPromises = [
+        profileManager.switchProfile("target1"),
+        profileManager.switchProfile("target2"),
+      ];
+
+      const getActivePromises = Array.from({ length: 10 }, () =>
+        Promise.resolve(profileManager.getActiveProfileName()),
+      );
+
+      const allPromises = [...switchPromises, ...getActivePromises];
+      const results = await Promise.all(allPromises);
+
+      // Switches should complete
+      expect(results.slice(0, 2)).toEqual([undefined, undefined]);
+
+      // All getActiveProfileName calls should return valid profile names
+      const profileNames = results.slice(2);
+      for (const name of profileNames) {
+        expect(["initial", "target1", "target2"]).toContain(name);
+      }
+    });
+
+    it("should handle profile switch with concurrent profile discovery", async () => {
+      // Set up mock for profile discovery operations
+      const configContent = `
+[default]
+region = us-east-1
+
+[profile target]
+region = us-west-2
+sso_start_url = https://example.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 123456789012
+sso_role_name = PowerUserAccess
+`;
+
+      const credentialsContent = `
+[default]
+aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+`;
+
+      // Setup mocks to handle multiple concurrent calls
+      mockFs.access.mockResolvedValue(); // Always succeed for file access
+      mockFs.readFile.mockImplementation((path: string) => {
+        if (path.includes("config")) {
+          return configContent;
+        } else if (path.includes("credentials")) {
+          return credentialsContent;
+        }
+        return "";
+      });
+
+      vi.stubEnv("AWS_PROFILE", "initial");
+
+      // Launch concurrent profile switch and discovery
+      const promises = [
+        profileManager.switchProfile("target"),
+        profileManager.discoverProfiles(),
+        profileManager.getSsoProfiles(),
+      ];
+
+      const results = await Promise.all(promises);
+
+      // Switch should complete
+      expect(results[0]).toBeUndefined();
+      expect(process.env.AWS_PROFILE).toBe("target");
+
+      // Discovery operations should return valid results
+      expect(Array.isArray(results[1])).toBe(true);
+      expect(Array.isArray(results[2])).toBe(true);
+    });
+
+    it("should handle profile switch when AWS_PROFILE is deleted externally", async () => {
+      vi.stubEnv("AWS_PROFILE", "initial");
+
+      // Mock profile existence to delete AWS_PROFILE during check
+      vi.spyOn(profileManager, "profileExists").mockImplementation((profileName) => {
+        // External process deletes AWS_PROFILE
+        delete process.env.AWS_PROFILE;
+        return ["default", "target", "another-target"].includes(profileName);
+      });
+
+      await profileManager.switchProfile("target");
+
+      // Should set the profile despite external deletion
+      expect(process.env.AWS_PROFILE).toBe("target");
+    });
+
+    it("should handle profile switch with file system errors during validation", async () => {
+      vi.stubEnv("AWS_PROFILE", "initial");
+
+      let accessCount = 0;
+      mockFs.access.mockImplementation(() => {
+        accessCount++;
+        if (accessCount === 2) {
+          // Second access fails (config file becomes inaccessible)
+          throw new Error("EACCES: permission denied");
+        }
+        // First access succeeds
+      });
+
+      // First switch should work
+      await profileManager.switchProfile("target");
+      expect(process.env.AWS_PROFILE).toBe("target");
+
+      // Second switch should fail due to file system error
+      await expect(profileManager.switchProfile("another-target")).rejects.toThrow(ProfileError);
+    });
   });
 
   describe("getSsoProfiles", () => {
@@ -562,6 +805,205 @@ aws_access_key_id = AKIAIOSFODNN7EXAMPLE
         ssoRoleName: "PowerUserAccess",
         awsAccessKeyId: "AKIAIOSFODNN7EXAMPLE",
       });
+    });
+
+    it("should handle completely corrupted config file", async () => {
+      // Simulate a file that contains binary data or encoding issues
+      const corruptedContent =
+        "\u0000\u0001\u0002\u00FF\u00FE\u00FD invalid binary content \u0000\u0000";
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(corruptedContent);
+
+      // Should handle corruption gracefully and return empty profile list
+      const profiles = await profileManager.discoverProfiles();
+      expect(profiles).toHaveLength(0);
+    });
+
+    it("should handle partially corrupted config file with mixed content", async () => {
+      const partiallyCorruptedContent = `
+[default]
+region = us-east-1
+
+\u0000\u00FF corrupted section \u0000\u00FF
+invalid binary data here
+
+[profile valid]
+region = eu-west-1
+sso_start_url = https://example.awsapps.com/start
+`;
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(partiallyCorruptedContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      // Should recover valid profiles despite corruption
+      expect(profiles).toHaveLength(2);
+      expect(profiles.find((p) => p.name === "default")).toBeDefined();
+      expect(profiles.find((p) => p.name === "valid")).toBeDefined();
+    });
+
+    it("should handle config file with extremely long lines", async () => {
+      const longValue = "x".repeat(100_000); // 100KB line
+      const configContent = `
+[default]
+region = us-east-1
+extremely_long_key = ${longValue}
+
+[profile normal]
+region = us-west-2
+`;
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      // Should handle long lines gracefully
+      expect(profiles).toHaveLength(2);
+      expect(profiles.find((p) => p.name === "default")).toBeDefined();
+      expect(profiles.find((p) => p.name === "normal")).toBeDefined();
+    });
+
+    it("should handle config file with Unicode and special characters", async () => {
+      const configContent = `
+[default]
+region = us-east-1
+# Comment with émojis: 🚀 🌟 ⚡
+description = "Profile with Unicode: café, naïve, 中文"
+
+[profile special-chars]
+region = us-west-2
+description = "Special chars: @#$%^&*(){}[]|\\:;<>?,./"
+`;
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      expect(profiles).toHaveLength(2);
+      expect(profiles.find((p) => p.name === "default")).toBeDefined();
+      expect(profiles.find((p) => p.name === "special-chars")).toBeDefined();
+    });
+
+    it("should handle config file read errors during parsing", async () => {
+      // Simulate file becoming inaccessible during read
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockRejectedValueOnce(new Error("EIO: I/O error, read"));
+
+      await expect(profileManager.discoverProfiles()).rejects.toThrow(ProfileError);
+    });
+
+    it("should handle config file with nested brackets and malformed sections", async () => {
+      const configContent = `
+[default]
+region = us-east-1
+
+[[nested brackets]]
+invalid = section
+
+[profile [invalid]]
+region = us-west-2
+
+[profile valid]
+region = eu-west-1
+`;
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      // Parser is resilient and finds valid parts
+      expect(profiles.length).toBeGreaterThanOrEqual(2);
+      expect(profiles.find((p) => p.name === "default")).toBeDefined();
+      expect(profiles.find((p) => p.name === "valid")).toBeDefined();
+    });
+
+    it("should handle config file with empty sections and whitespace-only lines", async () => {
+      const configContent = `
+
+\t\t\t
+
+[default]
+region = us-east-1
+
+[profile empty]
+
+
+   \t
+
+[profile whitespace-only]
+
+\t\t\t
+region = us-west-2
+
+`;
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      // Parser handles empty sections gracefully
+      expect(profiles.length).toBeGreaterThanOrEqual(2);
+      expect(profiles.find((p) => p.name === "default")).toBeDefined();
+      expect(profiles.find((p) => p.name === "whitespace-only")).toBeDefined();
+    });
+
+    it("should handle config file with circular SSO session references", async () => {
+      const configContent = `
+[sso-session session1]
+sso_start_url = https://session1.awsapps.com/start
+sso_region = us-east-1
+
+[sso-session session2]
+sso_start_url = https://session2.awsapps.com/start
+sso_region = us-west-2
+
+[profile circular1]
+sso_session = session2
+region = us-east-1
+
+[profile circular2]
+sso_session = session1
+region = us-west-2
+`;
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      // Parser handles SSO sessions and profiles correctly
+      expect(profiles.length).toBeGreaterThanOrEqual(2);
+      expect(profiles.find((p) => p.name === "circular1")).toBeDefined();
+      expect(profiles.find((p) => p.name === "circular2")).toBeDefined();
+    });
+
+    it("should handle config file with missing closing quotes", async () => {
+      const configContent = `
+[default]
+region = us-east-1
+description = "unclosed quote
+another_key = value
+
+[profile valid]
+region = us-west-2
+description = "properly closed quote"
+`;
+
+      mockFs.access.mockResolvedValueOnce().mockRejectedValueOnce(new Error("ENOENT"));
+      mockFs.readFile.mockResolvedValueOnce(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      // Should parse what it can
+      expect(profiles).toHaveLength(2);
+      expect(profiles.find((p) => p.name === "default")).toBeDefined();
+      expect(profiles.find((p) => p.name === "valid")).toBeDefined();
     });
 
     it("should handle custom file paths in options", async () => {
