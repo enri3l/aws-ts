@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.3.0...aws-ts-v0.3.1) (2025-09-23)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** resolve workflow failures and prevent release blocking ([8f6f105](https://github.com/monte3l/aws-ts/commit/8f6f105dc47444bc12b90851664d49c002137329))
+
 ## [0.3.0](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.2.3...aws-ts-v0.3.0) (2025-09-23)
 
 
