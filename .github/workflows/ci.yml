@@ -75,15 +75,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Install pnpm using dedicated action
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
       # Node.js setup with pnpm caching for optimal performance
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
-
-      # Install pnpm using dedicated action
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
+          cache: "pnpm"
 
       # Install dependencies using pnpm with lockfile validation
       - name: Install dependencies
