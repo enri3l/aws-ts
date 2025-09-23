@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.3.1...aws-ts-v0.3.2) (2025-09-23)
+
+
+### 🐛 Bug Fixes
+
+* **tests:** resolve all test failures with enhanced error handling ([#28](https://github.com/monte3l/aws-ts/issues/28)) ([2a98ba1](https://github.com/monte3l/aws-ts/commit/2a98ba1cdc745ceffe83930323d33d2073f65ad0))
+
 ## [0.3.1](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.3.0...aws-ts-v0.3.1) (2025-09-23)
 
 
