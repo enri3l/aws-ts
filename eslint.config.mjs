@@ -107,6 +107,9 @@ export default tseslint.config(
       // Code organization rules adapted for test file patterns
       "sonarjs/no-nested-functions": "off", // Test suites benefit from nested describe/it blocks and helper functions
 
+      // Allow null in test files where testing null handling is legitimate and necessary
+      "unicorn/no-null": "off", // Tests need to verify behavior with null values from external sources
+
       // Documentation requirements relaxed for test files since test names should be self-documenting
       // and test implementation details don't require the same API documentation standards
       "jsdoc/require-jsdoc": "off",
