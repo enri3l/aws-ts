@@ -4,6 +4,7 @@ ignores:
     "**/node_modules",
     "**/dist",
     "CLAUDE.md",
+    "CHANGELOG.md",
     "CLAUDE.sessions.md",
     "cc-sessions",
     "sessions",
