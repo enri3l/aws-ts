@@ -884,7 +884,7 @@ describe("TokenManager", () => {
     it("should handle token expiry edge case just past warning threshold", async () => {
       const justPastThresholdToken = {
         accessToken: "just-past-threshold-token",
-        expiresAt: new Date(Date.now() + 900_001).toISOString(), // 1ms past 15-minute threshold
+        expiresAt: new Date(Date.now() + 901_000).toISOString(), // 1 second past 15-minute threshold
         region: "us-east-1",
         startUrl: "https://example.awsapps.com/start",
       };
