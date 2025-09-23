@@ -117,8 +117,10 @@ describe("Connectivity Checks", () => {
         expect(result.status).toBe("fail");
         expect(result.message).toBe(`STS call timed out after ${expectedTimeout}ms`);
         expect(result.details).toEqual({
-          error: "Timeout",
+          error: "Network timeout",
+          operation: "STS GetCallerIdentity",
           timeoutMs: expectedTimeout,
+          retryable: true,
           profile: "test-profile",
         });
         expect(result.remediation).toContain("Check network connectivity");

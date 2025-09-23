@@ -66,6 +66,8 @@ export default tseslint.config(
             "beta",
             "deprecated",
             "file",
+            "author",
+            "private",
           ],
         },
       ],

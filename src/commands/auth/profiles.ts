@@ -6,11 +6,18 @@
  *
  */
 
+import type { Interfaces } from "@oclif/core";
 import { Command, Flags } from "@oclif/core";
 import type { AuthProfiles, ProfileInfo } from "../../lib/auth-schemas.js";
-import { formatError, formatErrorWithGuidance } from "../../lib/errors.js";
+import { safeDisplayTable } from "../../lib/ui-utilities.js";
 import { AuthService } from "../../services/auth-service.js";
 import { TokenManager } from "../../services/token-manager.js";
+
+/**
+ * Type for AuthProfilesCommand flags
+ * @internal
+ */
+type ProfileCommandFlags = Interfaces.InferredFlags<typeof AuthProfilesCommand.flags>;
 
 /**
  * Extended profile information for display purposes
@@ -98,84 +105,106 @@ export default class AuthProfilesCommand extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(AuthProfilesCommand);
 
-    const ensureJsonOutput = (error: unknown) => {
-      if (flags.format === "json") {
-        const errorObject = {
-          error: "Failed to list profiles",
-          message: error instanceof Error ? error.message : String(error),
-          profiles: [],
-        };
-        this.log(JSON.stringify(errorObject, undefined, 2));
-        this.exit(1);
-      }
-      throw error;
+    try {
+      const profiles = await this.getProfiles(flags);
+      this.displayProfiles(profiles, flags);
+    } catch (error) {
+      this.handleProfilesError(error, flags);
+    }
+  }
+
+  /**
+   * Get AWS profiles based on command flags
+   *
+   * @param flags - Command flags
+   * @returns Array of profiles
+   * @private
+   */
+  private async getProfiles(flags: ProfileCommandFlags): Promise<DisplayProfileInfo[]> {
+    const input: AuthProfiles = {
+      detailed: flags.detailed,
+      activeOnly: flags["active-only"],
+      format: flags.format as "table" | "json" | "csv",
     };
 
-    try {
-      try {
-        const input: AuthProfiles = {
-          detailed: flags.detailed,
-          activeOnly: flags["active-only"],
-          format: flags.format as "table" | "json" | "csv",
-        };
+    const authService = new AuthService({
+      enableDebugLogging: flags.verbose,
+      enableProgressIndicators: true,
+    });
 
-        const authService = new AuthService({
-          enableDebugLogging: flags.verbose,
-          enableProgressIndicators: true,
-        });
+    return await authService.listProfiles(input);
+  }
 
-        const profiles = await authService.listProfiles(input);
-
-        if (profiles.length === 0) {
-          if (flags.format === "json") {
-            this.log("[]");
-            return;
-          }
-          this.log("No AWS profiles found");
-          this.log("");
-          this.log("To configure a new profile, run:");
-          this.log(
-            "  aws-ts auth login --configure --sso-start-url <url> --sso-region <region> --sso-account-id <id> --sso-role-name <role>",
-          );
-          return;
-        }
-
-        switch (flags.format) {
-          case "json": {
-            this.log(JSON.stringify(profiles, undefined, 2));
-            break;
-          }
-          case "csv": {
-            this.displayProfilesCsv(profiles, flags.detailed);
-            break;
-          }
-          default: {
-            this.displayProfilesTable(profiles, flags.detailed);
-            break;
-          }
-        }
-      } catch (innerError) {
-        ensureJsonOutput(innerError);
-      }
-    } catch (error) {
-      if (flags.format === "json") {
-        const errorObject = {
-          error: "Failed to list profiles",
-          message: error instanceof Error ? formatError(error, flags.verbose) : String(error),
-          profiles: [],
-        };
-        this.log(JSON.stringify(errorObject, undefined, 2));
-        this.exit(1);
-      }
-
-      if (error instanceof Error) {
-        this.error(`Failed to list profiles: ${formatErrorWithGuidance(error, flags.verbose)}`, {
-          exit: 1,
-        });
-      }
-
-      this.error(`Failed to list profiles: ${String(error)}`, { exit: 1 });
+  /**
+   * Display profiles in the requested format
+   *
+   * @param profiles - Profiles to display
+   * @param flags - Command flags
+   * @private
+   */
+  private displayProfiles(profiles: DisplayProfileInfo[], flags: ProfileCommandFlags): void {
+    if (profiles.length === 0) {
+      this.displayNoProfilesMessage(flags.format);
+      return;
     }
+
+    switch (flags.format) {
+      case "json": {
+        this.log(JSON.stringify(profiles, undefined, 2));
+        break;
+      }
+      case "csv": {
+        this.displayProfilesCsv(profiles, flags.detailed);
+        break;
+      }
+      default: {
+        this.displayProfilesTable(profiles, flags.detailed);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Display message when no profiles are found
+   *
+   * @param format - Output format
+   * @private
+   */
+  private displayNoProfilesMessage(format: string): void {
+    if (format === "json") {
+      this.log("[]");
+      return;
+    }
+    this.log("No AWS profiles found");
+    this.log("");
+    this.log("To configure a new profile, run:");
+    this.log("  aws-ts auth login --sso");
+  }
+
+  /**
+   * Handle profile listing errors with appropriate output format
+   *
+   * @param error - The error that occurred
+   * @param flags - Command flags
+   * @throws Re-throws the provided error after logging in JSON format when not in JSON mode
+   * @private
+   */
+  private handleProfilesError(error: unknown, flags: ProfileCommandFlags): never {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (flags.format === "json") {
+      const errorObject = {
+        error: "Failed to list profiles",
+        message: errorMessage,
+        profiles: [],
+      };
+      this.log(JSON.stringify(errorObject, undefined, 2));
+      this.exit(1);
+    }
+
+    // For table format, use OCLIF error method with wrapped message
+    const wrappedMessage = `Failed to list profiles: ${errorMessage}`;
+    this.error(wrappedMessage, { exit: 1 });
   }
 
   /**
@@ -222,7 +251,7 @@ export default class AuthProfilesCommand extends Command {
       return row;
     });
 
-    console.table(tableData);
+    safeDisplayTable(tableData);
 
     const activeProfiles = profiles.filter((p) => p.active);
     const validProfiles = profiles.filter((p) => p.credentialsValid);
