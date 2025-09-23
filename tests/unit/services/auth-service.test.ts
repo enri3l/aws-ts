@@ -73,6 +73,8 @@ const mockProfileManager = {
   getSsoProfiles: vi.fn(),
   getProfileInfo: vi.fn(),
   switchProfile: vi.fn(),
+  listProfiles: vi.fn(),
+  getActiveProfile: vi.fn(),
 };
 
 const mockTokenManager = {
@@ -636,6 +638,214 @@ describe("AuthService", () => {
       mockAuthCliWrapper.checkInstallation.mockRejectedValue(originalError);
 
       await expect(authService.login(loginInput)).rejects.toThrow("Generic error");
+    });
+  });
+
+  describe("network failure scenarios", () => {
+    it("should handle network timeout during AWS CLI operations", async () => {
+      const loginInput: AuthLogin = {
+        profile: "test-profile",
+        force: false,
+        configure: false,
+      };
+
+      const timeoutError = new Error("ETIMEDOUT: connect timeout");
+      mockAuthCliWrapper.checkInstallation.mockRejectedValue(timeoutError);
+
+      await expect(authService.login(loginInput)).rejects.toThrow("ETIMEDOUT");
+    });
+
+    it("should handle DNS resolution failures", async () => {
+      const loginInput: AuthLogin = {
+        profile: "test-profile",
+        force: false,
+        configure: false,
+      };
+
+      const dnsError = new Error("ENOTFOUND: getaddrinfo ENOTFOUND");
+      mockAuthCliWrapper.checkInstallation.mockRejectedValue(dnsError);
+
+      await expect(authService.login(loginInput)).rejects.toThrow("ENOTFOUND");
+    });
+
+    it("should handle connection refused errors", async () => {
+      const loginInput: AuthLogin = {
+        profile: "test-profile",
+        force: false,
+        configure: false,
+      };
+
+      const connectionError = new Error("ECONNREFUSED: connection refused");
+      mockAuthCliWrapper.checkInstallation.mockRejectedValue(connectionError);
+
+      await expect(authService.login(loginInput)).rejects.toThrow("ECONNREFUSED");
+    });
+
+    it("should handle SSL/TLS certificate errors", async () => {
+      const loginInput: AuthLogin = {
+        profile: "test-profile",
+        force: false,
+        configure: false,
+      };
+
+      const sslError = new Error("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
+      mockAuthCliWrapper.checkInstallation.mockRejectedValue(sslError);
+
+      await expect(authService.login(loginInput)).rejects.toThrow(
+        "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+      );
+    });
+  });
+
+  describe("API throttling and rate limiting scenarios", () => {
+    it("should handle AWS API throttling errors", async () => {
+      const loginInput: AuthLogin = {
+        profile: "test-profile",
+        force: false,
+        configure: false,
+      };
+
+      mockAuthCliWrapper.checkInstallation.mockResolvedValue({
+        installed: true,
+        version: "2.15.30",
+      });
+
+      const throttlingError = new AuthenticationError(
+        "Throttling: Rate exceeded",
+        "aws-api-throttling",
+        "test-profile",
+      );
+      mockCredentialService.validateCredentials.mockRejectedValue(throttlingError);
+
+      await expect(authService.login(loginInput)).rejects.toThrow(AuthenticationError);
+    });
+
+    it("should handle service unavailable errors", async () => {
+      const loginInput: AuthLogin = {
+        profile: "test-profile",
+        force: false,
+        configure: false,
+      };
+
+      mockAuthCliWrapper.checkInstallation.mockResolvedValue({
+        installed: true,
+        version: "2.15.30",
+      });
+
+      const serviceError = new AuthenticationError(
+        "ServiceUnavailable: The service is temporarily unavailable",
+        "service-unavailable",
+        "test-profile",
+      );
+      mockCredentialService.validateCredentials.mockRejectedValue(serviceError);
+
+      await expect(authService.login(loginInput)).rejects.toThrow(AuthenticationError);
+    });
+
+    it("should handle AWS API limit exceeded errors", async () => {
+      const profilesInput: AuthProfiles = {
+        filter: "all",
+        activeOnly: false,
+        format: "table",
+      };
+
+      mockProfileManager.discoverProfiles.mockResolvedValue([{ name: "profile1", type: "sso" }]);
+
+      mockProfileManager.getProfileInfo.mockResolvedValue({
+        name: "profile1",
+        type: "sso",
+        active: true,
+        region: "us-east-1",
+      });
+
+      const limitError = new AuthenticationError(
+        "LimitExceeded: Account limit exceeded",
+        "account-limit-exceeded",
+        "profile1",
+      );
+      mockCredentialService.validateCredentials.mockRejectedValue(limitError);
+
+      const result = await authService.listProfiles(profilesInput);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].credentialsValid).toBe(false);
+    });
+  });
+
+  describe("credential validation edge cases", () => {
+    it("should handle expired token scenarios gracefully", async () => {
+      const statusInput: AuthStatus = {
+        profile: "test-profile",
+        detailed: false,
+      };
+
+      mockProfileManager.getActiveProfile.mockResolvedValue("test-profile");
+      mockProfileManager.getProfileInfo.mockResolvedValue({
+        name: "test-profile",
+        type: "sso",
+        active: true,
+        region: "us-east-1",
+      });
+
+      const expiredTokenError = new AuthenticationError(
+        "Token has expired",
+        "token-expired",
+        "test-profile",
+      );
+      mockCredentialService.validateCredentials.mockRejectedValue(expiredTokenError);
+
+      const result = await authService.getStatus(statusInput);
+
+      expect(result.profiles).toHaveLength(1);
+      expect(result.profiles[0].credentialsValid).toBe(false);
+    });
+
+    it("should handle insufficient permissions errors", async () => {
+      const loginInput: AuthLogin = {
+        profile: "test-profile",
+        force: false,
+        configure: false,
+      };
+
+      mockAuthCliWrapper.checkInstallation.mockResolvedValue({
+        installed: true,
+        version: "2.15.30",
+      });
+
+      const permissionError = new AuthenticationError(
+        "AccessDenied: User is not authorized to perform action",
+        "access-denied",
+        "test-profile",
+      );
+      mockCredentialService.validateCredentials.mockRejectedValue(permissionError);
+
+      await expect(authService.login(loginInput)).rejects.toThrow(AuthenticationError);
+    });
+
+    it("should handle region access restrictions", async () => {
+      const statusInput: AuthStatus = {
+        profile: "restricted-profile",
+        detailed: true,
+      };
+
+      mockProfileManager.getActiveProfile.mockResolvedValue("restricted-profile");
+      mockProfileManager.getProfileInfo.mockResolvedValue({
+        name: "restricted-profile",
+        type: "sso",
+        active: true,
+        region: "restricted-region",
+      });
+
+      const regionError = new AuthenticationError(
+        "UnauthorizedOperation: Region access denied",
+        "region-access-denied",
+        "restricted-profile",
+      );
+      mockCredentialService.validateCredentials.mockRejectedValue(regionError);
+
+      const result = await authService.getStatus(statusInput);
+
+      expect(result.profiles[0].credentialsValid).toBe(false);
     });
   });
 

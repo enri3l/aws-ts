@@ -448,17 +448,13 @@ export class TokenManager {
       const stats = await fs.stat(this.options.ssoCacheDir);
       return stats.isDirectory();
     } catch (error) {
-      // Handle different error types appropriately
       if (error instanceof Error) {
-        // ENOENT errors (missing directory) should be handled gracefully
         if (error.message.includes("ENOENT") || error.message.includes("no such file")) {
           return false;
         }
-        // All other errors (permission, file system errors, etc.) should be thrown
         throw error;
       }
 
-      // Default to graceful handling for unknown error types
       return false;
     }
   }
@@ -489,17 +485,13 @@ export class TokenManager {
         );
       }
 
-      // Handle different error types appropriately
       if (error instanceof Error) {
-        // ENOENT errors (missing directory/files) should be handled gracefully
         if (error.message.includes("ENOENT") || error.message.includes("no such file")) {
           return [];
         }
-        // All other errors (permission, file system errors, etc.) should be thrown
         throw error;
       }
 
-      // Default to graceful handling for unknown error types
       return [];
     }
   }
@@ -516,7 +508,6 @@ export class TokenManager {
       const content = await fs.readFile(filePath, "utf8");
       const cacheData = JSON.parse(content) as SsoCacheFile;
 
-      // Validate required fields
       if (!cacheData.accessToken || !cacheData.expiresAt || !cacheData.startUrl) {
         if (this.options.enableDebugLogging) {
           console.debug(`Invalid cache file format: ${filePath}`);

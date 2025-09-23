@@ -1,0 +1,120 @@
+# Codecov Configuration for AWS TypeScript CLI
+#
+# This configuration enables Test Analytics, flaky test detection,
+# and test impact analysis for enhanced developer experience.
+#
+# Documentation: https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  # Coverage precision and rounding
+  precision: 2
+  round: down
+  range: 80..100
+
+  # Status checks configuration
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 1%
+        base: auto
+    patch:
+      default:
+        target: 90%
+        threshold: 1%
+
+# Test Analytics Configuration
+test_analytics:
+  # Enable flaky test detection
+  flaky_test_detection:
+    # Threshold for classifying tests as flaky (2% failure rate)
+    threshold: 0.02
+    # Minimum number of runs before classification
+    min_runs: 10
+    # Enable notifications for flaky tests
+    notify: true
+
+  # Test impact analysis
+  test_impact_analysis:
+    # Enable critical changes detection
+    critical_changes: true
+    # Sampling frequency for runtime insights
+    runtime_sampling: 0.1
+    # Enable test execution optimization recommendations
+    optimization_suggestions: true
+
+  # Test result configuration
+  test_results:
+    # JUnit XML file patterns
+    junit_xml:
+      - "./test-results.xml"
+    # JSON test result patterns
+    json:
+      - "./test-results.json"
+
+# Comment configuration for PR comments
+comment:
+  layout: "header,diff,files,footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+# GitHub configuration
+github_checks:
+  annotations: true
+
+# Ignore paths for coverage
+ignore:
+  - "tests/"
+  - "dist/"
+  - "coverage/"
+  - "docs/"
+  - "*.config.*"
+  - "*.d.ts"
+  - "cc-sessions/"
+  - ".claude/"
+
+# Notification configuration
+notifications:
+  # Disable email notifications (GitHub notifications preferred)
+  email: false
+
+  # GitHub status checks
+  github_status:
+    # Enable status checks on pull requests
+    require_ci_to_pass: true
+    # Enable coverage status posting
+    coverage: true
+    # Enable analytics status posting
+    test_analytics: true
+
+# Flags for different test types
+flags:
+  unit:
+    paths:
+      - src/
+    carryforward: false
+
+  integration:
+    paths:
+      - src/
+    carryforward: false
+
+  e2e:
+    paths:
+      - src/
+    carryforward: false
+
+  test-analytics:
+    # Flag for test analytics data
+    analytics: true
+    carryforward: false
+
+# Profiling configuration for performance insights
+profiling:
+  # Enable critical file analysis
+  critical_files_paths:
+    - "src/services/"
+    - "src/handlers/"
+    - "src/commands/"

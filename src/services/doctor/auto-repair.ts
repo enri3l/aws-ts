@@ -141,7 +141,6 @@ export class AutoRepairService {
     const repairResults: RepairResult[] = [];
 
     try {
-      // Safe repair operations (non-destructive)
       const safeOperations = [
         () => this.clearExpiredTokens(),
         () => this.createMissingDirectories(),
@@ -156,7 +155,6 @@ export class AutoRepairService {
             repairResults.push(result);
           }
         } catch (error) {
-          // Log individual operation failures but continue with other repairs
           if (this.options.enableDebugLogging) {
             console.debug("Safe repair operation failed:", error);
           }
@@ -193,7 +191,6 @@ export class AutoRepairService {
     const repairResults: RepairResult[] = [];
 
     try {
-      // Identify repair opportunities from check results
       const repairOpportunities = this.identifyRepairOpportunities(checkResults);
 
       if (repairOpportunities.length === 0) {
@@ -274,7 +271,6 @@ export class AutoRepairService {
         };
       }
 
-      // Use TokenManager's existing cleanup functionality
       const operations: string[] = [];
       for (const token of expiredTokens) {
         if (token.status === "expired") {
@@ -421,7 +417,6 @@ export class AutoRepairService {
         }
       }
     } catch (error) {
-      // Directory might not exist, which is fine
       if (
         this.options.enableDebugLogging &&
         error instanceof Error &&
@@ -467,7 +462,6 @@ export class AutoRepairService {
         cleaned: true,
       };
     } catch {
-      // Individual file errors are not critical
       return { cleaned: false };
     }
   }
@@ -481,7 +475,6 @@ export class AutoRepairService {
    * @internal
    */
   private shouldCleanFile(fileName: string, fileStat: Stats): boolean {
-    // Clean files older than 30 days
     const isOld = Date.now() - fileStat.mtime.getTime() > 30 * 24 * 60 * 60 * 1000;
     return isOld && fileName.startsWith("tmp-");
   }
@@ -507,7 +500,6 @@ export class AutoRepairService {
         try {
           const directoryStat = await stat(directory);
 
-          // Check if directory is readable/writable by owner
           if ((directoryStat.mode & 0o700) !== 0o700) {
             if (this.options.dryRun) {
               operations.push(`Would fix permissions for: ${directory}`);
@@ -518,7 +510,6 @@ export class AutoRepairService {
             }
           }
         } catch (error) {
-          // Directory might not exist, which is fine
           if (
             this.options.enableDebugLogging &&
             error instanceof Error &&
@@ -624,7 +615,6 @@ export class AutoRepairService {
       });
       const profileChoice = profile;
 
-      // Use AWS CLI to refresh the token
       await execa("aws", ["sso", "login", "--profile", profileChoice]);
 
       return {
@@ -655,10 +645,8 @@ export class AutoRepairService {
       const configPath = path.join(homedir(), ".aws", "config");
       const backupPath = path.join(this.options.backupDirectory, `config.backup.${Date.now()}`);
 
-      // Create backup directory
       await mkdir(path.dirname(backupPath), { recursive: true });
 
-      // Use AWS CLI to configure interactively
       const { configure } = await enquirer.prompt<{ configure: boolean }>({
         type: "confirm",
         name: "configure",

@@ -8,7 +8,8 @@
  */
 
 import ora from "ora";
-import { AuthenticationError, ProfileError, getAuthErrorGuidance } from "../lib/auth-errors.js";
+import { AuthenticationError, ProfileError } from "../lib/auth-errors.js";
+import * as authGuidance from "../lib/auth-guidance.js";
 import type {
   AuthLogin,
   AuthLogout,
@@ -174,7 +175,7 @@ export class AuthService {
       spinner.fail("Authentication failed");
 
       if (error instanceof AuthenticationError) {
-        const guidance = getAuthErrorGuidance(error);
+        const guidance = authGuidance.getAuthErrorGuidance(error);
         throw new AuthenticationError(
           `${error.message}\n\nResolution: ${guidance}`,
           error.metadata.operation as string,
@@ -359,7 +360,6 @@ export class AuthService {
     const spinner = this.createSpinner(`Switching to profile '${input.profile}'...`);
 
     try {
-      // Check if target profile exists
       const profileExists = await this.profileManager.profileExists(input.profile);
       if (!profileExists) {
         throw new ProfileError(
@@ -369,17 +369,15 @@ export class AuthService {
         );
       }
 
-      // Switch profile
       await this.profileManager.switchProfile(input.profile);
       this.credentialService.setActiveProfile(input.profile);
 
-      // Validate credentials if requested
       if (input.validate) {
         spinner.text = "Validating credentials...";
         try {
           await this.credentialService.validateCredentials(input.profile);
         } catch (error) {
-          const guidance = getAuthErrorGuidance(error);
+          const guidance = authGuidance.getAuthErrorGuidance(error);
           spinner.warn(`Switched to profile '${input.profile}' but credentials are invalid`);
           throw new AuthenticationError(
             `Profile switched but credentials are invalid: ${guidance}`,
@@ -408,7 +406,6 @@ export class AuthService {
     try {
       const profileInfo = await this.profileManager.getProfileInfo(profileName);
 
-      // Check credential validity
       let credentialsValid = false;
       let tokenExpiry: Date | undefined;
 
@@ -419,7 +416,6 @@ export class AuthService {
         credentialsValid = false;
       }
 
-      // Check token status for SSO profiles
       if (profileInfo.type === "sso" && profileInfo.ssoStartUrl) {
         const tokenStatus = await this.tokenManager.getTokenStatus(
           profileName,
@@ -436,7 +432,6 @@ export class AuthService {
         tokenExpiry,
       };
     } catch {
-      // Return minimal profile info if detailed check fails
       return {
         name: profileName,
         type: "credentials",

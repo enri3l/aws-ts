@@ -9,7 +9,7 @@
 import { Command, Flags } from "@oclif/core";
 import { AuthenticationError } from "../../lib/auth-errors.js";
 import { validateSsoConfig, type AuthLogin, type SsoConfig } from "../../lib/auth-schemas.js";
-import { formatError } from "../../lib/errors.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
 
 /**
@@ -155,7 +155,7 @@ export default class AuthLoginCommand extends Command {
       await authService.login(input);
     } catch (error) {
       if (error instanceof AuthenticationError) {
-        this.error(formatError(error, flags.verbose), { exit: 1 });
+        this.error(formatErrorWithGuidance(error, flags.verbose), { exit: 1 });
       }
 
       if (error instanceof Error) {
