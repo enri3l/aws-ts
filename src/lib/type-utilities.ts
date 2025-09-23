@@ -49,24 +49,24 @@ export interface SanitizedError {
  */
 export function toSafeString(value: unknown): string {
   if (value === null || value === undefined) {
-    return 'Unknown';
+    return "Unknown";
   }
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value;
   }
 
-  if (typeof value === 'number' || typeof value === 'boolean') {
+  if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
 
   // For objects, arrays, and other complex types
   // eslint-disable-next-line sonarjs/different-types-comparison -- typeof null === 'object' in JavaScript, null check required
-  if (typeof value === 'object' && value !== null) {
+  if (typeof value === "object" && value !== null) {
     try {
       return JSON.stringify(value);
     } catch {
-      return '[Object]';
+      return "[Object]";
     }
   }
 
@@ -74,7 +74,7 @@ export function toSafeString(value: unknown): string {
     // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Only function, symbol, bigint reach here; all stringify correctly
     return String(value);
   } catch {
-    return 'Unknown';
+    return "Unknown";
   }
 }
 
@@ -87,5 +87,5 @@ export function toSafeString(value: unknown): string {
  * @internal
  */
 export function isSafePrimitive(value: unknown): value is string | number | boolean {
-  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }

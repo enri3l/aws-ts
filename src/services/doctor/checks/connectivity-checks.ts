@@ -10,6 +10,8 @@
 
 import { S3Client } from "@aws-sdk/client-s3";
 import { CheckExecutionError } from "../../../lib/diagnostic-errors.js";
+import { TimeoutError } from "../../../lib/errors.js";
+import { toSafeString } from "../../../lib/type-utilities.js";
 import type { CredentialServiceOptions } from "../../credential-service.js";
 import { CredentialService } from "../../credential-service.js";
 import type { CheckResult, DoctorContext, ICheck } from "../types.js";
@@ -81,9 +83,21 @@ export class StsCredentialCheck implements ICheck {
     try {
       const startTime = Date.now();
 
-      // Use Promise.race for timeout protection
+      // Use Promise.race for timeout protection with TimeoutError
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("STS call timed out")), this.timeoutMs);
+        setTimeout(
+          () =>
+            reject(
+              new TimeoutError(
+                `STS call timed out after ${this.timeoutMs}ms`,
+                "STS GetCallerIdentity",
+                this.timeoutMs,
+                undefined,
+                true,
+              ),
+            ),
+          this.timeoutMs,
+        );
       });
 
       const credentialPromise = this.credentialService.validateCredentials(context.profile);
@@ -155,6 +169,24 @@ export class StsCredentialCheck implements ICheck {
    * @internal
    */
   private classifyStsError(error: Error, context: DoctorContext): CheckResult | undefined {
+    // Handle TimeoutError instances specifically
+    if (error instanceof TimeoutError) {
+      return {
+        status: "fail",
+        message: `STS call timed out after ${toSafeString(error.metadata.timeoutMs)}ms`,
+        details: {
+          error: "Network timeout",
+          operation: error.metadata.operation,
+          timeoutMs: error.metadata.timeoutMs,
+          retryable: error.metadata.retryable,
+          profile: context.profile,
+        },
+        remediation:
+          "Check network connectivity and AWS service status. Consider using a different region or increasing timeout.",
+      };
+    }
+
+    // Legacy timeout detection for backward compatibility
     if (error.message.includes("timed out")) {
       return {
         status: "fail",

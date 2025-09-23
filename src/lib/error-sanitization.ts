@@ -25,21 +25,21 @@ import { isSafePrimitive } from "./type-utilities.js";
  * @internal
  */
 const SAFE_ERROR_PROPERTIES = new Set([
-  'message',
-  'stack',
-  'name',
-  'code',
-  'requestId',
-  'httpStatusCode',
-  'statusCode',
-  'errno',
-  'syscall',
-  'signal',
-  'field',
-  'value',
-  'config.region',
-  'expectedFormat',
-  'suggestions',
+  "message",
+  "stack",
+  "name",
+  "code",
+  "requestId",
+  "httpStatusCode",
+  "statusCode",
+  "errno",
+  "syscall",
+  "signal",
+  "field",
+  "value",
+  "config.region",
+  "expectedFormat",
+  "suggestions",
 ]);
 
 /**
@@ -95,16 +95,16 @@ export function sanitizeErrorForVerboseOutput(error: unknown): SanitizedError {
   }
 
   // Ensure we always have a message property for debugging
-  if (!sanitized.message && 'message' in error) {
+  if (!sanitized.message && "message" in error) {
     const message = (error as Record<string, unknown>).message;
-    if (typeof message === 'string') {
-      assignSafeProperty(sanitized, 'message', message);
+    if (typeof message === "string") {
+      assignSafeProperty(sanitized, "message", message);
     }
   }
 
   // Fallback for completely empty sanitized objects
   if (Object.keys(sanitized).length === 0) {
-    return { message: 'Error details not available' };
+    return { message: "Error details not available" };
   }
 
   return sanitized as SanitizedError;
@@ -121,33 +121,38 @@ export function sanitizeErrorForVerboseOutput(error: unknown): SanitizedError {
 function assignSafeProperty(sanitized: Partial<SanitizedError>, key: string, value: unknown): void {
   // Type-safe assignment based on known safe properties
   switch (key) {
-    case 'message':
-    case 'name':
-    case 'code':
-    case 'stack':
-    case 'requestId':
-    case 'syscall':
-    case 'signal':
-    case 'field':
-    case 'config.region': {
-      if (typeof value === 'string') {
+    case "message":
+    case "name":
+    case "code":
+    case "stack":
+    case "requestId":
+    case "syscall":
+    case "signal":
+    case "field":
+    case "config.region": {
+      if (typeof value === "string") {
         (sanitized as Record<string, string>)[key] = value;
       }
       break;
     }
-    case 'httpStatusCode':
-    case 'statusCode':
-    case 'errno': {
-      if (typeof value === 'number') {
+    case "httpStatusCode":
+    case "statusCode":
+    case "errno": {
+      if (typeof value === "number") {
         (sanitized as Record<string, number>)[key] = value;
       }
       break;
     }
-    case 'value':
-    case 'expectedFormat':
-    case 'suggestions': {
+    case "value":
+    case "expectedFormat":
+    case "suggestions": {
       // These can be any primitive type or array
-      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || Array.isArray(value)) {
+      if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean" ||
+        Array.isArray(value)
+      ) {
         (sanitized as Record<string, unknown>)[key] = value;
       }
       break;
