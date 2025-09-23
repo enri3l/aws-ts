@@ -701,7 +701,10 @@ John,25,NYC`;
       const records: DataRecord[] = [{ data: { value: Symbol("test") }, index: 0 }];
 
       // Should not throw when handling unsupported types
-      expect(() => processor.formatOutput(records)).toThrow();
+      expect(() => processor.formatOutput(records)).not.toThrow();
+
+      const result = processor.formatOutput(records);
+      expect(result).toContain("[Object]"); // Symbol gets stringified as [Object]
     });
   });
 });
