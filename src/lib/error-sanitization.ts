@@ -147,7 +147,12 @@ function assignSafeProperty(sanitized: Partial<SanitizedError>, key: string, val
     case "expectedFormat":
     case "suggestions": {
       // These can be any primitive type or array
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || Array.isArray(value)) {
+      if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean" ||
+        Array.isArray(value)
+      ) {
         (sanitized as Record<string, unknown>)[key] = value;
       }
       break;
