@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.3.2...aws-ts-v0.4.0) (2025-09-23)
+
+
+### ✨ Features
+
+* **errors:** add secure error sanitization and type utilities ([fca1ee4](https://github.com/monte3l/aws-ts/commit/fca1ee4b5356e7a27f3ffabaf0b11f08227edbb0))
+* **lib:** enhance error sanitization, type utilities, and UI display functions ([3c2d8d5](https://github.com/monte3l/aws-ts/commit/3c2d8d53a21593ac5fe920e5e5f29874c1368482))
+
+
+### 🐛 Bug Fixes
+
+* **test:** correct number literal casing in type utilities test ([4c70079](https://github.com/monte3l/aws-ts/commit/4c700796e82157d742ab4319af1c756a3097260a))
+
 ## [0.3.2](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.3.1...aws-ts-v0.3.2) (2025-09-23)
 
 
