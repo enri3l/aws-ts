@@ -433,6 +433,33 @@ export class DataProcessor {
   }
 
   /**
+   * Safely stringify a value with circular reference protection
+   *
+   * @param value - Value to stringify
+   * @returns JSON string or safe fallback
+   * @internal
+   */
+  private safeStringify(value: unknown): string {
+    try {
+      const seen = new Set();
+      const result = JSON.stringify(value, (key: string, value_: unknown) => {
+        if (typeof value_ === "object" && value_ !== null) {
+          if (seen.has(value_)) {
+            return "[Circular Reference]";
+          }
+          seen.add(value_);
+        }
+        return value_;
+      });
+      // Handle the case where JSON.stringify returns undefined (for functions, undefined, etc.)
+      return result ?? "[Object]";
+    } catch {
+      // Fallback for any stringify errors
+      return "[Object]";
+    }
+  }
+
+  /**
    * Format value for CSV output
    *
    * @param value - Value to format
@@ -444,7 +471,7 @@ export class DataProcessor {
 
     let stringValue: string;
     if (typeof value === "object") {
-      stringValue = JSON.stringify(value);
+      stringValue = this.safeStringify(value);
     } else if (
       typeof value === "string" ||
       typeof value === "number" ||
@@ -452,7 +479,7 @@ export class DataProcessor {
     ) {
       stringValue = String(value);
     } else {
-      stringValue = JSON.stringify(value);
+      stringValue = this.safeStringify(value);
     }
 
     // Quote values that contain delimiter, quotes, or newlines
