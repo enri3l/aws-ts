@@ -7,6 +7,7 @@
 
 import { runCommand } from "@oclif/test";
 import { beforeEach, describe, expect, it } from "vitest";
+import packageJson from "../../package.json";
 
 describe("CLI Interface E2E", () => {
   /**
@@ -63,7 +64,7 @@ describe("CLI Interface E2E", () => {
 
       // Extract semantic version from OCLIF v4.5.3 output format (e.g., "aws-ts-cli/0.2.0 linux-x64")
       const output = result.stdout.trim();
-      expect(output).toContain("0.2.0");
+      expect(output).toContain(packageJson.version);
       expect(output).toContain("aws-ts");
     });
   });

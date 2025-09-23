@@ -231,6 +231,11 @@ export const ProfileInfoSchema = z.object({
   ssoRoleName: z.string().optional(),
 
   /**
+   * SSO session name for SSO profiles
+   */
+  ssoSession: z.string().optional(),
+
+  /**
    * IAM role ARN for role-based profiles
    */
   roleArn: z.string().optional(),
