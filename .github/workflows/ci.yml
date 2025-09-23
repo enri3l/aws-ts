@@ -191,10 +191,10 @@ jobs:
         if: |
           matrix.node-version == '22.x' &&
           (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           use_oidc: true
-          file: ./coverage/lcov.info
+          files: ./coverage/clover.xml,./coverage/coverage-final.json
           fail_ci_if_error: false
 
       # Upload test results to Codecov Test Analytics
@@ -204,7 +204,8 @@ jobs:
           (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
         uses: codecov/test-results-action@v1
         with:
-          file: ./test-results*.xml
+          use_oidc: true
+          file: ./test-results.xml
           flags: test-analytics
           fail_ci_if_error: false
 
@@ -217,7 +218,9 @@ jobs:
         with:
           name: test-results-node-${{ matrix.node-version }}
           path: |
-            ./test-results*.xml
-            ./test-results*.json
+            ./test-results.xml
+            ./test-results.json
             ./coverage/coverage-summary.json
+            ./coverage/clover.xml
+            ./coverage/coverage-final.json
           retention-days: 30
