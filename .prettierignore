@@ -1,0 +1,21 @@
+# Prettier ignore patterns
+
+# Auto-generated files
+CHANGELOG.md
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Coverage
+coverage/
+
+# Environment files
+.env*
+
+# Claude Code files
+CLAUDE.md
+CLAUDE.sessions.md
+.claude/
