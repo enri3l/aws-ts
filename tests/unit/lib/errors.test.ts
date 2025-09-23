@@ -347,8 +347,13 @@ describe("Error System", () => {
 
       const error = new ValidationError("Circular test", "field", "value", { circular });
 
-      // Should throw when formatting circular references
-      expect(() => formatError(error, true)).toThrow();
+      // Should not throw when formatting circular references, but safely handle them
+      expect(() => formatError(error, true)).not.toThrow();
+
+      const formatted = formatError(error, true);
+      expect(formatted).toContain("VALIDATION_ERROR: Circular test");
+      expect(formatted).toContain("field");
+      expect(formatted).toContain("value");
     });
   });
 
