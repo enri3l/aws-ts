@@ -60,19 +60,114 @@ export function toSafeString(value: unknown): string {
     return String(value);
   }
 
-  // For objects, arrays, and other complex types
+  // Handle objects
   // eslint-disable-next-line sonarjs/different-types-comparison -- typeof null === 'object' in JavaScript, null check required
   if (typeof value === "object" && value !== null) {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "[Object]";
-    }
+    return stringifyObject(value);
   }
 
+  // Handle other types (function, symbol, bigint)
   try {
     // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Only function, symbol, bigint reach here; all stringify correctly
     return String(value);
+  } catch {
+    return "Unknown";
+  }
+}
+
+/**
+ * Convert an object to a safe string representation
+ * @param object - Object to stringify
+ * @returns Safe string representation
+ * @internal
+ */
+function stringifyObject(object: object): string {
+  // Handle RegExp objects - return the regex pattern with quotes
+  if (object instanceof RegExp) {
+    return `"${object.toString()}"`;
+  }
+
+  // Handle Error objects - try to include the message
+  if (object instanceof Error) {
+    return stringifyError(object);
+  }
+
+  // Handle other objects
+  return stringifyGenericObject(object);
+}
+
+/**
+ * Convert an Error object to a safe string representation
+ * @param error - Error to stringify
+ * @returns Safe string representation
+ * @internal
+ */
+function stringifyError(error: Error): string {
+  try {
+    const jsonResult = JSON.stringify(error);
+    // If JSON.stringify returns '{}', try to extract the message
+    if (jsonResult === "{}") {
+      return error.message || "[Error]";
+    }
+    return jsonResult;
+  } catch {
+    return error.message || "[Error]";
+  }
+}
+
+/**
+ * Convert a generic object to a safe string representation
+ * @param object - Object to stringify
+ * @returns Safe string representation
+ * @internal
+ */
+function stringifyGenericObject(object: object): string {
+  try {
+    const jsonResult = JSON.stringify(object);
+
+    // For empty objects {}, validate that toString works properly
+    if (jsonResult === "{}") {
+      return validateEmptyObjectToString(object, jsonResult);
+    }
+
+    return jsonResult;
+  } catch {
+    // If JSON.stringify fails (circular refs, etc.), return safe fallback
+    return tryStringConversionFallback(object);
+  }
+}
+
+/**
+ * Validate empty object string conversion
+ * @param object - Object to validate
+ * @param jsonResult - JSON result to return if valid
+ * @returns Safe string representation
+ * @internal
+ */
+function validateEmptyObjectToString(object: object, jsonResult: string): string {
+  try {
+    // Check if the object has a working toString method
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Intentional check for custom toString implementation
+    object.toString();
+    // String() works, return the JSON result
+    return jsonResult;
+  } catch {
+    // String() fails, this indicates problematic toString/valueOf
+    return "Unknown";
+  }
+}
+
+/**
+ * Try string conversion as fallback for objects that can't be JSON stringified
+ * @param object - Object to convert
+ * @returns Safe string representation
+ * @internal
+ */
+function tryStringConversionFallback(object: object): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Intentional check for custom toString implementation
+    object.toString();
+    return "[Object]";
   } catch {
     return "Unknown";
   }
