@@ -5,9 +5,31 @@
  * messages. Integrates with Oclif's error handling mechanisms while maintaining
  * clear separation between different error categories.
  *
+ * @file
+ * This module implements a comprehensive error hierarchy for the AWS CLI:
+ *
+ * **Core Error Types:**
+ * - BaseError: Abstract base class for all CLI errors
+ * - ValidationError: User input validation failures
+ * - ServiceError: AWS service operation failures
+ * - ConfigurationError: Invalid CLI configuration issues
+ *
+ * **Extended Error Types (Phase 2):**
+ * - UserConfigurationError: User-provided configuration issues
+ * - ApiError: External API failures with cause tracking
+ * - TimeoutError: Network operation timeout failures
+ *
+ * **Security Features:**
+ * - Metadata sanitization for verbose output (prevents sensitive data exposure)
+ * - Structured error formatting with optional debugging details
+ * - Authentication-specific error guidance integration
+ *
+ * @author AWS TypeScript CLI Team
+ * @since 0.4.0
  */
 
 import { getAuthErrorGuidance } from "./auth-guidance.js";
+import { sanitizeErrorForVerboseOutput } from "./error-sanitization.js";
 
 /**
  * Base error class for all AWS CLI errors
@@ -146,6 +168,119 @@ export class ConfigurationError extends BaseError {
 }
 
 /**
+ * User configuration error for invalid user inputs or configuration issues
+ *
+ * Used when user-provided configuration, command arguments, or input data
+ * is invalid, malformed, or incompatible with expected formats. Extends
+ * ValidationError semantics for configuration-specific scenarios.
+ *
+ * @public
+ */
+export class UserConfigurationError extends BaseError {
+  /**
+   * Create a new user configuration error
+   *
+   * @param message - User-friendly configuration error message
+   * @param configType - Type of configuration that failed (e.g., 'profile', 'region', 'credentials')
+   * @param providedValue - The invalid value that was provided by the user
+   * @param expectedFormat - Description of the expected configuration format
+   * @param metadata - Additional configuration context
+   */
+  constructor(
+    message: string,
+    configType?: string,
+    providedValue?: unknown,
+    expectedFormat?: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    super(message, "USER_CONFIGURATION_ERROR", {
+      configType,
+      providedValue,
+      expectedFormat,
+      ...metadata,
+    });
+  }
+}
+
+/**
+ * API error for external service failures with cause tracking
+ *
+ * Used when external API calls (AWS services, third-party APIs) fail
+ * or return unexpected responses. Includes comprehensive cause tracking
+ * and service-specific context for debugging and user guidance.
+ *
+ * @public
+ */
+export class ApiError extends BaseError {
+  /**
+   * Create a new API error
+   *
+   * @param message - User-friendly API error message
+   * @param apiName - Name of the API or service that failed
+   * @param operation - Specific API operation or endpoint that failed
+   * @param httpStatusCode - HTTP status code from the API response
+   * @param originalError - Original error or response from the API
+   * @param metadata - Additional API context and debugging information
+   */
+  constructor(
+    message: string,
+    apiName?: string,
+    operation?: string,
+    httpStatusCode?: number,
+    originalError?: unknown,
+    metadata: Record<string, unknown> = {},
+  ) {
+    super(message, "API_ERROR", {
+      apiName,
+      operation,
+      httpStatusCode,
+      originalError,
+      timestamp: new Date().toISOString(),
+      ...metadata,
+    });
+  }
+}
+
+/**
+ * Timeout error for network operation timeouts
+ *
+ * Used when network operations exceed configured timeout thresholds.
+ * Provides specific timeout context and guidance for resolution,
+ * distinguishing timeout failures from other network connectivity issues.
+ *
+ * @public
+ */
+export class TimeoutError extends BaseError {
+  /**
+   * Create a new timeout error
+   *
+   * @param message - User-friendly timeout error message
+   * @param operation - The operation that timed out
+   * @param timeoutMs - The timeout threshold in milliseconds
+   * @param elapsedMs - Actual time elapsed before timeout (if available)
+   * @param retryable - Whether this operation can be safely retried
+   * @param metadata - Additional timeout context
+   */
+  constructor(
+    message: string,
+    operation?: string,
+    timeoutMs?: number,
+    elapsedMs?: number,
+    retryable?: boolean,
+    metadata: Record<string, unknown> = {},
+  ) {
+    super(message, "TIMEOUT_ERROR", {
+      operation,
+      timeoutMs,
+      elapsedMs,
+      retryable,
+      timestamp: new Date().toISOString(),
+      ...metadata,
+    });
+  }
+}
+
+/**
  * Check if an error is one of our custom error types
  *
  * @param error - The error to check
@@ -171,7 +306,8 @@ export function formatError(error: unknown, includeMetadata = false): string {
     let formatted = `${error.code}: ${error.message}`;
 
     if (includeMetadata && Object.keys(error.metadata).length > 0) {
-      formatted += `\nDetails: ${JSON.stringify(error.metadata, undefined, 2)}`;
+      const sanitizedMetadata = sanitizeErrorForVerboseOutput(error.metadata);
+      formatted += `\nDetails: ${JSON.stringify(sanitizedMetadata, undefined, 2)}`;
     }
 
     return formatted;

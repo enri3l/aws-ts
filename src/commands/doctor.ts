@@ -9,7 +9,8 @@
 
 import { Command, Flags } from "@oclif/core";
 import { getDiagnosticErrorGuidance } from "../lib/diagnostic-errors.js";
-import { formatError } from "../lib/errors.js";
+import { ApiError, formatError, TimeoutError } from "../lib/errors.js";
+import { toSafeString } from "../lib/type-utilities.js";
 import { AutoRepairService, type RepairResult } from "../services/doctor/auto-repair.js";
 import { CheckRegistry } from "../services/doctor/check-registry.js";
 import {
@@ -511,16 +512,32 @@ export default class DoctorCommand extends Command {
    * @internal
    */
   private handleDiagnosticError(error: unknown, verbose: boolean): void {
-    if (error instanceof Error) {
+    // Handle timeout-specific errors with specialized guidance
+    if (error instanceof TimeoutError) {
+      const guidance = getDiagnosticErrorGuidance(error);
+      this.error(
+        `Diagnostic execution failed: Network operation timed out after ${toSafeString(error.metadata.timeoutMs)}ms\n` +
+          `Operation: ${toSafeString(error.metadata.operation)}\n\n${guidance}`,
+        { exit: 1 },
+      );
+    } else if (error instanceof ApiError) {
+      const guidance = getDiagnosticErrorGuidance(error);
+      this.error(
+        `Diagnostic execution failed: AWS API error (${toSafeString(error.metadata.httpStatusCode)})\n` +
+          `Service: ${toSafeString(error.metadata.apiName)}\n` +
+          `Operation: ${toSafeString(error.metadata.operation)}\n\n${guidance}`,
+        { exit: 1 },
+      );
+    } else if (error instanceof Error) {
       const errorMessage = formatError(error, verbose);
       const guidance = getDiagnosticErrorGuidance(error);
 
       this.error(`Diagnostic execution failed: ${errorMessage}\n\n${guidance}`, {
         exit: 1,
       });
+    } else {
+      this.error(`Diagnostic execution failed: ${String(error)}`, { exit: 1 });
     }
-
-    this.error(`Diagnostic execution failed: ${String(error)}`, { exit: 1 });
   }
 
   /**
