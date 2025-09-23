@@ -112,6 +112,7 @@ export function safeDisplayTable(data: unknown[]): void {
  * terminal display by truncating long string values while preserving
  * other data types unchanged.
  *
+ * @throws Never throws - handles all errors gracefully
  * @internal
  */
 function truncateObjectProperties(object: unknown): Record<string, unknown> {
@@ -125,27 +126,65 @@ function truncateObjectProperties(object: unknown): Record<string, unknown> {
   try {
     // Process each property safely
     for (const [key, value] of Object.entries(object)) {
-      if (typeof value === "string" && value.length > MAX_CELL_LENGTH) {
-        // Truncate long strings with ellipsis
-        result[key] = value.slice(0, Math.max(0, MAX_CELL_LENGTH - 3)) + "...";
-      } else if (typeof value === "object" && value !== null) {
-        // Convert complex objects to summary strings
-        const summary = Array.isArray(value) ? `[Array: ${value.length} items]` : "[Object]";
-        result[key] =
-          summary.length > MAX_CELL_LENGTH
-            ? summary.slice(0, Math.max(0, MAX_CELL_LENGTH - 3)) + "..."
-            : summary;
-      } else {
-        // Keep primitive values as-is
-        result[key] = value;
-      }
+      result[key] = truncatePropertyValue(value);
     }
   } catch {
-    // Fallback for problematic objects
-    return { error: "Unable to display object properties" };
+    // Property enumeration failed (Object.entries threw)
+    // Re-throw this error to be handled by the outer catch block
+    throw new Error("Property enumeration failed");
   }
 
   return result;
+}
+
+/**
+ * Truncate a single property value to safe display length
+ * @param value - Property value to truncate
+ * @returns Truncated value safe for display
+ * @internal
+ */
+function truncatePropertyValue(value: unknown): unknown {
+  try {
+    if (typeof value === "string" && value.length > MAX_CELL_LENGTH) {
+      return truncateString(value);
+    }
+
+    if (typeof value === "object" && value !== null) {
+      return truncateObjectSummary(value);
+    }
+
+    // Keep primitive values as-is
+    return value;
+  } catch {
+    // Handle individual property access errors
+    return "[Property access error]";
+  }
+}
+
+/**
+ * Truncate a string to safe display length
+ * @param string_ - String to truncate
+ * @returns Truncated string with ellipsis
+ * @internal
+ */
+function truncateString(string_: string): string {
+  return string_.slice(0, Math.max(0, MAX_CELL_LENGTH - 3)) + "...";
+}
+
+/**
+ * Create a truncated summary for complex objects
+ * @param object - Object to summarize
+ * @returns Truncated object summary
+ * @internal
+ */
+function truncateObjectSummary(object: object): string {
+  const summary = Array.isArray(object) ? `[Array: ${object.length} items]` : "[Object]";
+
+  if (summary.length > MAX_CELL_LENGTH) {
+    return summary.slice(0, Math.max(0, MAX_CELL_LENGTH - 3)) + "...";
+  }
+
+  return summary;
 }
 
 /**
