@@ -42,7 +42,7 @@ export interface SanitizedError {
  * @example
  * ```typescript
  * const timeout = error.metadata.timeoutMs;
- * const message = `Operation timed out after ${toSafeString(timeout)}ms`;
+ * const message = 'Operation timed out after ' + toSafeString(timeout) + 'ms';
  * ```
  *
  * @public
