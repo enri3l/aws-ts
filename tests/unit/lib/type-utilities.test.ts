@@ -256,7 +256,11 @@ describe("Type Utilities", () => {
       });
 
       it("should handle hexadecimal BigInt", () => {
-        expect(toSafeString(0x1F_FF_FF_FF_FF_FF_FFn)).toBe("9007199254740991");
+        // ESLint disable: Prettier formats hex literals to lowercase while unicorn/number-literal-case
+        // requires uppercase. This creates a formatting conflict. Disabling rule for this test case
+        // to maintain consistency with Prettier's formatting preferences.
+        // eslint-disable-next-line unicorn/number-literal-case
+        expect(toSafeString(0x1f_ff_ff_ff_ff_ff_ffn)).toBe("9007199254740991");
       });
     });
 
