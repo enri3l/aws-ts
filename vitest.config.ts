@@ -25,6 +25,42 @@ export default defineConfig({
       json: "./test-results.json",
     },
 
+    // Global coverage configuration for all projects
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "lcov", "json-summary"],
+      reportsDirectory: "./coverage",
+      skipFull: true,
+      cleanOnRerun: true,
+      perFile: true,
+      exclude: ["node_modules/", "tests/", "cc-sessions/", "dist/", "**/*.d.ts", "**/*.config.*"],
+      thresholds: {
+        lines: 90,
+        branches: 85,
+        functions: 90,
+        statements: 90,
+        // Per-module thresholds for critical services
+        "src/services/auth-service.ts": {
+          lines: 95,
+          functions: 100,
+          branches: 90,
+          statements: 95,
+        },
+        "src/services/credential-service.ts": {
+          lines: 95,
+          functions: 100,
+          branches: 85,
+          statements: 95,
+        },
+        "src/handlers/handler-factory.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+      },
+    },
+
     // Multi-project configuration using projects format
     projects: [
       // Unit tests project
@@ -33,50 +69,6 @@ export default defineConfig({
           name: "unit",
           include: ["tests/unit/**/*.test.{ts,tsx}"],
           setupFiles: ["./tests/setup.ts"],
-          coverage: {
-            provider: "v8",
-            reporter: process.env.CI
-              ? ["text", "json", "lcov", "junit", "json-summary"] // CI optimized
-              : ["text", "json", "html", "junit", "json-summary"], // Local dev
-            reportsDirectory: "./coverage",
-            // CI Performance optimizations
-            skipFull: true, // Skip files with 100% coverage
-            cleanOnRerun: true, // Clean previous runs
-            perFile: true, // Parallel processing
-            exclude: [
-              "node_modules/",
-              "tests/",
-              "cc-sessions/",
-              "dist/",
-              "**/*.d.ts",
-              "**/*.config.*",
-            ],
-            thresholds: {
-              lines: 90,
-              branches: 85,
-              functions: 90,
-              statements: 90,
-              // Per-module thresholds for critical services
-              "src/services/auth-service.ts": {
-                lines: 95,
-                functions: 100,
-                branches: 90,
-                statements: 95,
-              },
-              "src/services/credential-service.ts": {
-                lines: 95,
-                functions: 100,
-                branches: 85,
-                statements: 95,
-              },
-              "src/handlers/handler-factory.ts": {
-                lines: 100,
-                functions: 100,
-                branches: 100,
-                statements: 100,
-              },
-            },
-          },
           reporter: ["default", "junit", "json"],
           outputFile: {
             junit: "./test-results.xml",
