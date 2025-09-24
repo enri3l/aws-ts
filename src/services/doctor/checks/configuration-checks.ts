@@ -275,7 +275,7 @@ export class ProfileValidationCheck implements ICheck {
   /**
    * Profile manager instance for profile operations
    */
-  private profileManager: ProfileManager;
+  private readonly profileManager: ProfileManager;
 
   /**
    * Create a new profile validation check
