@@ -13,8 +13,6 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "enri3l"
     commit-message:
       prefix: "chore"
       include: "scope"
