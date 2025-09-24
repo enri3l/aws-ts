@@ -15,6 +15,7 @@ import { AuthService } from "../../auth-service.js";
 import type { TokenManagerOptions } from "../../token-manager.js";
 import { TokenManager } from "../../token-manager.js";
 import type { CheckResult, DoctorContext, ICheck } from "../types.js";
+import { BaseCheck } from "./base-check.js";
 
 /**
  * Credential validation check using existing AuthService
@@ -25,7 +26,7 @@ import type { CheckResult, DoctorContext, ICheck } from "../types.js";
  *
  * @public
  */
-export class CredentialValidationCheck implements ICheck {
+export class CredentialValidationCheck extends BaseCheck {
   /**
    * Unique identifier for this check
    */
@@ -49,7 +50,7 @@ export class CredentialValidationCheck implements ICheck {
   /**
    * Authentication service for credential validation
    */
-  private authService: AuthService;
+  private readonly authService: AuthService;
 
   /**
    * Create a new credential validation check
@@ -57,6 +58,7 @@ export class CredentialValidationCheck implements ICheck {
    * @param authServiceOptions - Optional authentication service configuration
    */
   constructor(authServiceOptions?: AuthServiceOptions) {
+    super();
     this.authService = new AuthService({
       enableProgressIndicators: false, // Disable UI for diagnostic checks
       ...authServiceOptions,
@@ -64,7 +66,7 @@ export class CredentialValidationCheck implements ICheck {
   }
 
   /**
-   * Execute the credential validation check
+   * Run the credential validation check
    *
    * Uses AuthService.getStatus() to perform comprehensive credential validation
    * including profile verification, token status, and authentication readiness.
@@ -72,97 +74,86 @@ export class CredentialValidationCheck implements ICheck {
    *
    * @param context - Shared execution context with previous stage results
    * @returns Promise resolving to check result with credential validation details
-   * @throws When credential validation fails unexpectedly
    */
-  async execute(context: DoctorContext): Promise<CheckResult> {
-    try {
-      // Use AuthService.getStatus() for comprehensive validation
-      const authStatusInput = {
-        profile: context.profile,
-        detailed: context.detailed ?? false,
-        allProfiles: false,
+  protected async run(context: DoctorContext): Promise<CheckResult> {
+    // Use AuthService.getStatus() for comprehensive validation
+    const authStatusInput = {
+      profile: context.profile,
+      detailed: context.detailed ?? false,
+      allProfiles: false,
+    };
+
+    const authStatus = await this.authService.getStatus(authStatusInput);
+
+    // Analyze overall authentication status
+    if (authStatus.authenticated) {
+      const activeProfile = authStatus.activeProfile ?? "default";
+      const profileInfo = authStatus.profiles.find((p) => p.name === activeProfile);
+
+      return {
+        status: "pass",
+        message: `Credentials are valid for profile '${activeProfile}'`,
+        details: {
+          activeProfile,
+          profileType: profileInfo?.type,
+          credentialsValid: profileInfo?.credentialsValid ?? false,
+          region: profileInfo?.region,
+          tokenExpiry: profileInfo?.tokenExpiry,
+          totalProfiles: authStatus.profiles.length,
+        },
       };
+    }
 
-      const authStatus = await this.authService.getStatus(authStatusInput);
+    // Authentication failed - analyze specific issues
+    const targetProfile = context.profile ?? authStatus.activeProfile ?? "default";
+    const profileInfo = authStatus.profiles.find((p) => p.name === targetProfile);
 
-      // Analyze overall authentication status
-      if (authStatus.authenticated) {
-        const activeProfile = authStatus.activeProfile ?? "default";
-        const profileInfo = authStatus.profiles.find((p) => p.name === activeProfile);
-
-        return {
-          status: "pass",
-          message: `Credentials are valid for profile '${activeProfile}'`,
-          details: {
-            activeProfile,
-            profileType: profileInfo?.type,
-            credentialsValid: profileInfo?.credentialsValid ?? false,
-            region: profileInfo?.region,
-            tokenExpiry: profileInfo?.tokenExpiry,
-            totalProfiles: authStatus.profiles.length,
-          },
-        };
-      }
-
-      // Authentication failed - analyze specific issues
-      const targetProfile = context.profile ?? authStatus.activeProfile ?? "default";
-      const profileInfo = authStatus.profiles.find((p) => p.name === targetProfile);
-
-      if (!profileInfo) {
-        return {
-          status: "fail",
-          message: `Profile '${targetProfile}' not found`,
-          details: {
-            targetProfile,
-            availableProfiles: authStatus.profiles.map((p) => p.name),
-            authenticated: false,
-          },
-          remediation: `Configure profile '${targetProfile}' using 'aws configure' or 'aws configure sso'`,
-        };
-      }
-
-      if (!profileInfo.credentialsValid) {
-        const remediation =
-          profileInfo.type === "sso"
-            ? `Run 'aws sso login --profile ${targetProfile}' to authenticate`
-            : `Verify credentials for profile '${targetProfile}' using 'aws configure'`;
-
-        return {
-          status: "fail",
-          message: `Credentials are invalid for profile '${targetProfile}'`,
-          details: {
-            targetProfile,
-            profileType: profileInfo.type,
-            credentialsValid: false,
-            tokenExpiry: profileInfo.tokenExpiry,
-            authenticated: false,
-          },
-          remediation,
-        };
-      }
-
-      // Credentials exist but authentication failed for other reasons
+    if (!profileInfo) {
       return {
         status: "fail",
-        message: `Authentication failed for profile '${targetProfile}'`,
+        message: `Profile '${targetProfile}' not found`,
+        details: {
+          targetProfile,
+          availableProfiles: authStatus.profiles.map((p) => p.name),
+          authenticated: false,
+        },
+        remediation: `Configure profile '${targetProfile}' using 'aws configure' or 'aws configure sso'`,
+      };
+    }
+
+    if (!profileInfo.credentialsValid) {
+      const remediation =
+        profileInfo.type === "sso"
+          ? `Run 'aws sso login --profile ${targetProfile}' to authenticate`
+          : `Verify credentials for profile '${targetProfile}' using 'aws configure'`;
+
+      return {
+        status: "fail",
+        message: `Credentials are invalid for profile '${targetProfile}'`,
         details: {
           targetProfile,
           profileType: profileInfo.type,
-          credentialsValid: profileInfo.credentialsValid,
+          credentialsValid: false,
+          tokenExpiry: profileInfo.tokenExpiry,
           authenticated: false,
-          awsCliInstalled: authStatus.awsCliInstalled,
         },
-        remediation: "Check AWS service connectivity and verify profile configuration",
+        remediation,
       };
-    } catch (error) {
-      throw new CheckExecutionError(
-        "Failed to validate AWS credentials",
-        this.id,
-        this.stage,
-        error,
-        { targetProfile: context.profile },
-      );
     }
+
+    // Credentials exist but authentication failed for other reasons
+    return {
+      status: "fail",
+      message: `Authentication failed for profile '${targetProfile}'`,
+      details: {
+        targetProfile,
+        profileType: profileInfo.type,
+        credentialsValid: profileInfo.credentialsValid,
+        authenticated: false,
+        awsCliInstalled: authStatus.awsCliInstalled,
+      },
+      remediation: "Check AWS service connectivity and verify profile configuration",
+    };
   }
 }
 
@@ -199,7 +190,7 @@ export class SsoTokenExpiryCheck implements ICheck {
   /**
    * Token manager for SSO token operations
    */
-  private tokenManager: TokenManager;
+  private readonly tokenManager: TokenManager;
 
   /**
    * Create a new SSO token expiry check
@@ -381,16 +372,13 @@ export class ProfileSwitchCheck implements ICheck {
   /**
    * Authentication service for profile operations
    */
-  private authService: AuthService;
+  private readonly authService: AuthService;
 
   /**
    * Create a new profile switching validation check
    *
    * @param authServiceOptions - Optional authentication service configuration
    */
-  // SonarJS flags constructors with similar service initialization patterns across check classes
-  // Each diagnostic check requires service-specific configuration for isolated testing environments
-  // eslint-disable-next-line sonarjs/no-identical-functions
   constructor(authServiceOptions?: AuthServiceOptions) {
     this.authService = new AuthService({
       enableProgressIndicators: false, // Disable UI for diagnostic checks
