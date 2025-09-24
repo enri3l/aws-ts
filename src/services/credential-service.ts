@@ -19,9 +19,7 @@ interface AwsCredentialIdentity {
   expiration?: Date;
 }
 
-interface CredentialProvider {
-  (): Promise<AwsCredentialIdentity>;
-}
+type CredentialProvider = () => Promise<AwsCredentialIdentity>;
 
 interface ProviderOptions {
   profile?: string;
@@ -32,7 +30,7 @@ interface ProviderOptions {
 interface ClientConfiguration {
   region?: string;
   credentials?: AwsCredentialIdentity;
-  endpoint?: string | undefined;
+  endpoint?: string;
   [key: string]: unknown;
 }
 
@@ -158,6 +156,17 @@ export class CredentialService {
   }
 
   /**
+   * Resolve the profile name using the provided profile or fallback logic
+   *
+   * @param profile - Optional profile name
+   * @returns Resolved profile name or undefined if using environment credentials
+   * @internal
+   */
+  private _resolveProfileName(profile?: string): string | undefined {
+    return profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
+  }
+
+  /**
    * Get AWS credentials for a specific profile
    *
    * @param profile - AWS profile name to get credentials for
@@ -165,8 +174,7 @@ export class CredentialService {
    * @throws When credential resolution fails
    */
   async getCredentials(profile?: string): Promise<AwsCredentialIdentity> {
-    const profileName =
-      profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
+    const profileName = this._resolveProfileName(profile);
     const cacheKey = `credentials-${profileName ?? "env"}`;
 
     try {
@@ -220,16 +228,7 @@ export class CredentialService {
    */
   async createStsClient(config: AwsClientConfig = {}): Promise<STSClient> {
     try {
-      const credentials = await this.getCredentials(config.profile);
-
-      const clientConfig = {
-        region: config.region ?? this.options.defaultRegion,
-        credentials,
-        ...config.clientConfig,
-        ...(config.endpoint && { endpoint: config.endpoint }),
-      };
-
-      return new STSClient(clientConfig);
+      return await this.createClient(STSClient, config);
     } catch (error) {
       throw new ServiceError(
         `Failed to create STS client: ${error instanceof Error ? error.message : String(error)}`,
@@ -248,8 +247,7 @@ export class CredentialService {
    * @throws When credential validation fails
    */
   async validateCredentials(profile?: string): Promise<CallerIdentity> {
-    const profileName =
-      profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
+    const profileName = this._resolveProfileName(profile);
 
     try {
       const clientConfig: AwsClientConfig = {};
@@ -329,8 +327,7 @@ export class CredentialService {
    * @param profile - AWS profile to clear credentials for
    */
   clearCredentialCache(profile?: string): void {
-    const profileName =
-      profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
+    const profileName = this._resolveProfileName(profile);
     const cacheKey = `credentials-${profileName ?? "env"}`;
 
     this.credentialCache.delete(cacheKey);
@@ -429,8 +426,7 @@ export class CredentialService {
     providerUsed: string;
     identity?: CallerIdentity;
   }> {
-    const profileName =
-      profile ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : this.options.defaultProfile);
+    const profileName = this._resolveProfileName(profile);
 
     try {
       await this.getCredentials(profileName);

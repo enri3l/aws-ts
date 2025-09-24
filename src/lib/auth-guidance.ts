@@ -206,7 +206,7 @@ function getAwsCliErrorGuidance(error: ErrorLike): string {
     ].join("\n");
   }
 
-  if (command && command.includes("sso")) {
+  if (command?.includes("sso")) {
     return [
       "❌ SSO command failed:",
       "1. Check SSO URL is reachable in browser",

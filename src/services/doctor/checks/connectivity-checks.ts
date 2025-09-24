@@ -49,7 +49,7 @@ export class StsCredentialCheck implements ICheck {
   /**
    * Credential service for STS validation
    */
-  private credentialService: CredentialService;
+  private readonly credentialService: CredentialService;
 
   /**
    * Timeout for STS calls in milliseconds
@@ -276,7 +276,7 @@ export class ServiceEndpointCheck implements ICheck {
   /**
    * Credential service for AWS client creation
    */
-  private credentialService: CredentialService;
+  private readonly credentialService: CredentialService;
 
   /**
    * Timeout for service calls in milliseconds
@@ -461,7 +461,7 @@ export class RegionAccessibilityCheck implements ICheck {
   /**
    * Credential service for region testing
    */
-  private credentialService: CredentialService;
+  private readonly credentialService: CredentialService;
 
   /**
    * Timeout for region calls in milliseconds
