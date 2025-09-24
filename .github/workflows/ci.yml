@@ -32,7 +32,6 @@ permissions:
   contents: read # Repository content access
   checks: write # Post check results and status updates
   actions: read # Access to workflow run data
-  id-token: write # Required for Codecov OIDC authentication
 
 jobs:
   # Changed file detection for conditional job execution (feature branches only)
@@ -70,7 +69,7 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
-      # Repository checkout with full history for semantic analysis
+      # Repository checkout with full history for semantic analysis and SonarCloud
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -186,28 +185,16 @@ jobs:
           echo "- Coverage reporter: CI=lcov, Local=html+lcov" >> $GITHUB_STEP_SUMMARY
           echo "- V8 coverage flags: skipFull, cleanOnRerun, perFile enabled" >> $GITHUB_STEP_SUMMARY
 
-      # Upload coverage report to Codecov
-      - name: Upload Coverage Report to Codecov
+      # SonarCloud analysis
+      - name: SonarCloud Scan
         if: |
           matrix.node-version == '22.x' &&
-          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
-        uses: codecov/codecov-action@v5
-        with:
-          use_oidc: true
-          files: ./coverage/clover.xml,./coverage/coverage-final.json
-          fail_ci_if_error: false
-
-      # Upload test results to Codecov Test Analytics
-      - name: Upload Test Results to Codecov
-        if: |
-          matrix.node-version == '22.x' &&
-          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
-        uses: codecov/test-results-action@v1
-        with:
-          use_oidc: true
-          file: ./test-results.xml
-          flags: test-analytics
-          fail_ci_if_error: false
+          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') &&
+          (github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push')
+        uses: SonarSource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
       # Artifact upload for test results and coverage (debugging and analytics)
       - name: Upload Test Artifacts
