@@ -47,7 +47,7 @@
     "test:integration:changed": "vitest --changed --project integration",
     "test:e2e": "vitest run --project e2e",
     "test:e2e:changed": "vitest run --changed --project e2e",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --project unit",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && markdownlint-cli2",
     "lint:fix": "eslint . --fix && markdownlint-cli2 --fix",
