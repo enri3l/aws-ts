@@ -115,7 +115,7 @@ export class NodeVersionCheck implements ICheck {
     const cleanVersion = versionString.replace(/^v/, "");
     const majorVersionMatch = /^(\d+)/.exec(cleanVersion);
 
-    if (!majorVersionMatch || !majorVersionMatch[1]) {
+    if (!majorVersionMatch?.[1]) {
       throw new Error(`Invalid Node.js version format: ${versionString}`);
     }
 
@@ -251,7 +251,7 @@ export class AwsCliInstallationCheck implements ICheck {
     // AWS CLI version output format: "aws-cli/2.x.x Python/x.x.x ..."
     const versionMatch = /aws-cli\/(\d+)\.(\d+)\.(\d+)/.exec(versionOutput);
 
-    if (!versionMatch || !versionMatch[1] || !versionMatch[2] || !versionMatch[3]) {
+    if (!versionMatch?.[1] || !versionMatch?.[2] || !versionMatch?.[3]) {
       throw new Error(`Unable to parse AWS CLI version from: ${versionOutput}`);
     }
 
