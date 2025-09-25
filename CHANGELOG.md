@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.0](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.4.0...aws-ts-v0.5.0) (2025-09-25)
+
+
+### ✨ Features
+
+* **ci:** migrate from Codecov to SonarCloud for enhanced code analysis ([90880ac](https://github.com/monte3l/aws-ts/commit/90880ac0982b216db1916ebe7c9d9a7317387071))
+
+
+### 🐛 Bug Fixes
+
+* **ci:** exclude bot actors from documentation workflow ([886fab7](https://github.com/monte3l/aws-ts/commit/886fab7d195296faf5ffdb50c66e40590a857d2e))
+* **ci:** ignore test result files to resolve JSR validation failure ([cd4257b](https://github.com/monte3l/aws-ts/commit/cd4257b4c1b882d1c86dfab3beb9c8e0becb5f0c))
+* **ci:** improve SonarCloud integration and workflow configuration ([7373c78](https://github.com/monte3l/aws-ts/commit/7373c78358eadd4983fec99ec2eefe961e4e956d))
+* **ci:** optimize SonarCloud configuration for TypeScript/Vitest ([c7815e5](https://github.com/monte3l/aws-ts/commit/c7815e5078e4b0d709be17ba805d0d5438c67e14))
+* **ci:** resolve Codecov test result upload issues ([48a3acf](https://github.com/monte3l/aws-ts/commit/48a3acfbd637f9b40b89fe965b6d6c5d266f57a4))
+* **ci:** resolve fundamental Codecov configuration issues ([6d9589f](https://github.com/monte3l/aws-ts/commit/6d9589fda926de623140ebb7156fc1bda8bce204))
+* **ci:** resolve SonarCloud coverage and maintainability issues ([e9c96eb](https://github.com/monte3l/aws-ts/commit/e9c96eb975a453b1944702228f6820f8cfb9cc62))
+* **ci:** resolve Vitest lcov.info generation for SonarQube ([1a49ecb](https://github.com/monte3l/aws-ts/commit/1a49ecb595aaa2c582ea4ebb1a0706de4515449b))
+* **services:** resolve TypeScript strict optional property compatibility ([0c9c5cf](https://github.com/monte3l/aws-ts/commit/0c9c5cf3f62344507ae6222a44968abff62e14d4))
+* **test:** resolve timing race condition in token expiry edge case test ([7436ddc](https://github.com/monte3l/aws-ts/commit/7436ddc8ef19e8d5f67d665a1703c750534f55ac))
+* **tests:** resolve coverage reporting and test assertion issues ([8aa302b](https://github.com/monte3l/aws-ts/commit/8aa302b4ab6275228e8a765dbf55f4713be5751e))
+
 ## [0.4.0](https://github.com/monte3l/aws-ts/compare/aws-ts-v0.3.2...aws-ts-v0.4.0) (2025-09-23)
 
 
