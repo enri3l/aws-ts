@@ -446,6 +446,54 @@ describe("AuthService", () => {
       expect(mockAuthCliWrapper.ssoLogout).toHaveBeenCalledTimes(2);
       expect(mockCredentialService.clearAllCredentialCaches).toHaveBeenCalled();
     });
+
+    it("should fail spinner and throw error when logout operation fails", async () => {
+      const authServiceWithSpinners = new AuthService({
+        enableProgressIndicators: true,
+      });
+
+      const logoutInput: AuthLogout = {
+        profile: "test-profile",
+        allProfiles: false,
+      };
+
+      mockCredentialService.getActiveProfile.mockReturnValue("test-profile");
+      mockAuthCliWrapper.ssoLogout.mockRejectedValue(new Error("Logout operation failed"));
+
+      await expect(authServiceWithSpinners.logout(logoutInput)).rejects.toThrow(
+        "Logout operation failed",
+      );
+      expect(mockSpinner.fail).toHaveBeenCalledWith("Logout failed");
+    });
+
+    it("should log debug messages when individual profile logout fails and debug enabled", async () => {
+      const authServiceWithDebug = new AuthService({
+        enableDebugLogging: true,
+      });
+
+      const logoutInput: AuthLogout = {
+        allProfiles: true,
+      };
+
+      mockProfileManager.getSsoProfiles.mockResolvedValue(["profile1", "profile2"]);
+      mockAuthCliWrapper.ssoLogout
+        .mockRejectedValueOnce(new Error("Profile not found"))
+        .mockRejectedValueOnce(new Error("Some other error"));
+
+      const consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+      await authServiceWithDebug.logout(logoutInput);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Profile 'profile1' logout skipped - Profile not found",
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to logout from profile 'profile2':",
+        expect.any(Error),
+      );
+
+      consoleSpy.mockRestore();
+    });
   });
 
   describe("listProfiles", () => {
@@ -533,6 +581,19 @@ describe("AuthService", () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe("profile1");
       expect(result[0].active).toBe(true);
+    });
+
+    it("should handle profile discovery failure with spinner", async () => {
+      const profilesInput: AuthProfiles = {
+        activeOnly: false,
+      };
+
+      const discoveryError = new Error("Profile discovery failed");
+      mockProfileManager.discoverProfiles.mockRejectedValue(discoveryError);
+
+      await expect(authService.listProfiles(profilesInput)).rejects.toThrow(
+        "Profile discovery failed",
+      );
     });
   });
 
@@ -849,6 +910,48 @@ describe("AuthService", () => {
     });
   });
 
+  describe("checkAwsCliStatus", () => {
+    it("should return installation status when AWS CLI is installed", async () => {
+      mockAuthCliWrapper.checkInstallation.mockResolvedValue({
+        installed: true,
+        version: "2.15.0",
+      });
+
+      // Access private method via type assertion for testing
+      const result = await (authService as any).checkAwsCliStatus();
+
+      expect(result).toEqual({
+        installed: true,
+        version: "2.15.0",
+      });
+      expect(mockAuthCliWrapper.checkInstallation).toHaveBeenCalled();
+    });
+
+    it("should return installed false when AWS CLI check fails", async () => {
+      mockAuthCliWrapper.checkInstallation.mockRejectedValue(new Error("CLI not found"));
+
+      // Access private method via type assertion for testing
+      const result = await (authService as any).checkAwsCliStatus();
+
+      expect(result).toEqual({
+        installed: false,
+      });
+      expect(mockAuthCliWrapper.checkInstallation).toHaveBeenCalled();
+    });
+
+    it("should return installed false when checkInstallation throws non-Error", async () => {
+      mockAuthCliWrapper.checkInstallation.mockRejectedValue("string error");
+
+      // Access private method via type assertion for testing
+      const result = await (authService as any).checkAwsCliStatus();
+
+      expect(result).toEqual({
+        installed: false,
+      });
+      expect(mockAuthCliWrapper.checkInstallation).toHaveBeenCalled();
+    });
+  });
+
   describe("createSpinner", () => {
     it("should create mock spinner when progress indicators disabled", () => {
       const authServiceWithoutSpinners = new AuthService({
@@ -861,6 +964,17 @@ describe("AuthService", () => {
       expect(typeof spinner.succeed).toBe("function");
       expect(typeof spinner.fail).toBe("function");
       expect(typeof spinner.warn).toBe("function");
+    });
+
+    it("should create real ora spinner when progress indicators enabled", () => {
+      const authServiceWithSpinners = new AuthService({
+        enableProgressIndicators: true,
+      });
+
+      // Access private method via type assertion for testing
+      (authServiceWithSpinners as any).createSpinner("test");
+
+      expect(mockSpinner.start).toHaveBeenCalled();
     });
   });
 });

@@ -535,6 +535,13 @@ describe("TokenManager", () => {
 
       expect(hasCache).toBe(false);
     });
+
+    it("should throw error when hasSsoCache encounters non-ENOENT error", async () => {
+      const permissionError = new Error("EACCES: permission denied");
+      mockFs.stat.mockRejectedValue(permissionError);
+
+      await expect(tokenManager.hasSsoCache()).rejects.toThrow(permissionError);
+    });
   });
 
   describe("formatTimeUntilExpiry", () => {
@@ -576,6 +583,32 @@ describe("TokenManager", () => {
       const tokenInfo = await tokenManager.getTokenInfo("https://example.awsapps.com/start");
 
       expect(tokenInfo).toBeUndefined();
+    });
+
+    it("should handle findSsoCacheFiles throwing non-ENOENT error", async () => {
+      const debugTokenManager = new TokenManager({
+        enableDebugLogging: true,
+      });
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockRejectedValue(new Error("EACCES: permission denied"));
+
+      await expect(
+        debugTokenManager.getTokenInfo("https://example.awsapps.com/start"),
+      ).rejects.toThrow(TokenError);
+    });
+
+    it("should handle findSsoCacheFiles with generic error", async () => {
+      const debugTokenManager = new TokenManager({
+        enableDebugLogging: true,
+      });
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockRejectedValue(new Error("Generic error"));
+
+      await expect(
+        debugTokenManager.getTokenInfo("https://example.awsapps.com/start"),
+      ).rejects.toThrow(TokenError);
     });
 
     it("should handle cache files with null or undefined values", async () => {
@@ -1079,6 +1112,185 @@ describe("TokenManager", () => {
       consoleSpy.mockRestore();
     });
 
+    it("should log debug message for retrieved token info", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const mockCacheData = {
+        accessToken: "mock-access-token",
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        region: "us-east-1",
+        startUrl: "https://example.awsapps.com/start",
+      };
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json"] as any);
+      mockFs.readFile.mockResolvedValue(JSON.stringify(mockCacheData));
+
+      const tokenInfo = await debugTokenManager.getTokenInfo("https://example.awsapps.com/start");
+
+      expect(tokenInfo).toBeDefined();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Retrieved token info for start URL: https://example.awsapps.com/start",
+        expect.objectContaining({
+          isValid: true,
+          isNearExpiry: false,
+          timeUntilExpiry: expect.any(Number),
+        }),
+      );
+    });
+
+    it("should log debug message when no token found for start URL", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json"] as any);
+      mockFs.readFile.mockResolvedValue(
+        JSON.stringify({
+          accessToken: "mock-access-token",
+          expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+          region: "us-east-1",
+          startUrl: "https://different.awsapps.com/start",
+        }),
+      );
+
+      const tokenInfo = await debugTokenManager.getTokenInfo("https://example.awsapps.com/start");
+
+      expect(tokenInfo).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "No token found for start URL: https://example.awsapps.com/start",
+      );
+    });
+
+    it("should log debug message for token status with ENOENT error", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      mockFs.stat.mockRejectedValue(new Error("ENOENT: no such file or directory"));
+
+      const status = await debugTokenManager.getTokenStatus(
+        "test-profile",
+        "https://example.awsapps.com/start",
+      );
+
+      expect(status.hasToken).toBe(false);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "No token found for start URL: https://example.awsapps.com/start",
+      );
+    });
+
+    it("should log debug message for token status with generic error", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const genericError = new Error("Generic file system error");
+      mockFs.stat.mockRejectedValue(genericError);
+
+      const status = await debugTokenManager.getTokenStatus(
+        "test-profile",
+        "https://example.awsapps.com/start",
+      );
+
+      expect(status.hasToken).toBe(false);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to find SSO cache files: Generic file system error",
+      );
+    });
+
+    it("should log debug message for token expiry check results", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const expiredToken = {
+        accessToken: "expired-token",
+        expiresAt: new Date(Date.now() - 3_600_000).toISOString(),
+        region: "us-east-1",
+        startUrl: "https://expired.awsapps.com/start",
+      };
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json"] as any);
+      mockFs.readFile.mockResolvedValue(JSON.stringify(expiredToken));
+
+      const expiryResults = await debugTokenManager.checkTokenExpiry();
+
+      expect(expiryResults).toHaveLength(1);
+      expect(consoleSpy).toHaveBeenCalledWith("Token expiry check found 1 issues");
+    });
+
+    it("should log debug message for cleared expired tokens count", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const expiredToken = {
+        accessToken: "expired-token",
+        expiresAt: new Date(Date.now() - 3_600_000).toISOString(),
+        region: "us-east-1",
+        startUrl: "https://expired.awsapps.com/start",
+      };
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json"] as any);
+      mockFs.readFile.mockResolvedValue(JSON.stringify(expiredToken));
+
+      const clearedCount = await debugTokenManager.clearExpiredTokens();
+
+      expect(clearedCount).toBe(1);
+      expect(consoleSpy).toHaveBeenCalledWith("Found 1 expired tokens");
+    });
+
+    it("should log debug message for getAllTokens count", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      const mockTokens = [
+        {
+          accessToken: "token1",
+          expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+          region: "us-east-1",
+          startUrl: "https://token1.awsapps.com/start",
+        },
+        {
+          accessToken: "token2",
+          expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+          region: "us-west-2",
+          startUrl: "https://token2.awsapps.com/start",
+        },
+      ];
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json", "token2.json"] as any);
+      mockFs.readFile.mockImplementation((filePath: string) => {
+        if (filePath.includes("token1.json")) {
+          return Promise.resolve(JSON.stringify(mockTokens[0]));
+        }
+        if (filePath.includes("token2.json")) {
+          return Promise.resolve(JSON.stringify(mockTokens[1]));
+        }
+        return Promise.reject(new Error("File not found"));
+      });
+
+      const allTokens = await debugTokenManager.getAllTokens();
+
+      expect(allTokens).toHaveLength(2);
+      expect(consoleSpy).toHaveBeenCalledWith("Retrieved 2 SSO tokens");
+    });
+
     it("should log debug message for invalid cache file format", async () => {
       const debugTokenManager = new TokenManager({
         ssoCacheDir: "/home/user/.aws/sso/cache",
@@ -1138,6 +1350,66 @@ describe("TokenManager", () => {
       await expect(
         debugTokenManager.getTokenInfo("https://corrupted.awsapps.com/start"),
       ).rejects.toThrow(TokenError);
+    });
+
+    it("should log debug message for invalid cache file format in readTokenFromCache", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json"] as any);
+      mockFs.readFile.mockResolvedValue(
+        JSON.stringify({
+          accessToken: "valid-token",
+          expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+          region: "us-east-1",
+          // Missing startUrl
+        }),
+      );
+
+      const tokenInfo = await debugTokenManager.getTokenInfo("https://example.awsapps.com/start");
+
+      expect(tokenInfo).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Invalid cache file format:"),
+      );
+    });
+
+    it("should log debug message for cache file access issue", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json"] as any);
+      mockFs.readFile.mockRejectedValue(new Error("EACCES: permission denied"));
+
+      const tokenInfo = await debugTokenManager.getTokenInfo("https://example.awsapps.com/start");
+
+      expect(tokenInfo).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Cache file access issue:"));
+    });
+
+    it("should log debug message for failed cache file read", async () => {
+      const debugTokenManager = new TokenManager({
+        ssoCacheDir: "/home/user/.aws/sso/cache",
+        enableDebugLogging: true,
+      });
+
+      mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+      mockFs.readdir.mockResolvedValue(["token1.json"] as any);
+      mockFs.readFile.mockRejectedValue(new Error("Some other read error"));
+
+      const tokenInfo = await debugTokenManager.getTokenInfo("https://example.awsapps.com/start");
+
+      expect(tokenInfo).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to read cache file:"),
+        expect.any(Error),
+      );
     });
   });
 });

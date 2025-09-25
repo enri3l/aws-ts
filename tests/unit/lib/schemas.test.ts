@@ -208,6 +208,91 @@ describe("Validation Schemas", () => {
     });
   });
 
+  describe("DynamoTableConfigSchema", () => {
+    it("should validate basic table configuration", () => {
+      const input = {
+        tableName: "MyTable",
+        partitionKey: { name: "id", type: "S" },
+        billingMode: "PAY_PER_REQUEST",
+      };
+
+      const result = DynamoTableConfigSchema.parse(input);
+      expect(result.tableName).toBe("MyTable");
+      expect(result.partitionKey.name).toBe("id");
+      expect(result.partitionKey.type).toBe("S");
+      expect(result.billingMode).toBe("PAY_PER_REQUEST");
+    });
+
+    it("should validate PROVISIONED billing mode with capacity units", () => {
+      const input = {
+        tableName: "MyTable",
+        partitionKey: { name: "id", type: "S" },
+        billingMode: "PROVISIONED",
+        readCapacityUnits: 5,
+        writeCapacityUnits: 5,
+      };
+
+      const result = DynamoTableConfigSchema.parse(input);
+      expect(result.billingMode).toBe("PROVISIONED");
+      expect(result.readCapacityUnits).toBe(5);
+      expect(result.writeCapacityUnits).toBe(5);
+    });
+
+    it("should reject PROVISIONED billing mode without read capacity", () => {
+      const input = {
+        tableName: "MyTable",
+        partitionKey: { name: "id", type: "S" },
+        billingMode: "PROVISIONED",
+        writeCapacityUnits: 5,
+        // missing readCapacityUnits
+      };
+
+      expect(() => DynamoTableConfigSchema.parse(input)).toThrow(
+        "Read and write capacity units are required for PROVISIONED billing mode",
+      );
+    });
+
+    it("should reject PROVISIONED billing mode without write capacity", () => {
+      const input = {
+        tableName: "MyTable",
+        partitionKey: { name: "id", type: "S" },
+        billingMode: "PROVISIONED",
+        readCapacityUnits: 5,
+        // missing writeCapacityUnits
+      };
+
+      expect(() => DynamoTableConfigSchema.parse(input)).toThrow(
+        "Read and write capacity units are required for PROVISIONED billing mode",
+      );
+    });
+
+    it("should reject PROVISIONED billing mode without both capacities", () => {
+      const input = {
+        tableName: "MyTable",
+        partitionKey: { name: "id", type: "S" },
+        billingMode: "PROVISIONED",
+        // missing both capacity units
+      };
+
+      expect(() => DynamoTableConfigSchema.parse(input)).toThrow(
+        "Read and write capacity units are required for PROVISIONED billing mode",
+      );
+    });
+
+    it("should validate table with sort key", () => {
+      const input = {
+        tableName: "MyTable",
+        partitionKey: { name: "id", type: "S" },
+        sortKey: { name: "timestamp", type: "N" },
+        billingMode: "PAY_PER_REQUEST",
+      };
+
+      const result = DynamoTableConfigSchema.parse(input);
+      expect(result.sortKey?.name).toBe("timestamp");
+      expect(result.sortKey?.type).toBe("N");
+    });
+  });
+
   describe("EnvironmentSchema", () => {
     it("should validate environment variables", () => {
       const input = {
@@ -260,6 +345,26 @@ describe("Validation Schemas", () => {
       expect(result.verbose).toBe(false);
     });
 
+    it("should throw formatted error with validateCliConfig for invalid config", () => {
+      const invalidConfig = {
+        region: "INVALID-REGION", // invalid region format
+        output: "invalid-format", // invalid output format
+        limit: -1, // invalid limit
+      };
+
+      expect(() => validateCliConfig(invalidConfig)).toThrow("Configuration validation failed:");
+
+      try {
+        validateCliConfig(invalidConfig);
+      } catch (error) {
+        if (error instanceof Error) {
+          expect(error.message).toContain("region:");
+          expect(error.message).toContain("output:");
+          expect(error.message).toContain("limit:");
+        }
+      }
+    });
+
     it("should create command schema with createCommandSchema", () => {
       const commandSchema = createCommandSchema({
         tableName: TableNameSchema,
@@ -290,6 +395,22 @@ describe("Validation Schemas", () => {
       if (!result.success) {
         expect(result.errors).toBeDefined();
         expect(result.errors.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("should handle nested errors with safeParseWithErrors", () => {
+      const invalidTableConfig = {
+        tableName: "MyTable",
+        partitionKey: { name: "", type: "S" }, // invalid empty name
+        billingMode: "PROVISIONED", // missing capacity units
+      };
+
+      const result = safeParseWithErrors(DynamoTableConfigSchema, invalidTableConfig);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.errors).toBeDefined();
+        expect(result.errors.length).toBeGreaterThan(0);
+        expect(result.errors.some((error) => error.includes("partitionKey.name"))).toBe(true);
       }
     });
   });

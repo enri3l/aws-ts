@@ -636,4 +636,64 @@ describe("Type Utilities", () => {
       expect(minimalError.code).toBeUndefined();
     });
   });
+
+  describe("uncovered catch blocks", () => {
+    it("should handle JSON.stringify failures on Error objects with circular refs", () => {
+      // Create an Error with circular reference to trigger JSON.stringify catch block
+      const error: any = new Error("Test error with circular ref");
+      error.circular = error; // This will cause JSON.stringify to throw
+
+      const result = toSafeString(error);
+      // Should fallback to error.message when JSON.stringify fails
+      expect(result).toBe("Test error with circular ref");
+    });
+
+    it("should handle Error objects with no message when JSON.stringify fails", () => {
+      // Create an Error with circular reference and no message
+      // eslint-disable-next-line unicorn/error-message
+      const error: any = new Error("");
+      error.circular = error;
+
+      const result = toSafeString(error);
+      // Should fallback to "[Error]" when both JSON.stringify fails and no message
+      expect(result).toBe("[Error]");
+    });
+
+    it("should handle objects where toString() throws in fallback scenario", () => {
+      // Create an object that causes JSON.stringify to fail AND toString to throw
+      const problematicObject = {
+        get circular() {
+          // This creates a circular reference that breaks JSON.stringify
+          return this;
+        },
+        toString() {
+          // AND toString throws an error
+          throw new Error("toString failed");
+        },
+      };
+
+      const result = toSafeString(problematicObject);
+      // Should fallback to "Unknown" when both JSON.stringify and toString fail
+      expect(result).toBe("Unknown");
+    });
+
+    it("should handle objects with valueOf that throws in fallback scenario", () => {
+      // Create an object where JSON.stringify fails and toString/valueOf both throw
+      const problematicObject = {
+        toJSON() {
+          throw new Error("toJSON failed");
+        },
+        toString() {
+          throw new Error("toString failed");
+        },
+        valueOf() {
+          throw new Error("valueOf failed");
+        },
+      };
+
+      const result = toSafeString(problematicObject);
+      // Should fallback to "Unknown" when everything fails
+      expect(result).toBe("Unknown");
+    });
+  });
 });

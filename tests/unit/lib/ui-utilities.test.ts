@@ -37,8 +37,8 @@ describe("UI Utilities", () => {
       it("should handle non-array input", () => {
         safeDisplayTable("not an array" as unknown as unknown[]);
 
-        expect(mockConsole.error).toHaveBeenCalledWith(
-          "Error: Data for table display must be an array.",
+        expect(mockConsole.warn).toHaveBeenCalledWith(
+          "⚠ Data format issue: Expected array for table display.",
         );
         expect(mockConsole.table).not.toHaveBeenCalled();
       });
@@ -46,8 +46,8 @@ describe("UI Utilities", () => {
       it("should handle null input", () => {
         safeDisplayTable(null as unknown as unknown[]);
 
-        expect(mockConsole.error).toHaveBeenCalledWith(
-          "Error: Data for table display must be an array.",
+        expect(mockConsole.warn).toHaveBeenCalledWith(
+          "⚠ Data format issue: Expected array for table display.",
         );
         expect(mockConsole.table).not.toHaveBeenCalled();
       });
@@ -55,8 +55,8 @@ describe("UI Utilities", () => {
       it("should handle undefined input", () => {
         safeDisplayTable(undefined as unknown as unknown[]);
 
-        expect(mockConsole.error).toHaveBeenCalledWith(
-          "Error: Data for table display must be an array.",
+        expect(mockConsole.warn).toHaveBeenCalledWith(
+          "⚠ Data format issue: Expected array for table display.",
         );
         expect(mockConsole.table).not.toHaveBeenCalled();
       });
@@ -64,8 +64,8 @@ describe("UI Utilities", () => {
       it("should handle object input", () => {
         safeDisplayTable({} as unknown as unknown[]);
 
-        expect(mockConsole.error).toHaveBeenCalledWith(
-          "Error: Data for table display must be an array.",
+        expect(mockConsole.warn).toHaveBeenCalledWith(
+          "⚠ Data format issue: Expected array for table display.",
         );
         expect(mockConsole.table).not.toHaveBeenCalled();
       });
@@ -293,8 +293,8 @@ describe("UI Utilities", () => {
         const data = [{ test: "value" }];
         safeDisplayTable(data);
 
-        expect(mockConsole.error).toHaveBeenCalledWith(
-          "Error displaying table data. Use --output json for raw data.",
+        expect(mockConsole.warn).toHaveBeenCalledWith(
+          "⚠ Table display unavailable. Use --output json for raw data.",
         );
         expect(mockConsole.error).toHaveBeenCalledWith("Data summary: 1 items available");
       });
@@ -312,8 +312,8 @@ describe("UI Utilities", () => {
         safeDisplayTable(data);
 
         // Should not throw and should fall back to error display
-        expect(mockConsole.error).toHaveBeenCalledWith(
-          "Error displaying table data. Use --output json for raw data.",
+        expect(mockConsole.warn).toHaveBeenCalledWith(
+          "⚠ Table display unavailable. Use --output json for raw data.",
         );
       });
 

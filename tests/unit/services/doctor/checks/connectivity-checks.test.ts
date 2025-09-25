@@ -686,4 +686,78 @@ describe("Connectivity Checks", () => {
       });
     });
   });
+
+  describe("Error handling edge cases", () => {
+    it("should handle CredentialService constructor failure", () => {
+      vi.mocked(CredentialService).mockImplementation(() => {
+        throw new Error("Failed to initialize credential service");
+      });
+
+      expect(() => new StsCredentialCheck()).toThrow("Failed to initialize credential service");
+    });
+
+    it("should handle ServiceEndpointCheck with invalid service configuration", async () => {
+      const serviceCheck = new ServiceEndpointCheck();
+
+      mockCredentialService.createS3Client.mockImplementation(() => {
+        throw new Error("Invalid service configuration");
+      });
+
+      const result = await serviceCheck.execute(context);
+
+      expect(result.status).toBe("fail");
+      expect(result.message).toContain("No service endpoints are accessible");
+    });
+
+    it("should handle error scenarios in RegionAccessibilityCheck", async () => {
+      const regionCheck = new RegionAccessibilityCheck();
+
+      mockCredentialService.getActiveProfile.mockResolvedValue("test-profile");
+
+      // Mock client creation error
+      mockCredentialService.createS3Client.mockImplementation(() => {
+        throw new Error("Failed to create client");
+      });
+
+      await expect(regionCheck.execute(context)).rejects.toThrow(
+        "Failed to validate region accessibility",
+      );
+    });
+
+    it("should handle malformed AWS credential responses", async () => {
+      const stsCheck = new StsCredentialCheck();
+
+      // Mock malformed response from credential service
+      mockCredentialService.validateCredentials.mockResolvedValue({
+        isValid: true,
+        identity: null, // Malformed identity
+        details: {},
+      });
+
+      const result = await stsCheck.execute(context);
+
+      expect(result.status).toBe("pass");
+      expect(result.message).toContain("STS connectivity successful");
+    });
+  });
+
+  describe("Constructor edge cases", () => {
+    it("should initialize StsCredentialCheck with default options", () => {
+      const check = new StsCredentialCheck();
+      expect(check.id).toBe("sts-credential");
+      expect(check.name).toBe("STS Credential Connectivity");
+    });
+
+    it("should initialize ServiceEndpointCheck with default options", () => {
+      const check = new ServiceEndpointCheck();
+      expect(check.id).toBe("service-endpoint");
+      expect(check.name).toBe("Service Endpoint Connectivity");
+    });
+
+    it("should initialize RegionAccessibilityCheck with default options", () => {
+      const check = new RegionAccessibilityCheck();
+      expect(check.id).toBe("region-accessibility");
+      expect(check.name).toBe("Region Accessibility");
+    });
+  });
 });
