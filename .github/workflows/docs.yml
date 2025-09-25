@@ -30,6 +30,8 @@ jobs:
   # Documentation build and validation job
   build-and-validate:
     runs-on: ubuntu-latest
+    # Explicitly exclude known bot actors (Dependabot and Release-please)
+    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
     steps:
       # Repository checkout for documentation source files
       - uses: actions/checkout@v4
