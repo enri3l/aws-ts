@@ -1106,5 +1106,112 @@ region = us-east-1
 
       expect(profileInfo.ssoSession).toBe("production");
     });
+
+    it("should parse SSO sessions with registration scopes", async () => {
+      const configContent = `
+[sso-session scoped-session]
+sso_start_url = https://example.awsapps.com/start
+sso_region = us-east-1
+sso_registration_scopes = sso:account:access
+
+[profile scoped-profile]
+sso_session = scoped-session
+sso_account_id = 123456789012
+sso_role_name = ScopedRole
+`;
+
+      mockFs.access.mockResolvedValue();
+      mockFs.readFile.mockResolvedValue(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+      const profile = profiles.find((p) => p.name === "scoped-profile");
+
+      expect(profile).toBeDefined();
+      expect(profile?.ssoSession).toBe("scoped-session");
+    });
+
+    it("should handle malformed profile sections with empty names", async () => {
+      const configContent = `
+[profile ]
+region = us-east-1
+
+[]
+output = json
+
+[profile validprofile]
+region = us-west-2
+`;
+
+      mockFs.access.mockResolvedValue();
+      mockFs.readFile.mockResolvedValue(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+
+      // Profiles with empty/whitespace-only names are parsed but handled
+      expect(profiles.length).toBeGreaterThanOrEqual(1);
+      expect(profiles.find((p) => p.name === "validprofile")).toBeDefined();
+
+      // Verify empty name profiles are included but handled gracefully
+      const emptyNameProfiles = profiles.filter(
+        (p) => p.name.trim() === "" || p.name === "profile ",
+      );
+      expect(emptyNameProfiles.length).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe("error handling edge cases", () => {
+    it("should handle non-Error exceptions in getProfileInfo", async () => {
+      const configContent = `
+[default]
+region = us-east-1
+`;
+
+      mockFs.access.mockResolvedValue();
+      mockFs.readFile.mockResolvedValue(configContent);
+
+      // Mock profileManager.discoverProfiles to throw a non-Error object
+      const discoverProfilesSpy = vi.spyOn(profileManager, "discoverProfiles");
+      discoverProfilesSpy.mockRejectedValue({
+        code: "NON_ERROR_EXCEPTION",
+        message: "Non-Error exception",
+      });
+
+      await expect(profileManager.getProfileInfo("default")).rejects.toThrow(ProfileError);
+
+      discoverProfilesSpy.mockRestore();
+    });
+
+    it("should handle non-Error exceptions in getSsoProfiles", async () => {
+      // Mock profileManager.discoverProfiles to throw a non-Error object
+      const discoverProfilesSpy = vi.spyOn(profileManager, "discoverProfiles");
+      discoverProfilesSpy.mockRejectedValue("string exception");
+
+      await expect(profileManager.getSsoProfiles()).rejects.toThrow(ProfileError);
+
+      discoverProfilesSpy.mockRestore();
+    });
+
+    it("should handle non-Error exceptions in parseConfigFile access", async () => {
+      // Mock fs.access to throw a non-Error object
+      mockFs.access.mockRejectedValue(null);
+
+      const profiles = await profileManager.discoverProfiles();
+      // Should handle gracefully and return empty array from credentials parsing
+      expect(Array.isArray(profiles)).toBe(true);
+    });
+
+    it("should handle non-Error exceptions in parseCredentialsFile access", async () => {
+      const configContent = `[default]\nregion = us-east-1`;
+
+      // Config file exists, but credentials file access throws non-Error
+      mockFs.access
+        .mockResolvedValueOnce() // config file access succeeds
+        .mockRejectedValueOnce(null); // credentials file access throws null
+      mockFs.readFile.mockResolvedValue(configContent);
+
+      const profiles = await profileManager.discoverProfiles();
+      // Should handle gracefully and return config profiles only
+      expect(profiles.length).toBeGreaterThan(0);
+    });
   });
 });

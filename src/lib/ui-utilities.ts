@@ -62,7 +62,7 @@ const MAX_CELL_LENGTH = 256;
 export function safeDisplayTable(data: unknown[]): void {
   // Validate input data
   if (!Array.isArray(data)) {
-    console.error("Error: Data for table display must be an array.");
+    console.warn("⚠ Data format issue: Expected array for table display.");
     return;
   }
 
@@ -96,7 +96,7 @@ export function safeDisplayTable(data: unknown[]): void {
     }
   } catch {
     // Fallback for any display errors
-    console.error("Error displaying table data. Use --output json for raw data.");
+    console.warn("⚠ Table display unavailable. Use --output json for raw data.");
     console.error(`Data summary: ${data.length} items available`);
   }
 }
@@ -129,8 +129,8 @@ function truncateObjectProperties(object: unknown): Record<string, unknown> {
       result[key] = truncatePropertyValue(value);
     }
   } catch {
-    // Property enumeration failed (Object.entries threw)
-    // Re-throw this error to be handled by the outer catch block
+    // Object property enumeration failed during table cell processing
+    // This indicates corrupted object state or circular references - re-throw for outer error handling
     throw new Error("Property enumeration failed");
   }
 

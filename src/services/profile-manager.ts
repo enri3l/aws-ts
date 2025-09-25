@@ -629,7 +629,11 @@ export class ProfileManager {
         }
       } catch (error) {
         if (this.options.enableDebugLogging) {
-          console.warn(`Skipping malformed line in ${fileType}: ${trimmedLine}`, error);
+          console.warn(
+            `⚠ Configuration parsing: Skipping invalid line in ${fileType}`,
+            { line: trimmedLine, suggestion: "Check file syntax and formatting" },
+            error,
+          );
         }
       }
     }

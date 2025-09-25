@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AuthStatusCommand from "../../../../src/commands/auth/status.js";
 import type { AuthStatusResponse } from "../../../../src/lib/auth-schemas.js";
+import { ApiError, TimeoutError } from "../../../../src/lib/errors.js";
 import { AuthService } from "../../../../src/services/auth-service.js";
 
 // Mock filesystem
@@ -533,6 +534,105 @@ region = us-west-2`,
       expect(mockError).toHaveBeenCalledWith("Failed to get authentication status: String error", {
         exit: 1,
       });
+    });
+
+    it("should handle ApiError exceptions", async () => {
+      const mockAuthService = vi.mocked(AuthService);
+      const apiError = new ApiError("API request failed", "AWS_API_ERROR", "authentication");
+      const mockGetStatus = vi.fn().mockRejectedValue(apiError);
+      mockAuthService.mockImplementation(
+        () =>
+          ({
+            getStatus: mockGetStatus,
+          }) as any,
+      );
+
+      const command = new AuthStatusCommand([], {} as any);
+      const mockError = vi.spyOn(command, "error").mockImplementation(() => {
+        throw new Error("Command error");
+      });
+
+      vi.spyOn(command, "parse").mockResolvedValue({
+        flags: {
+          format: "table",
+          "all-profiles": false,
+          detailed: false,
+          verbose: false,
+        },
+        args: {},
+      });
+
+      await expect(command.run()).rejects.toThrow();
+      expect(mockError).toHaveBeenCalledWith(
+        "Failed to get authentication status: AWS API error - API request failed",
+        { exit: 1 },
+      );
+    });
+
+    it("should handle TimeoutError exceptions", async () => {
+      const mockAuthService = vi.mocked(AuthService);
+      const timeoutError = new TimeoutError("Request timed out after 30 seconds", 30_000);
+      const mockGetStatus = vi.fn().mockRejectedValue(timeoutError);
+      mockAuthService.mockImplementation(
+        () =>
+          ({
+            getStatus: mockGetStatus,
+          }) as any,
+      );
+
+      const command = new AuthStatusCommand([], {} as any);
+      const mockError = vi.spyOn(command, "error").mockImplementation(() => {
+        throw new Error("Command error");
+      });
+
+      vi.spyOn(command, "parse").mockResolvedValue({
+        flags: {
+          format: "table",
+          "all-profiles": false,
+          detailed: false,
+          verbose: false,
+        },
+        args: {},
+      });
+
+      await expect(command.run()).rejects.toThrow();
+      expect(mockError).toHaveBeenCalledWith(
+        "Failed to get authentication status: Operation timed out - Request timed out after 30 seconds",
+        { exit: 1 },
+      );
+    });
+
+    it("should handle verbose error reporting", async () => {
+      const mockAuthService = vi.mocked(AuthService);
+      const genericError = new Error("Verbose error test");
+      const mockGetStatus = vi.fn().mockRejectedValue(genericError);
+      mockAuthService.mockImplementation(
+        () =>
+          ({
+            getStatus: mockGetStatus,
+          }) as any,
+      );
+
+      const command = new AuthStatusCommand([], {} as any);
+      const mockError = vi.spyOn(command, "error").mockImplementation(() => {
+        throw new Error("Command error");
+      });
+
+      vi.spyOn(command, "parse").mockResolvedValue({
+        flags: {
+          format: "table",
+          "all-profiles": false,
+          detailed: false,
+          verbose: true, // Enable verbose mode for error reporting
+        },
+        args: {},
+      });
+
+      await expect(command.run()).rejects.toThrow();
+      expect(mockError).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to get authentication status:"),
+        { exit: 1 },
+      );
     });
   });
 

@@ -6,7 +6,7 @@
  */
 
 import type { ChildProcess } from "node:child_process";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticationError, AwsCliError } from "../../../src/lib/auth-errors.js";
 import { AuthCliWrapper } from "../../../src/services/auth-cli-wrapper.js";
 
@@ -314,6 +314,27 @@ describe("AuthCliWrapper", () => {
         expect.any(Object),
       );
     });
+
+    it("should handle non-AuthenticationError exceptions in ssoLogout", async () => {
+      // Mock executeCommand to throw a generic Error instead of AuthenticationError
+      const executeCommandSpy = vi.spyOn(authCliWrapper as any, "executeCommand");
+      executeCommandSpy.mockRejectedValue(new TypeError("Unexpected type error"));
+
+      await expect(authCliWrapper.ssoLogout("test-profile")).rejects.toThrow(AuthenticationError);
+
+      try {
+        await authCliWrapper.ssoLogout("test-profile");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AuthenticationError);
+        expect((error as AuthenticationError).message).toBe(
+          "Failed to logout from SSO for profile 'test-profile'",
+        );
+        expect((error as AuthenticationError).metadata.operation).toBe("sso-logout");
+        expect((error as AuthenticationError).metadata.profile).toBe("test-profile");
+      }
+
+      executeCommandSpy.mockRestore();
+    });
   });
 
   describe("validateCredentials", () => {
@@ -375,6 +396,29 @@ describe("AuthCliWrapper", () => {
       await expect(authCliWrapper.validateCredentials("test-profile")).rejects.toThrow(
         AuthenticationError,
       );
+    });
+
+    it("should handle non-AuthenticationError exceptions in validateCredentials", async () => {
+      // Mock executeCommand to throw a generic ReferenceError instead of AuthenticationError
+      const executeCommandSpy = vi.spyOn(authCliWrapper as any, "executeCommand");
+      executeCommandSpy.mockRejectedValue(new ReferenceError("Reference is not defined"));
+
+      await expect(authCliWrapper.validateCredentials("test-profile")).rejects.toThrow(
+        AuthenticationError,
+      );
+
+      try {
+        await authCliWrapper.validateCredentials("test-profile");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AuthenticationError);
+        expect((error as AuthenticationError).message).toBe(
+          "Failed to validate credentials for profile 'test-profile'",
+        );
+        expect((error as AuthenticationError).metadata.operation).toBe("credential-validation");
+        expect((error as AuthenticationError).metadata.profile).toBe("test-profile");
+      }
+
+      executeCommandSpy.mockRestore();
     });
   });
 
@@ -782,6 +826,462 @@ describe("AuthCliWrapper", () => {
       await unixWrapper.checkInstallation();
 
       expect(mockSpawn).toHaveBeenCalledWith("aws", ["--version"], expect.any(Object));
+    });
+  });
+
+  describe("debug logging coverage", () => {
+    it("should log debug messages when debug logging is enabled", async () => {
+      const debugWrapper = new AuthCliWrapper({
+        enableDebugLogging: true,
+        timeoutMs: 30_000,
+      });
+
+      const consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("aws-cli/2.15.30")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await debugWrapper.checkInstallation();
+
+      expect(consoleSpy).toHaveBeenCalledWith("Executing AWS CLI command: aws --version");
+      expect(consoleSpy).toHaveBeenCalledWith("AWS CLI command completed with exit code: 0");
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should log debug messages for interactive commands with debug enabled", async () => {
+      const debugWrapper = new AuthCliWrapper({
+        enableDebugLogging: true,
+        timeoutMs: 30_000,
+      });
+
+      const consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("SSO login successful")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await debugWrapper.ssoLogin("test-profile");
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Executing interactive AWS CLI command: aws sso login --profile test-profile",
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Interactive AWS CLI command completed with exit code: 0",
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should handle process spawn error with debug logging", async () => {
+      const debugWrapper = new AuthCliWrapper({
+        enableDebugLogging: true,
+        timeoutMs: 30_000,
+      });
+
+      const consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+      const processError = new Error("spawn ENOENT");
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "error") {
+          setTimeout(() => callback(processError), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await expect(debugWrapper.checkInstallation()).rejects.toThrow(AwsCliError);
+
+      expect(consoleSpy).toHaveBeenCalledWith("Executing AWS CLI command: aws --version");
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("constructor edge cases", () => {
+    it("should use default options when no options provided", async () => {
+      const defaultWrapper = new AuthCliWrapper();
+
+      // Verify it works with defaults by calling checkInstallation
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("aws-cli/2.15.30")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      const result = await defaultWrapper.checkInstallation();
+
+      expect(result).toEqual({
+        version: "2.15.30",
+        installed: true,
+      });
+
+      // Should use default "aws" command (not "aws.exe" since not Windows)
+      expect(mockSpawn).toHaveBeenCalledWith("aws", ["--version"], expect.any(Object));
+    });
+
+    it("should use default options with empty object", async () => {
+      const emptyOptionsWrapper = new AuthCliWrapper({});
+
+      // Verify it works with empty options by calling checkInstallation
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("aws-cli/2.15.30")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      const result = await emptyOptionsWrapper.checkInstallation();
+
+      expect(result).toEqual({
+        version: "2.15.30",
+        installed: true,
+      });
+
+      expect(mockSpawn).toHaveBeenCalledWith("aws", ["--version"], expect.any(Object));
+    });
+  });
+
+  describe("platform-specific behavior", () => {
+    let originalPlatform: string;
+
+    beforeEach(() => {
+      originalPlatform = process.platform;
+    });
+
+    afterEach(() => {
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+    });
+
+    it("should use aws.exe on Windows platform", async () => {
+      Object.defineProperty(process, "platform", { value: "win32" });
+
+      const windowsWrapper = new AuthCliWrapper();
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("aws-cli/2.15.30")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await windowsWrapper.checkInstallation();
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "aws.exe",
+        ["--version"],
+        expect.objectContaining({
+          shell: true,
+        }),
+      );
+    });
+
+    it("should use aws on non-Windows platforms", async () => {
+      Object.defineProperty(process, "platform", { value: "linux" });
+
+      const linuxWrapper = new AuthCliWrapper();
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("aws-cli/2.15.30")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await linuxWrapper.checkInstallation();
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "aws",
+        ["--version"],
+        expect.objectContaining({
+          shell: false,
+        }),
+      );
+    });
+  });
+
+  describe("timeout and signal handling", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should handle SIGTERM timeout in executeCommand", async () => {
+      const timeoutWrapper = new AuthCliWrapper({ timeoutMs: 1000 });
+
+      let killCallback: ((signal: string) => void) | undefined;
+      const mockKill = vi.fn((signal: string) => {
+        if (killCallback) killCallback(signal);
+      });
+
+      mockChildProcess.kill = mockKill;
+      mockChildProcess.on = vi.fn((event) => {
+        // Don't trigger close event to simulate hanging process
+        if (event === "close") {
+          // Store for potential later use but don't call immediately
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      const commandPromise = timeoutWrapper.checkInstallation();
+
+      // Advance timers to trigger timeout
+      vi.advanceTimersByTime(1000);
+
+      await expect(commandPromise).rejects.toThrow("AWS CLI command timed out after 1000ms");
+      expect(mockKill).toHaveBeenCalledWith("SIGTERM");
+    });
+
+    it("should handle SIGTERM timeout in executeInteractiveCommand", async () => {
+      const timeoutWrapper = new AuthCliWrapper({ timeoutMs: 1000 });
+
+      let killCallback: ((signal: string) => void) | undefined;
+      const mockKill = vi.fn((signal: string) => {
+        if (killCallback) killCallback(signal);
+      });
+
+      mockChildProcess.kill = mockKill;
+      mockChildProcess.on = vi.fn(() => {
+        // Don't trigger close event to simulate hanging process
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      const ssoPromise = timeoutWrapper.ssoLogin("test-profile");
+
+      // Advance timers to trigger timeout
+      vi.advanceTimersByTime(1000);
+
+      await expect(ssoPromise).rejects.toThrow(AuthenticationError);
+      await expect(ssoPromise).rejects.toThrow(
+        "Failed to login with SSO for profile 'test-profile'",
+      );
+      expect(mockKill).toHaveBeenCalledWith("SIGTERM");
+    });
+  });
+
+  describe("interactive command edge cases", () => {
+    it("should handle stdin.end() errors gracefully", async () => {
+      const wrapper = new AuthCliWrapper();
+
+      const mockWrite = vi.fn().mockReturnValue(true);
+      const mockEnd = vi.fn(() => {
+        throw new Error("stdin.end() failed");
+      });
+
+      const mockStdin: MockWritableStream = {
+        write: mockWrite,
+        end: mockEnd,
+      };
+
+      mockChildProcess.stdin = mockStdin as any;
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("SSO setup successful")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      const ssoConfig = {
+        ssoStartUrl: "https://test.awsapps.com/start",
+        ssoRegion: "us-east-1",
+        ssoAccountId: "123456789012",
+        ssoRoleName: "TestRole",
+      };
+
+      // Should throw AuthenticationError due to stdin.end() error
+      await expect(wrapper.configureSso("test-profile", ssoConfig)).rejects.toThrow(
+        AuthenticationError,
+      );
+
+      expect(mockWrite).toHaveBeenCalledTimes(4);
+      expect(mockEnd).toHaveBeenCalled();
+    });
+
+    it("should handle missing stdin in interactive command", async () => {
+      const wrapper = new AuthCliWrapper();
+
+      mockChildProcess.stdin = undefined;
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("SSO setup successful")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      const ssoConfig = {
+        ssoStartUrl: "https://test.awsapps.com/start",
+        ssoRegion: "us-east-1",
+        ssoAccountId: "123456789012",
+        ssoRoleName: "TestRole",
+      };
+
+      // Should handle missing stdin gracefully
+      await expect(wrapper.configureSso("test-profile", ssoConfig)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("debug logging coverage", () => {
+    it("should log interactive command execution with debug enabled", async () => {
+      const debugWrapper = new AuthCliWrapper({
+        enableDebugLogging: true,
+        timeoutMs: 30_000,
+      });
+
+      const consoleSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(0), 10);
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn((event, callback) => {
+        if (event === "data") {
+          setTimeout(() => callback(Buffer.from("Login successful")), 5);
+        }
+        return mockChildProcess.stdout;
+      });
+
+      mockChildProcess.stderr!.on = vi.fn();
+
+      await debugWrapper.ssoLogin("test-profile");
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Executing interactive AWS CLI command: aws sso login --profile test-profile",
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Interactive AWS CLI command completed with exit code: 0",
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should handle null exit code in interactive command", async () => {
+      const wrapper = new AuthCliWrapper();
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(null), 10); // null exit code
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      // null exit code becomes -1 which indicates failure
+      await expect(wrapper.ssoLogin("test-profile")).rejects.toThrow(AuthenticationError);
+    });
+
+    it("should handle null exit code in regular command", async () => {
+      const wrapper = new AuthCliWrapper();
+
+      mockChildProcess.on = vi.fn((event, callback) => {
+        if (event === "close") {
+          setTimeout(() => callback(null), 10); // null exit code
+        }
+        return mockChildProcess as ChildProcess;
+      });
+
+      mockChildProcess.stdout!.on = vi.fn();
+      mockChildProcess.stderr!.on = vi.fn();
+
+      // null exit code should still be handled and converted to -1
+      await expect(wrapper.checkInstallation()).rejects.toThrow(AwsCliError);
     });
   });
 });

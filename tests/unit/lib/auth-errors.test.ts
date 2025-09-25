@@ -11,6 +11,7 @@ import {
   AwsCliError,
   ProfileError,
   TokenError,
+  isAuthError,
 } from "../../../src/lib/auth-errors.js";
 import { getAuthErrorGuidance } from "../../../src/lib/auth-guidance.js";
 
@@ -349,6 +350,53 @@ describe("Authentication Error System", () => {
       expect(error.code).toBe("AUTHENTICATION_ERROR");
       expect(error.name).toBe("AuthenticationError");
       expect(error.stack).toBeDefined();
+    });
+  });
+
+  describe("isAuthError", () => {
+    it("should return true for AuthenticationError instances", () => {
+      const error = new AuthenticationError("Test auth error");
+      expect(isAuthError(error)).toBe(true);
+    });
+
+    it("should return true for ProfileError instances", () => {
+      const error = new ProfileError("Test profile error");
+      expect(isAuthError(error)).toBe(true);
+    });
+
+    it("should return true for TokenError instances", () => {
+      const error = new TokenError("Test token error");
+      expect(isAuthError(error)).toBe(true);
+    });
+
+    it("should return true for AwsCliError instances", () => {
+      const error = new AwsCliError("Test CLI error");
+      expect(isAuthError(error)).toBe(true);
+    });
+
+    it("should return false for generic Error instances", () => {
+      const error = new Error("Generic error");
+      expect(isAuthError(error)).toBe(false);
+    });
+
+    it("should return false for non-Error objects", () => {
+      expect(isAuthError("string error")).toBe(false);
+      expect(isAuthError({ message: "object error" })).toBe(false);
+      expect(isAuthError(null)).toBe(false);
+      expect(isAuthError()).toBe(false);
+      expect(isAuthError(42)).toBe(false);
+    });
+
+    it("should return false for custom error classes", () => {
+      class CustomError extends Error {
+        constructor(message: string) {
+          super(message);
+          this.name = "CustomError";
+        }
+      }
+
+      const error = new CustomError("Custom error");
+      expect(isAuthError(error)).toBe(false);
     });
   });
 });
