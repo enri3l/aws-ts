@@ -468,4 +468,98 @@ describe("AutoRepairService", () => {
       expect(mockFs.mkdir).toHaveBeenCalledWith("/custom/backup/dir", { recursive: true });
     });
   });
+
+  describe("constructor edge cases", () => {
+    it("should initialize with partial options", () => {
+      const service = new AutoRepairService({
+        enableDebugLogging: true,
+        // Other options use defaults
+      });
+      expect(service).toBeInstanceOf(AutoRepairService);
+    });
+
+    it("should initialize with null/undefined options gracefully", () => {
+      const service = new AutoRepairService(undefined);
+      expect(service).toBeInstanceOf(AutoRepairService);
+    });
+  });
+
+  describe("dry run mode coverage", () => {
+    it("should handle dry run mode with different configurations", async () => {
+      const dryRunService = new AutoRepairService({
+        dryRun: true,
+        enableDebugLogging: true,
+      });
+
+      const context: DoctorContext = { autoFix: true };
+      const checkResults = new Map<string, CheckResult>();
+
+      mockFs.readdir.mockResolvedValue(["temp-file"] as any);
+      mockFs.stat.mockResolvedValue({
+        isFile: () => true,
+        mtime: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      } as any);
+
+      const results = await dryRunService.executeSafeRepairs(context, checkResults);
+
+      // In dry run mode, operations should be simulated
+      expect(results.every((r) => r.success)).toBe(true);
+      expect(mockFs.unlink).not.toHaveBeenCalled(); // No actual operations performed
+    });
+  });
+
+  describe("backup directory handling", () => {
+    it("should handle backup directory creation failure gracefully", async () => {
+      const backupService = new AutoRepairService({
+        backupDirectory: "/invalid/backup/dir",
+      });
+
+      const context: DoctorContext = { autoFix: true };
+      const checkResults = new Map<string, CheckResult>();
+
+      // Mock backup directory creation failure
+      mockFs.mkdir.mockRejectedValue(new Error("EACCES: permission denied"));
+
+      const results = await backupService.executeSafeRepairs(context, checkResults);
+
+      // Should still attempt all operations despite backup dir failure
+      expect(results).toHaveLength(4); // All operations attempted
+    });
+  });
+
+  describe("edge cases for coverage", () => {
+    it("should handle readdir failures gracefully", async () => {
+      const context: DoctorContext = { autoFix: true };
+      const checkResults = new Map<string, CheckResult>();
+
+      // Mock readdir failure
+      mockFs.readdir.mockRejectedValue(new Error("ENOENT: directory not found"));
+
+      const results = await autoRepairService.executeSafeRepairs(context, checkResults);
+
+      const cleanupResult = results.find((r) => r.message.includes("temp"));
+      expect(cleanupResult).toBeDefined();
+    });
+
+    it("should handle different file types in temp cleanup", async () => {
+      const context: DoctorContext = { autoFix: true };
+      const checkResults = new Map<string, CheckResult>();
+
+      mockFs.readdir.mockResolvedValue(["temp-file", "temp-dir"] as any);
+      mockFs.stat
+        .mockResolvedValueOnce({
+          isFile: () => true,
+          mtime: new Date(Date.now() - 25 * 60 * 60 * 1000),
+        } as any)
+        .mockResolvedValueOnce({
+          isFile: () => false, // Directory
+          mtime: new Date(Date.now() - 25 * 60 * 60 * 1000),
+        } as any);
+
+      const results = await autoRepairService.executeSafeRepairs(context, checkResults);
+
+      const cleanupResult = results.find((r) => r.message.includes("temp"));
+      expect(cleanupResult).toBeDefined();
+    });
+  });
 });

@@ -33,7 +33,15 @@ export default defineConfig({
       skipFull: true,
       cleanOnRerun: true,
       perFile: true,
-      exclude: ["node_modules/", "tests/", "cc-sessions/", "dist/", "**/*.d.ts", "**/*.config.*"],
+      exclude: [
+        "node_modules/",
+        "tests/",
+        "cc-sessions/",
+        "dist/",
+        "docs/",
+        "**/*.d.ts",
+        "**/*.config.*",
+      ],
       thresholds: {
         lines: 90,
         branches: 85,
