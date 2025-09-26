@@ -258,9 +258,9 @@ export class DynamoDBService {
    *
    * @param config - Client configuration options
    * @returns DynamoDB document client instance
-   * @internal
+   * @public
    */
-  private async getDocumentClient(config: AwsClientConfig = {}): Promise<DynamoDBDocumentClient> {
+  async getDocumentClient(config: AwsClientConfig = {}): Promise<DynamoDBDocumentClient> {
     const cacheKey = `doc-${config.region || "default"}-${config.profile || "default"}`;
 
     if (!this.docClientCache.has(cacheKey)) {
@@ -365,9 +365,11 @@ export class DynamoDBService {
             attributeName: attribute.AttributeName!,
             attributeType: attribute.AttributeType! as "S" | "N" | "B",
           })) || [],
-        billingMode: table.BillingModeSummary?.BillingMode,
-        itemCount: table.ItemCount,
-        tableSizeBytes: table.TableSizeBytes,
+        ...(table.BillingModeSummary?.BillingMode && {
+          billingMode: table.BillingModeSummary.BillingMode,
+        }),
+        ...(table.ItemCount !== undefined && { itemCount: table.ItemCount }),
+        ...(table.TableSizeBytes !== undefined && { tableSizeBytes: table.TableSizeBytes }),
       };
 
       if (table.GlobalSecondaryIndexes) {
@@ -416,8 +418,7 @@ export class DynamoDBService {
   /**
    * Query a DynamoDB table or index
    *
-   * @param params - Query parameters
-   * @param parameters
+   * @param parameters - Query parameters including table name and conditions
    * @param config - Client configuration options
    * @returns Promise resolving to query results
    * @throws When query operation fails
@@ -446,9 +447,9 @@ export class DynamoDBService {
 
       const result: PaginatedResult = {
         items: response.Items || [],
-        lastEvaluatedKey: response.LastEvaluatedKey,
+        ...(response.LastEvaluatedKey && { lastEvaluatedKey: response.LastEvaluatedKey }),
         count: response.Count || 0,
-        scannedCount: response.ScannedCount,
+        ...(response.ScannedCount !== undefined && { scannedCount: response.ScannedCount }),
       };
 
       spinner.succeed(`Query completed: ${result.count} items returned`);
@@ -468,8 +469,7 @@ export class DynamoDBService {
   /**
    * Scan a DynamoDB table or index
    *
-   * @param params - Scan parameters
-   * @param parameters
+   * @param parameters - Scan parameters including table name and filters
    * @param config - Client configuration options
    * @returns Promise resolving to scan results
    * @throws When scan operation fails
@@ -498,9 +498,9 @@ export class DynamoDBService {
 
       const result: PaginatedResult = {
         items: response.Items || [],
-        lastEvaluatedKey: response.LastEvaluatedKey,
+        ...(response.LastEvaluatedKey && { lastEvaluatedKey: response.LastEvaluatedKey }),
         count: response.Count || 0,
-        scannedCount: response.ScannedCount,
+        ...(response.ScannedCount !== undefined && { scannedCount: response.ScannedCount }),
       };
 
       spinner.succeed(`Scan completed: ${result.count} items returned`);
@@ -520,8 +520,7 @@ export class DynamoDBService {
   /**
    * Get a single item from a DynamoDB table
    *
-   * @param params - Get item parameters
-   * @param parameters
+   * @param parameters - Get item parameters including table name and key
    * @param config - Client configuration options
    * @returns Promise resolving to the item or undefined if not found
    * @throws When get item operation fails
@@ -567,8 +566,7 @@ export class DynamoDBService {
   /**
    * Put (create/update) an item in a DynamoDB table
    *
-   * @param params - Put item parameters
-   * @param parameters
+   * @param parameters - Put item parameters including table name and item data
    * @param config - Client configuration options
    * @returns Promise resolving to the previous item if returnValues is set
    * @throws When put item operation fails
@@ -610,8 +608,7 @@ export class DynamoDBService {
   /**
    * Update an existing item in a DynamoDB table
    *
-   * @param params - Update item parameters
-   * @param parameters
+   * @param parameters - Update item parameters including table name and update expression
    * @param config - Client configuration options
    * @returns Promise resolving to the updated attributes if returnValues is set
    * @throws When update item operation fails

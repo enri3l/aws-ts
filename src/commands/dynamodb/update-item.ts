@@ -7,11 +7,12 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
+import { UpdateItemParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBUpdateItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBUpdateItemSchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
-import type { UpdateItemParameters } from "../../services/dynamodb-service.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
+import { FormatterFactory } from "../../lib/formatters.js";
+import { parseJsonInput, parseJsonStringInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -135,23 +136,18 @@ export default class DynamoDBUpdateItemCommand extends Command {
 
     try {
       // Parse key input (JSON string or file path)
-      let keyObject: Record<string, unknown>;
-      if (args.key.startsWith("file://")) {
-        const filePath = args.key.replace("file://", "");
-        const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf8");
-        keyObject = JSON.parse(fileContent);
-      } else {
-        keyObject = JSON.parse(args.key);
-      }
+      const keyObject = await parseJsonInput(args.key, "Key input");
 
       // Parse expression attributes if provided
       const expressionAttributeNames = flags["expression-attribute-names"]
-        ? JSON.parse(flags["expression-attribute-names"])
+        ? await parseJsonStringInput(
+            flags["expression-attribute-names"],
+            "Expression attribute names",
+          )
         : undefined;
 
       const expressionAttributeValues = flags["expression-attribute-values"]
-        ? JSON.parse(flags["expression-attribute-values"])
+        ? await parseJsonInput(flags["expression-attribute-values"], "Expression attribute values")
         : undefined;
 
       // Validate input using Zod schema
@@ -174,112 +170,42 @@ export default class DynamoDBUpdateItemCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
       // Prepare update item parameters
-      const updateItemParameters: UpdateItemParameters = {
-        tableName: input.tableName,
-        key: keyObject,
-        updateExpression: input.updateExpression,
-        conditionExpression: input.conditionExpression,
+      const updateItemParameters = UpdateItemParameterBuilder.build(
+        input,
+        keyObject,
         expressionAttributeNames,
         expressionAttributeValues,
-        returnValues: input.returnValues,
-      };
+      );
 
       // Execute update item operation
       const result = await dynamoService.updateItem(updateItemParameters, {
-        region: input.region,
-        profile: input.profile,
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(
-        result,
-        input.format,
-        input.tableName,
-        input.returnValues,
-        keyObject,
-      );
+      if (input.returnValues === "NONE" || !result) {
+        this.log(`Item successfully updated in table '${input.tableName}' with key:`);
+        this.log(JSON.stringify(keyObject, undefined, 2));
+      } else {
+        const resultLabel = this.getResultLabel(input.returnValues);
+        this.log(`Item successfully updated in table '${input.tableName}'. ${resultLabel}:`);
+        const formatter = FormatterFactory.create(input.format, (message) => this.log(message));
+        formatter.display({ items: [result] });
+      }
     } catch (error) {
-      if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        this.error(`Invalid JSON in parameter: ${error.message}`, { exit: 1 });
-      }
-
-      if (error instanceof Error && error.message.includes("ENOENT")) {
-        this.error("Key file not found. Ensure the file path is correct.", { exit: 1 });
-      }
-
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(
+        error,
+        flags.verbose,
+        "update item operation",
+      );
       this.error(formattedError, { exit: 1 });
-    }
-  }
-
-  /**
-   * Format and display the update item result
-   *
-   * @param result - Update item result (attributes if returnValues was set)
-   * @param format - Output format to use
-   * @param tableName - Name of the table
-   * @param returnValues - Return values option used
-   * @param key - Primary key that was updated
-   * @returns Promise resolving when output is complete
-   * @internal
-   */
-  private async formatAndDisplayOutput(
-    result: Record<string, unknown> | undefined,
-    format: string,
-    tableName: string,
-    returnValues: string,
-    key: Record<string, unknown>,
-  ): Promise<void> {
-    if (returnValues === "NONE" || !result) {
-      this.log(`Item successfully updated in table '${tableName}' with key:`);
-      this.log(JSON.stringify(key, null, 2));
-      return;
-    }
-
-    const resultLabel = this.getResultLabel(returnValues);
-    this.log(`Item successfully updated in table '${tableName}'. ${resultLabel}:`);
-
-    switch (format) {
-      case "table": {
-        // Convert item to key-value pairs for table display
-        const itemData = Object.entries(result).map(([key, value]) => ({
-          Attribute: key,
-          Value: this.formatValue(value),
-          Type: this.getValueType(value),
-        }));
-
-        const processor = new DataProcessor({ format: "table" });
-        const output = processor.formatOutput(itemData);
-        this.log(output);
-        break;
-      }
-
-      case "json": {
-        this.log(JSON.stringify(result, null, 2));
-        break;
-      }
-
-      case "jsonl": {
-        this.log(JSON.stringify(result));
-        break;
-      }
-
-      case "csv": {
-        const processor = new DataProcessor({ format: "csv" });
-        const output = processor.formatOutput([result]);
-        this.log(output);
-        break;
-      }
-
-      default: {
-        throw new Error(`Unsupported output format: ${format}`);
-      }
     }
   }
 
@@ -308,52 +234,5 @@ export default class DynamoDBUpdateItemCommand extends Command {
         return "Result";
       }
     }
-  }
-
-  /**
-   * Format a value for display in table format
-   *
-   * @param value - Value to format
-   * @returns Formatted string representation
-   * @internal
-   */
-  private formatValue(value: unknown): string {
-    if (value === null || value === undefined) {
-      return "null";
-    }
-
-    if (typeof value === "string") {
-      return value.length > 100 ? `${value.slice(0, 97)}...` : value;
-    }
-
-    if (typeof value === "object") {
-      const jsonString = JSON.stringify(value);
-      return jsonString.length > 100 ? `${jsonString.slice(0, 97)}...` : jsonString;
-    }
-
-    return String(value);
-  }
-
-  /**
-   * Get the type of a value for display
-   *
-   * @param value - Value to get type for
-   * @returns Type description
-   * @internal
-   */
-  private getValueType(value: unknown): string {
-    if (value === null || value === undefined) {
-      return "null";
-    }
-
-    if (Array.isArray(value)) {
-      return `array[${value.length}]`;
-    }
-
-    if (typeof value === "object") {
-      return "object";
-    }
-
-    return typeof value;
   }
 }

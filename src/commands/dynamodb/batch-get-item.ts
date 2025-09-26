@@ -6,12 +6,18 @@
  *
  */
 
-import { BatchGetCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  BatchGetCommand,
+  type BatchGetCommandInput,
+  type BatchGetCommandOutput,
+  type DynamoDBDocumentClient,
+} from "@aws-sdk/lib-dynamodb";
 import { Args, Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
 import type { DynamoDBBatchGetItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBBatchGetItemSchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
+import { FormatterFactory } from "../../lib/formatters.js";
+import { parseJsonInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -97,15 +103,10 @@ export default class DynamoDBBatchGetItemCommand extends Command {
 
     try {
       // Parse request items input (JSON string or file path)
-      let requestItemsObject: Record<string, unknown>;
-      if (args.requestItems.startsWith("file://")) {
-        const filePath = args.requestItems.replace("file://", "");
-        const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf8");
-        requestItemsObject = JSON.parse(fileContent);
-      } else {
-        requestItemsObject = JSON.parse(args.requestItems);
-      }
+      const requestItemsObject = (await parseJsonInput(
+        args.requestItems,
+        "Request items input",
+      )) as NonNullable<BatchGetCommandInput["RequestItems"]>;
 
       // Validate input using Zod schema
       const input: DynamoDBBatchGetItem = DynamoDBBatchGetItemSchema.parse({
@@ -122,8 +123,8 @@ export default class DynamoDBBatchGetItemCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
@@ -133,13 +134,14 @@ export default class DynamoDBBatchGetItemCommand extends Command {
         requestItemsObject,
         input.consistentRead,
         {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       );
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(result, input.format);
+      const formatter = FormatterFactory.create(input.format, (message) => this.log(message));
+      formatter.display(result);
     } catch (error) {
       if (error instanceof SyntaxError && error.message.includes("JSON")) {
         this.error(`Invalid JSON in request items parameter: ${error.message}`, { exit: 1 });
@@ -149,7 +151,11 @@ export default class DynamoDBBatchGetItemCommand extends Command {
         this.error("Request items file not found. Ensure the file path is correct.", { exit: 1 });
       }
 
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(
+        error,
+        flags.verbose,
+        "batch get item operation",
+      );
       this.error(formattedError, { exit: 1 });
     }
   }
@@ -160,69 +166,44 @@ export default class DynamoDBBatchGetItemCommand extends Command {
    * @param dynamoService - DynamoDB service instance
    * @param requestItems - Request items specification
    * @param consistentRead - Whether to use consistent reads
-   * @param config - AWS client configuration
-   * @param config.region
-   * @param config.profile
+   * @param config - AWS client configuration with optional region and profile settings
    * @returns Promise resolving to batch get results
+   * @throws Error When AWS operation fails or document client cannot be created
    * @internal
    */
   private async executeBatchGetItem(
     dynamoService: DynamoDBService,
-    requestItems: Record<string, unknown>,
+    requestItems: NonNullable<BatchGetCommandInput["RequestItems"]>,
     consistentRead: boolean,
     config: { region?: string; profile?: string },
   ): Promise<{
     responses: Record<string, Record<string, unknown>[]>;
     unprocessedKeys: Record<string, unknown>;
   }> {
-    // Access private method to get document client
-    // This is a workaround since we don't have a public batch get method in the service
-    const documentClient = await (dynamoService as any).getDocumentClient(config);
+    // Get document client for batch operations
+    const documentClient = await dynamoService.getDocumentClient(config);
 
-    // Apply consistent read to all tables if flag is set
-    if (consistentRead) {
-      for (const tableName in requestItems) {
-        const tableRequest = requestItems[tableName] as any;
-        if (!tableRequest.ConsistentRead) {
-          tableRequest.ConsistentRead = true;
-        }
-      }
-    }
+    // Prepare request items with consistent read if needed
+    const preparedRequestItems = this.prepareRequestItems(requestItems, consistentRead);
 
+    // Execute with simple retry logic
     const allResponses: Record<string, Record<string, unknown>[]> = {};
-    let currentRequestItems = { ...requestItems };
-    let retryCount = 0;
+    let currentRequestItems = { ...preparedRequestItems };
     const maxRetries = 3;
 
-    while (Object.keys(currentRequestItems).length > 0 && retryCount < maxRetries) {
-      const command = new BatchGetCommand({
-        RequestItems: currentRequestItems,
-      });
+    for (
+      let attempt = 0;
+      attempt <= maxRetries && Object.keys(currentRequestItems).length > 0;
+      attempt++
+    ) {
+      const response = await this.executeSingleBatchGet(documentClient, currentRequestItems);
 
-      const response = await documentClient.send(command);
+      this.mergeResponses(allResponses, response.Responses);
 
-      // Merge responses
-      if (response.Responses) {
-        for (const [tableName, items] of Object.entries(response.Responses)) {
-          if (!allResponses[tableName]) {
-            allResponses[tableName] = [];
-          }
-          allResponses[tableName].push(...items);
-        }
-      }
+      currentRequestItems = response.UnprocessedKeys || {};
 
-      // Handle unprocessed keys
-      if (response.UnprocessedKeys && Object.keys(response.UnprocessedKeys).length > 0) {
-        currentRequestItems = response.UnprocessedKeys;
-        retryCount++;
-
-        if (retryCount < maxRetries) {
-          // Exponential backoff
-          const delay = Math.pow(2, retryCount) * 100;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      } else {
-        currentRequestItems = {};
+      if (Object.keys(currentRequestItems).length > 0 && attempt < maxRetries) {
+        await this.waitWithBackoff(attempt + 1);
       }
     }
 
@@ -233,91 +214,76 @@ export default class DynamoDBBatchGetItemCommand extends Command {
   }
 
   /**
-   * Format and display the batch get results
+   * Prepare request items with consistent read setting
    *
-   * @param result - Batch get result to display
-   * @param result.responses
-   * @param format - Output format to use
-   * @param result.unprocessedKeys
-   * @returns Promise resolving when output is complete
+   * @param requestItems - Original request items
+   * @param consistentRead - Whether to enable consistent read
+   * @returns Prepared request items
    * @internal
    */
-  private async formatAndDisplayOutput(
-    result: {
-      responses: Record<string, Record<string, unknown>[]>;
-      unprocessedKeys: Record<string, unknown>;
-    },
-    format: string,
-  ): Promise<void> {
-    const totalItems = Object.values(result.responses).reduce(
-      (sum, items) => sum + items.length,
-      0,
-    );
-
-    if (totalItems === 0) {
-      this.log("No items found matching the batch get request.");
-      return;
+  private prepareRequestItems(
+    requestItems: NonNullable<BatchGetCommandInput["RequestItems"]>,
+    consistentRead: boolean,
+  ): NonNullable<BatchGetCommandInput["RequestItems"]> {
+    if (!consistentRead) {
+      return requestItems;
     }
 
-    switch (format) {
-      case "table": {
-        this.log(`\n=== Batch Get Results ===`);
-        this.log(`Total items retrieved: ${totalItems}`);
-
-        for (const [tableName, items] of Object.entries(result.responses)) {
-          if (items.length > 0) {
-            this.log(`\n--- Table: ${tableName} (${items.length} items) ---`);
-            const processor = new DataProcessor({ format: "table" });
-            const output = processor.formatOutput(items);
-            this.log(output);
-          }
-        }
-
-        if (Object.keys(result.unprocessedKeys).length > 0) {
-          this.log("\nWarning: Some keys were not processed:");
-          this.log(JSON.stringify(result.unprocessedKeys, null, 2));
-        }
-        break;
-      }
-
-      case "json": {
-        const output = {
-          responses: result.responses,
-          totalItems,
-          unprocessedKeys:
-            Object.keys(result.unprocessedKeys).length > 0 ? result.unprocessedKeys : undefined,
-        };
-        this.log(JSON.stringify(output, null, 2));
-        break;
-      }
-
-      case "jsonl": {
-        for (const [tableName, items] of Object.entries(result.responses)) {
-          for (const item of items) {
-            this.log(JSON.stringify({ table: tableName, ...item }));
-          }
-        }
-        break;
-      }
-
-      case "csv": {
-        // For CSV, combine all items and add table name column
-        const allItems: Record<string, unknown>[] = [];
-        for (const [tableName, items] of Object.entries(result.responses)) {
-          for (const item of items) {
-            allItems.push({ __table: tableName, ...item });
-          }
-        }
-
-        const processor = new DataProcessor({ format: "csv" });
-        const output = processor.formatOutput(allItems);
-        this.log(output);
-        break;
-      }
-
-      default: {
-        throw new Error(`Unsupported output format: ${format}`);
+    const prepared = { ...requestItems };
+    for (const tableName in prepared) {
+      const tableRequest = prepared[tableName] as Record<string, unknown>;
+      if (!tableRequest.ConsistentRead) {
+        tableRequest.ConsistentRead = true;
       }
     }
+    return prepared;
+  }
+
+  /**
+   * Execute a single batch get operation
+   *
+   * @param documentClient - DynamoDB document client
+   * @param requestItems - Items to retrieve
+   * @returns Batch get response
+   * @internal
+   */
+  private async executeSingleBatchGet(
+    documentClient: DynamoDBDocumentClient,
+    requestItems: NonNullable<BatchGetCommandInput["RequestItems"]>,
+  ): Promise<BatchGetCommandOutput> {
+    const command = new BatchGetCommand({ RequestItems: requestItems });
+    return await documentClient.send(command);
+  }
+
+  /**
+   * Merge responses from multiple batch operations
+   *
+   * @param allResponses - Accumulated responses
+   * @param newResponses - New responses to merge
+   * @internal
+   */
+  private mergeResponses(
+    allResponses: Record<string, Record<string, unknown>[]>,
+    newResponses?: Record<string, Record<string, unknown>[]>,
+  ): void {
+    if (!newResponses) return;
+
+    for (const [tableName, items] of Object.entries(newResponses)) {
+      if (!allResponses[tableName]) {
+        allResponses[tableName] = [];
+      }
+      allResponses[tableName].push(...items);
+    }
+  }
+
+  /**
+   * Wait with exponential backoff
+   *
+   * @param attempt - Current attempt number
+   * @internal
+   */
+  private async waitWithBackoff(attempt: number): Promise<void> {
+    const delay = Math.pow(2, attempt) * 100;
+    await new Promise((resolve) => setTimeout(resolve, delay));
   }
 }

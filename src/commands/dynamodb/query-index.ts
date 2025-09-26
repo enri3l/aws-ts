@@ -7,11 +7,12 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
+import { QueryParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBQuery } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBQuerySchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
-import type { QueryParameters } from "../../services/dynamodb-service.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
+import { FormatterFactory } from "../../lib/formatters.js";
+import { parseOptionalJson, parseRequiredJson } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -157,16 +158,10 @@ export default class DynamoDBQueryIndexCommand extends Command {
     const { args, flags } = await this.parse(DynamoDBQueryIndexCommand);
 
     try {
-      // Parse and validate JSON inputs
-      const expressionAttributeNames = flags["expression-attribute-names"]
-        ? JSON.parse(flags["expression-attribute-names"])
-        : undefined;
-
-      const expressionAttributeValues = JSON.parse(flags["expression-attribute-values"]);
-
-      const exclusiveStartKey = flags["exclusive-start-key"]
-        ? JSON.parse(flags["exclusive-start-key"])
-        : undefined;
+      // Parse JSON inputs safely
+      const expressionAttributeNames = parseOptionalJson(flags["expression-attribute-names"]);
+      const expressionAttributeValues = parseRequiredJson(flags["expression-attribute-values"]);
+      const exclusiveStartKey = parseOptionalJson(flags["exclusive-start-key"]);
 
       // Validate input using Zod schema (with indexName added)
       const input: DynamoDBQuery = DynamoDBQuerySchema.parse({
@@ -192,40 +187,33 @@ export default class DynamoDBQueryIndexCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
       // Prepare query parameters
-      const queryParameters: QueryParameters = {
-        tableName: input.tableName,
-        indexName: input.indexName,
-        keyConditionExpression: input.keyConditionExpression,
-        filterExpression: input.filterExpression,
-        projectionExpression: input.projectionExpression,
-        expressionAttributeNames,
+      const queryParameters = QueryParameterBuilder.build(
+        input,
+        expressionAttributeNames as Record<string, string> | undefined,
         expressionAttributeValues,
         exclusiveStartKey,
-        limit: input.limit,
-        consistentRead: input.consistentRead,
-        scanIndexForward: input.scanIndexForward,
-      };
+      );
 
       // Execute query operation
       const result = await dynamoService.query(queryParameters, {
-        region: input.region,
-        profile: input.profile,
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(result, input.format, input.tableName, input.indexName);
+      this.formatAndDisplayOutput(result, input.format, input.tableName, input.indexName);
     } catch (error) {
-      if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        this.error(`Invalid JSON in parameter: ${error.message}`, { exit: 1 });
-      }
-
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(
+        error,
+        flags.verbose,
+        "query index operation",
+      );
       this.error(formattedError, { exit: 1 });
     }
   }
@@ -233,18 +221,14 @@ export default class DynamoDBQueryIndexCommand extends Command {
   /**
    * Format and display the query results output
    *
-   * @param result - Query result to display
-   * @param result.items
+   * @param result - Query result containing items, count, and pagination info
    * @param format - Output format to use
-   * @param result.lastEvaluatedKey
    * @param tableName - Name of the queried table
-   * @param result.count
    * @param indexName - Name of the queried index
-   * @param result.scannedCount
-   * @returns Promise resolving when output is complete
+   * @throws Error When unsupported output format is specified
    * @internal
    */
-  private async formatAndDisplayOutput(
+  private formatAndDisplayOutput(
     result: {
       items: Record<string, unknown>[];
       lastEvaluatedKey?: Record<string, unknown>;
@@ -254,7 +238,7 @@ export default class DynamoDBQueryIndexCommand extends Command {
     format: string,
     tableName: string,
     indexName?: string,
-  ): Promise<void> {
+  ): void {
     if (result.items.length === 0) {
       this.log(
         `No items found in index '${indexName}' of table '${tableName}' matching the query conditions.`,
@@ -271,14 +255,13 @@ export default class DynamoDBQueryIndexCommand extends Command {
         }
         this.log("");
 
-        // Use DataProcessor for consistent table formatting
-        const processor = new DataProcessor({ format: "table" });
-        const output = processor.formatOutput(result.items);
-        this.log(output);
+        // Use FormatterFactory for consistent table formatting
+        const formatter = FormatterFactory.create("table", (message) => this.log(message));
+        formatter.display({ items: result.items });
 
         if (result.lastEvaluatedKey) {
           this.log("\nPagination available. Use --exclusive-start-key with:");
-          this.log(JSON.stringify(result.lastEvaluatedKey, null, 2));
+          this.log(JSON.stringify(result.lastEvaluatedKey, undefined, 2));
         }
         break;
       }
@@ -291,7 +274,7 @@ export default class DynamoDBQueryIndexCommand extends Command {
           lastEvaluatedKey: result.lastEvaluatedKey,
           indexName,
         };
-        this.log(JSON.stringify(output, null, 2));
+        this.log(JSON.stringify(output, undefined, 2));
         break;
       }
 
@@ -303,9 +286,8 @@ export default class DynamoDBQueryIndexCommand extends Command {
       }
 
       case "csv": {
-        const processor = new DataProcessor({ format: "csv" });
-        const output = processor.formatOutput(result.items);
-        this.log(output);
+        const formatter = FormatterFactory.create("csv", (message) => this.log(message));
+        formatter.display({ items: result.items });
         break;
       }
 

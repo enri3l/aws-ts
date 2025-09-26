@@ -7,11 +7,12 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
+import { ScanParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBScan } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBScanSchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
-import type { ScanParameters } from "../../services/dynamodb-service.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
+import { FormatterFactory } from "../../lib/formatters.js";
+import { parseOptionalJson } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -152,18 +153,10 @@ export default class DynamoDBScanCommand extends Command {
     const { args, flags } = await this.parse(DynamoDBScanCommand);
 
     try {
-      // Parse and validate JSON inputs
-      const expressionAttributeNames = flags["expression-attribute-names"]
-        ? JSON.parse(flags["expression-attribute-names"])
-        : undefined;
-
-      const expressionAttributeValues = flags["expression-attribute-values"]
-        ? JSON.parse(flags["expression-attribute-values"])
-        : undefined;
-
-      const exclusiveStartKey = flags["exclusive-start-key"]
-        ? JSON.parse(flags["exclusive-start-key"])
-        : undefined;
+      // Parse optional JSON inputs with safe parsing
+      const expressionAttributeNames = parseOptionalJson(flags["expression-attribute-names"]);
+      const expressionAttributeValues = parseOptionalJson(flags["expression-attribute-values"]);
+      const exclusiveStartKey = parseOptionalJson(flags["exclusive-start-key"]);
 
       // Validate input using Zod schema
       const input: DynamoDBScan = DynamoDBScanSchema.parse({
@@ -189,121 +182,35 @@ export default class DynamoDBScanCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
       // Prepare scan parameters
-      const scanParameters: ScanParameters = {
-        tableName: input.tableName,
-        indexName: input.indexName,
-        filterExpression: input.filterExpression,
-        projectionExpression: input.projectionExpression,
-        expressionAttributeNames,
+      const scanParameters = ScanParameterBuilder.build(
+        input,
+        expressionAttributeNames as Record<string, string> | undefined,
         expressionAttributeValues,
         exclusiveStartKey,
-        limit: input.limit,
-        consistentRead: input.consistentRead,
-        segment: input.segment,
-        totalSegments: input.totalSegments,
-      };
+      );
 
       // Execute scan operation
       const result = await dynamoService.scan(scanParameters, {
-        region: input.region,
-        profile: input.profile,
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(result, input.format, input.tableName);
+      if (result.items.length === 0) {
+        this.log(`No items found in table '${input.tableName}'.`);
+      } else {
+        const formatter = FormatterFactory.create(input.format, (message) => this.log(message));
+        formatter.display(result);
+      }
     } catch (error) {
-      if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        this.error(`Invalid JSON in parameter: ${error.message}`, { exit: 1 });
-      }
-
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(error, flags.verbose, "scan operation");
       this.error(formattedError, { exit: 1 });
-    }
-  }
-
-  /**
-   * Format and display the scan results output
-   *
-   * @param result - Scan result to display
-   * @param result.items
-   * @param format - Output format to use
-   * @param result.lastEvaluatedKey
-   * @param tableName - Name of the scanned table
-   * @param result.count
-   * @param result.scannedCount
-   * @returns Promise resolving when output is complete
-   * @internal
-   */
-  private async formatAndDisplayOutput(
-    result: {
-      items: Record<string, unknown>[];
-      lastEvaluatedKey?: Record<string, unknown>;
-      count: number;
-      scannedCount?: number;
-    },
-    format: string,
-    tableName: string,
-  ): Promise<void> {
-    if (result.items.length === 0) {
-      this.log(`No items found in table '${tableName}'.`);
-      return;
-    }
-
-    switch (format) {
-      case "table": {
-        this.log(`\n=== Scan Results: ${tableName} ===`);
-        this.log(`Items returned: ${result.count}`);
-        if (result.scannedCount && result.scannedCount !== result.count) {
-          this.log(`Items scanned: ${result.scannedCount}`);
-        }
-        this.log("");
-
-        // Use DataProcessor for consistent table formatting
-        const processor = new DataProcessor({ format: "table" });
-        const output = processor.formatOutput(result.items);
-        this.log(output);
-
-        if (result.lastEvaluatedKey) {
-          this.log("\nPagination available. Use --exclusive-start-key with:");
-          this.log(JSON.stringify(result.lastEvaluatedKey, null, 2));
-        }
-        break;
-      }
-
-      case "json": {
-        const output = {
-          items: result.items,
-          count: result.count,
-          scannedCount: result.scannedCount,
-          lastEvaluatedKey: result.lastEvaluatedKey,
-        };
-        this.log(JSON.stringify(output, null, 2));
-        break;
-      }
-
-      case "jsonl": {
-        for (const item of result.items) {
-          this.log(JSON.stringify(item));
-        }
-        break;
-      }
-
-      case "csv": {
-        const processor = new DataProcessor({ format: "csv" });
-        const output = processor.formatOutput(result.items);
-        this.log(output);
-        break;
-      }
-
-      default: {
-        throw new Error(`Unsupported output format: ${format}`);
-      }
     }
   }
 }

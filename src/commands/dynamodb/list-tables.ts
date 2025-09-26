@@ -7,10 +7,10 @@
  */
 
 import { Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
+import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import type { DynamoDBListTables } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBListTablesSchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -100,21 +100,25 @@ export default class DynamoDBListTablesCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
       // List tables from DynamoDB
       const tableNames = await dynamoService.listTables({
-        region: input.region,
-        profile: input.profile,
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(tableNames, input.format);
+      this.formatAndDisplayOutput(tableNames, input.format);
     } catch (error) {
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(
+        error,
+        flags.verbose,
+        "list tables operation",
+      );
       this.error(formattedError, { exit: 1 });
     }
   }
@@ -124,10 +128,10 @@ export default class DynamoDBListTablesCommand extends Command {
    *
    * @param tableNames - Array of table names to display
    * @param format - Output format to use
-   * @returns Promise resolving when output is complete
+   * @throws Error When unsupported output format is specified
    * @internal
    */
-  private async formatAndDisplayOutput(tableNames: string[], format: string): Promise<void> {
+  private formatAndDisplayOutput(tableNames: string[], format: string): void {
     if (tableNames.length === 0) {
       this.log("No DynamoDB tables found in the specified region.");
       return;
@@ -142,8 +146,10 @@ export default class DynamoDBListTablesCommand extends Command {
         }));
 
         // Use DataProcessor for consistent table formatting
-        const processor = new DataProcessor({ format: "table" });
-        const output = processor.formatOutput(tableData);
+        const processor = new DataProcessor({ format: DataFormat.CSV });
+        const output = processor.formatOutput(
+          tableData.map((item, index) => ({ data: item, index })),
+        );
         this.log(output);
         break;
       }
@@ -153,7 +159,7 @@ export default class DynamoDBListTablesCommand extends Command {
           tables: tableNames,
           count: tableNames.length,
         };
-        this.log(JSON.stringify(output, null, 2));
+        this.log(JSON.stringify(output, undefined, 2));
         break;
       }
 
@@ -171,8 +177,10 @@ export default class DynamoDBListTablesCommand extends Command {
           ...tableNames.map((name) => ({ "Table Name": name })),
         ];
 
-        const processor = new DataProcessor({ format: "csv" });
-        const output = processor.formatOutput(csvData);
+        const processor = new DataProcessor({ format: DataFormat.CSV });
+        const output = processor.formatOutput(
+          csvData.map((item, index) => ({ data: item, index })),
+        );
         this.log(output);
         break;
       }

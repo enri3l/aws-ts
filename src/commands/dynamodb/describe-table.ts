@@ -7,10 +7,10 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
+import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import type { DynamoDBDescribeTable } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBDescribeTableSchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import type { TableDescription } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -110,21 +110,25 @@ export default class DynamoDBDescribeTableCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
       // Describe table from DynamoDB
       const tableDescription = await dynamoService.describeTable(input.tableName, {
-        region: input.region,
-        profile: input.profile,
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(tableDescription, input.format);
+      this.formatAndDisplayOutput(tableDescription, input.format);
     } catch (error) {
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(
+        error,
+        flags.verbose,
+        "describe table operation",
+      );
       this.error(formattedError, { exit: 1 });
     }
   }
@@ -134,21 +138,18 @@ export default class DynamoDBDescribeTableCommand extends Command {
    *
    * @param tableDescription - Table description to display
    * @param format - Output format to use
-   * @returns Promise resolving when output is complete
+   * @throws Error When unsupported output format is specified
    * @internal
    */
-  private async formatAndDisplayOutput(
-    tableDescription: TableDescription,
-    format: string,
-  ): Promise<void> {
+  private formatAndDisplayOutput(tableDescription: TableDescription, format: string): void {
     switch (format) {
       case "table": {
-        await this.displayTableFormat(tableDescription);
+        this.displayTableFormat(tableDescription);
         break;
       }
 
       case "json": {
-        this.log(JSON.stringify(tableDescription, null, 2));
+        this.log(JSON.stringify(tableDescription, undefined, 2));
         break;
       }
 
@@ -158,7 +159,7 @@ export default class DynamoDBDescribeTableCommand extends Command {
       }
 
       case "csv": {
-        await this.displayCsvFormat(tableDescription);
+        this.displayCsvFormat(tableDescription);
         break;
       }
 
@@ -172,10 +173,9 @@ export default class DynamoDBDescribeTableCommand extends Command {
    * Display table description in human-readable table format
    *
    * @param table - Table description to display
-   * @returns Promise resolving when output is complete
    * @internal
    */
-  private async displayTableFormat(table: TableDescription): Promise<void> {
+  private displayTableFormat(table: TableDescription): void {
     this.log(`\n=== Table: ${table.tableName} ===\n`);
 
     // Basic table information
@@ -205,9 +205,9 @@ export default class DynamoDBDescribeTableCommand extends Command {
       );
     }
 
-    const processor = new DataProcessor({ format: "table" });
+    const processor = new DataProcessor({ format: DataFormat.CSV });
     this.log("Basic Information:");
-    this.log(processor.formatOutput(basicInfo));
+    this.log(processor.formatOutput(basicInfo.map((item, index) => ({ data: item, index }))));
 
     // Key Schema
     if (table.keySchema.length > 0) {
@@ -216,7 +216,7 @@ export default class DynamoDBDescribeTableCommand extends Command {
         "Attribute Name": key.attributeName,
         "Key Type": key.keyType,
       }));
-      this.log(processor.formatOutput(keySchemaData));
+      this.log(processor.formatOutput(keySchemaData.map((item, index) => ({ data: item, index }))));
     }
 
     // Attribute Definitions
@@ -226,7 +226,7 @@ export default class DynamoDBDescribeTableCommand extends Command {
         "Attribute Name": attribute.attributeName,
         "Attribute Type": attribute.attributeType,
       }));
-      this.log(processor.formatOutput(attributeData));
+      this.log(processor.formatOutput(attributeData.map((item, index) => ({ data: item, index }))));
     }
 
     // Global Secondary Indexes
@@ -238,7 +238,7 @@ export default class DynamoDBDescribeTableCommand extends Command {
           .map((key) => `${key.attributeName} (${key.keyType})`)
           .join(", "),
       }));
-      this.log(processor.formatOutput(gsiData));
+      this.log(processor.formatOutput(gsiData.map((item, index) => ({ data: item, index }))));
     }
 
     // Local Secondary Indexes
@@ -250,7 +250,7 @@ export default class DynamoDBDescribeTableCommand extends Command {
           .map((key) => `${key.attributeName} (${key.keyType})`)
           .join(", "),
       }));
-      this.log(processor.formatOutput(lsiData));
+      this.log(processor.formatOutput(lsiData.map((item, index) => ({ data: item, index }))));
     }
   }
 
@@ -258,10 +258,9 @@ export default class DynamoDBDescribeTableCommand extends Command {
    * Display table description in CSV format
    *
    * @param table - Table description to display
-   * @returns Promise resolving when output is complete
    * @internal
    */
-  private async displayCsvFormat(table: TableDescription): Promise<void> {
+  private displayCsvFormat(table: TableDescription): void {
     // Flatten table data for CSV export
     const csvData = [
       {
@@ -279,8 +278,8 @@ export default class DynamoDBDescribeTableCommand extends Command {
       },
     ];
 
-    const processor = new DataProcessor({ format: "csv" });
-    const output = processor.formatOutput(csvData);
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput(csvData.map((item, index) => ({ data: item, index })));
     this.log(output);
   }
 }

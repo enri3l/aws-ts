@@ -342,3 +342,33 @@ export function formatErrorWithGuidance(error: unknown, includeMetadata = false)
 
   return basicMessage;
 }
+
+/**
+ * Handle common DynamoDB command errors with standardized messages
+ *
+ * @param error - The error that occurred
+ * @param verbose - Whether to include verbose error details
+ * @param context - Optional context for the operation that failed
+ * @returns Formatted error message
+ *
+ * @public
+ */
+export function handleDynamoDBCommandError(
+  error: unknown,
+  verbose = false,
+  context?: string,
+): string {
+  // Handle JSON parsing errors
+  if (error instanceof SyntaxError && error.message.includes("JSON")) {
+    return `Invalid JSON in parameter: ${error.message}`;
+  }
+
+  // Handle file not found errors
+  if (error instanceof Error && error.message.includes("ENOENT")) {
+    const fileContext = context ? ` for ${context}` : "";
+    return `File not found${fileContext}. Ensure the file path is correct.`;
+  }
+
+  // Handle all other errors with guidance
+  return formatErrorWithGuidance(error, verbose);
+}

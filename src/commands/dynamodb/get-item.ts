@@ -7,11 +7,12 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
+import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
+import { GetItemParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBGetItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBGetItemSchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
-import type { GetItemParameters } from "../../services/dynamodb-service.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
+import { parseJsonInput, parseJsonStringInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -119,19 +120,14 @@ export default class DynamoDBGetItemCommand extends Command {
 
     try {
       // Parse key input (JSON string or file path)
-      let keyObject: Record<string, unknown>;
-      if (args.key.startsWith("file://")) {
-        const filePath = args.key.replace("file://", "");
-        const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf8");
-        keyObject = JSON.parse(fileContent);
-      } else {
-        keyObject = JSON.parse(args.key);
-      }
+      const keyObject = await parseJsonInput(args.key, "Key input");
 
       // Parse expression attribute names if provided
       const expressionAttributeNames = flags["expression-attribute-names"]
-        ? JSON.parse(flags["expression-attribute-names"])
+        ? await parseJsonStringInput(
+            flags["expression-attribute-names"],
+            "Expression attribute names",
+          )
         : undefined;
 
       // Validate input using Zod schema
@@ -152,38 +148,28 @@ export default class DynamoDBGetItemCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
       // Prepare get item parameters
-      const getItemParameters: GetItemParameters = {
-        tableName: input.tableName,
-        key: keyObject,
-        projectionExpression: input.projectionExpression,
+      const getItemParameters = GetItemParameterBuilder.build(
+        input,
+        keyObject,
         expressionAttributeNames,
-        consistentRead: input.consistentRead,
-      };
+      );
 
       // Execute get item operation
       const item = await dynamoService.getItem(getItemParameters, {
-        region: input.region,
-        profile: input.profile,
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(item, input.format, input.tableName, keyObject);
+      this.formatAndDisplayOutput(item, input.format, input.tableName, keyObject);
     } catch (error) {
-      if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        this.error(`Invalid JSON in key parameter: ${error.message}`, { exit: 1 });
-      }
-
-      if (error instanceof Error && error.message.includes("ENOENT")) {
-        this.error("Key file not found. Ensure the file path is correct.", { exit: 1 });
-      }
-
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(error, flags.verbose, "get item operation");
       this.error(formattedError, { exit: 1 });
     }
   }
@@ -195,18 +181,18 @@ export default class DynamoDBGetItemCommand extends Command {
    * @param format - Output format to use
    * @param tableName - Name of the table
    * @param key - Primary key that was queried
-   * @returns Promise resolving when output is complete
+   * @throws Error When unsupported output format is specified
    * @internal
    */
-  private async formatAndDisplayOutput(
+  private formatAndDisplayOutput(
     item: Record<string, unknown> | undefined,
     format: string,
     tableName: string,
     key: Record<string, unknown>,
-  ): Promise<void> {
+  ): void {
     if (!item) {
       this.log(`Item not found in table '${tableName}' with key:`);
-      this.log(JSON.stringify(key, null, 2));
+      this.log(JSON.stringify(key, undefined, 2));
       return;
     }
 
@@ -221,14 +207,16 @@ export default class DynamoDBGetItemCommand extends Command {
           Type: this.getValueType(value),
         }));
 
-        const processor = new DataProcessor({ format: "table" });
-        const output = processor.formatOutput(itemData);
+        const processor = new DataProcessor({ format: DataFormat.CSV });
+        const output = processor.formatOutput(
+          itemData.map((item, index) => ({ data: item, index })),
+        );
         this.log(output);
         break;
       }
 
       case "json": {
-        this.log(JSON.stringify(item, null, 2));
+        this.log(JSON.stringify(item, undefined, 2));
         break;
       }
 
@@ -239,8 +227,8 @@ export default class DynamoDBGetItemCommand extends Command {
 
       case "csv": {
         // For CSV format, treat the item as a single row
-        const processor = new DataProcessor({ format: "csv" });
-        const output = processor.formatOutput([item]);
+        const processor = new DataProcessor({ format: DataFormat.CSV });
+        const output = processor.formatOutput([item].map((item, index) => ({ data: item, index })));
         this.log(output);
         break;
       }
@@ -259,20 +247,21 @@ export default class DynamoDBGetItemCommand extends Command {
    * @internal
    */
   private formatValue(value: unknown): string {
-    if (value === null || value === undefined) {
-      return "null";
+    if (value === undefined || value === null) {
+      return "undefined";
     }
 
-    if (typeof value === "string") {
-      return value.length > 100 ? `${value.slice(0, 97)}...` : value;
-    }
-
+    let stringValue: string;
     if (typeof value === "object") {
-      const jsonString = JSON.stringify(value);
-      return jsonString.length > 100 ? `${jsonString.slice(0, 97)}...` : jsonString;
+      stringValue = JSON.stringify(value);
+    } else if (typeof value === "string") {
+      stringValue = value;
+    } else {
+      // Safe for primitives: number, boolean, bigint, symbol
+      stringValue = String(value as string | number | boolean | bigint | symbol);
     }
 
-    return String(value);
+    return stringValue.length > 100 ? `${stringValue.slice(0, 97)}...` : stringValue;
   }
 
   /**
