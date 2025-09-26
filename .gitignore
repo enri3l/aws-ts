@@ -8,8 +8,3 @@ cc-sessions/
 sessions/
 .mcp.json
 docs/.vitepress/cache/
-coverage/
-
-# Test results (build artifacts)
-test-results*.xml
-test-results*.json

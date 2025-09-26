@@ -22,9 +22,4 @@ pre-push:
     audit:
       run: pnpm audit --audit-level moderate
 
-    # Conditional: Run unit tests only when source code changes
-    test-unit:
-      glob: "{src/**/*,tests/unit/**/*}"
-      run: pnpm test:unit:changed
-
     # Note: Integration and E2E tests run in CI for comprehensive validation

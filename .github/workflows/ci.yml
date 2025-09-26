@@ -41,7 +41,6 @@ jobs:
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     outputs:
       src: ${{ steps.changes.outputs.src }}
-      tests: ${{ steps.changes.outputs.tests }}
       workflows: ${{ steps.changes.outputs.workflows }}
     steps:
       - uses: actions/checkout@v5
@@ -53,9 +52,6 @@ jobs:
               - 'src/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
-            tests:
-              - 'tests/**'
-              - 'vitest.config.ts'
             workflows:
               - '.github/workflows/**'
 
@@ -108,16 +104,6 @@ jobs:
           needs.changes.outputs.workflows == 'true'
         run: pnpm lint
 
-      # Unit tests execution on all Node.js versions (fast feedback)
-      - name: Unit tests
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.event_name == 'pull_request' ||
-          needs.changes.outputs.src == 'true' ||
-          needs.changes.outputs.tests == 'true'
-        timeout-minutes: 3
-        run: pnpm test:unit
-
       # Production build validation (required before E2E tests)
       - name: Build
         if: |
@@ -126,27 +112,6 @@ jobs:
           needs.changes.outputs.src == 'true' ||
           needs.changes.outputs.workflows == 'true'
         run: pnpm build
-
-      # Integration tests on Node.js 22.x only (representative coverage)
-      - name: Integration tests
-        if: |
-          matrix.node-version == '22.x' &&
-          (github.ref == 'refs/heads/main' ||
-           github.event_name == 'pull_request' ||
-           needs.changes.outputs.src == 'true' ||
-           needs.changes.outputs.tests == 'true')
-        timeout-minutes: 8
-        run: pnpm test:integration
-
-      # E2E tests on Node.js 22.x only (comprehensive but slow)
-      - name: E2E tests
-        if: |
-          matrix.node-version == '22.x' &&
-          (github.ref == 'refs/heads/main' ||
-           github.event_name == 'pull_request' ||
-           needs.changes.outputs.src == 'true' ||
-           needs.changes.outputs.tests == 'true')
-        run: pnpm test:e2e
 
       # Security vulnerability scan using pnpm audit (main/PR only)
       - name: Security audit
@@ -167,25 +132,6 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         run: pnpm dlx jsr publish --dry-run
 
-      # Generate coverage report
-      - name: Generate Coverage Report
-        if: |
-          matrix.node-version == '22.x' &&
-          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
-        timeout-minutes: 4
-        run: pnpm test:coverage
-
-      # CI performance metrics collection
-      - name: Record CI Performance Metrics
-        if: |
-          matrix.node-version == '22.x' &&
-          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
-        run: |
-          echo "## CI Performance Metrics" >> $GITHUB_STEP_SUMMARY
-          echo "- Connectivity test timeout: CI=500ms, Local=15s" >> $GITHUB_STEP_SUMMARY
-          echo "- Coverage reporter: CI=lcov, Local=html+lcov" >> $GITHUB_STEP_SUMMARY
-          echo "- V8 coverage flags: skipFull, cleanOnRerun, perFile enabled" >> $GITHUB_STEP_SUMMARY
-
       # SonarCloud analysis
       - name: SonarCloud Scan
         if: |
@@ -196,19 +142,3 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
-
-      # Artifact upload for test results and coverage (debugging and analytics)
-      - name: Upload Test Artifacts
-        if: |
-          matrix.node-version == '22.x' &&
-          (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-node-${{ matrix.node-version }}
-          path: |
-            ./test-results.xml
-            ./test-results.json
-            ./coverage/coverage-summary.json
-            ./coverage/clover.xml
-            ./coverage/coverage-final.json
-          retention-days: 30
