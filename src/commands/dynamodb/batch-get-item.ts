@@ -6,12 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
 import { BatchGetCommand } from "@aws-sdk/lib-dynamodb";
+import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBBatchGetItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBBatchGetItemSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -28,7 +28,8 @@ export default class DynamoDBBatchGetItemCommand extends Command {
   static override readonly examples = [
     {
       description: "Batch get items using JSON request specification",
-      command: "<%= config.bin %> <%= command.id %> '{\"my-table\": {\"Keys\": [{\"id\": \"user1\"}, {\"id\": \"user2\"}]}}'",
+      command:
+        '<%= config.bin %> <%= command.id %> \'{"my-table": {"Keys": [{"id": "user1"}, {"id": "user2"}]}}\'',
     },
     {
       description: "Batch get items from file",
@@ -36,11 +37,13 @@ export default class DynamoDBBatchGetItemCommand extends Command {
     },
     {
       description: "Batch get with projection expression",
-      command: "<%= config.bin %> <%= command.id %> '{\"my-table\": {\"Keys\": [{\"id\": \"user1\"}], \"ProjectionExpression\": \"id, #name, email\", \"ExpressionAttributeNames\": {\"#name\": \"name\"}}}'",
+      command:
+        '<%= config.bin %> <%= command.id %> \'{"my-table": {"Keys": [{"id": "user1"}], "ProjectionExpression": "id, #name, email", "ExpressionAttributeNames": {"#name": "name"}}}\'',
     },
     {
       description: "Batch get with consistent reads",
-      command: "<%= config.bin %> <%= command.id %> '{\"my-table\": {\"Keys\": [{\"id\": \"user1\"}], \"ConsistentRead\": true}}' --consistent-read",
+      command:
+        '<%= config.bin %> <%= command.id %> \'{"my-table": {"Keys": [{"id": "user1"}], "ConsistentRead": true}}\' --consistent-read',
     },
   ];
 
@@ -98,7 +101,7 @@ export default class DynamoDBBatchGetItemCommand extends Command {
       if (args.requestItems.startsWith("file://")) {
         const filePath = args.requestItems.replace("file://", "");
         const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf-8");
+        const fileContent = await fs.readFile(filePath, "utf8");
         requestItemsObject = JSON.parse(fileContent);
       } else {
         requestItemsObject = JSON.parse(args.requestItems);
@@ -132,7 +135,7 @@ export default class DynamoDBBatchGetItemCommand extends Command {
         {
           region: input.region,
           profile: input.profile,
-        }
+        },
       );
 
       // Format output based on requested format
@@ -158,6 +161,8 @@ export default class DynamoDBBatchGetItemCommand extends Command {
    * @param requestItems - Request items specification
    * @param consistentRead - Whether to use consistent reads
    * @param config - AWS client configuration
+   * @param config.region
+   * @param config.profile
    * @returns Promise resolving to batch get results
    * @internal
    */
@@ -165,14 +170,14 @@ export default class DynamoDBBatchGetItemCommand extends Command {
     dynamoService: DynamoDBService,
     requestItems: Record<string, unknown>,
     consistentRead: boolean,
-    config: { region?: string; profile?: string }
+    config: { region?: string; profile?: string },
   ): Promise<{
     responses: Record<string, Record<string, unknown>[]>;
     unprocessedKeys: Record<string, unknown>;
   }> {
     // Access private method to get document client
     // This is a workaround since we don't have a public batch get method in the service
-    const docClient = await (dynamoService as any).getDocumentClient(config);
+    const documentClient = await (dynamoService as any).getDocumentClient(config);
 
     // Apply consistent read to all tables if flag is set
     if (consistentRead) {
@@ -184,7 +189,7 @@ export default class DynamoDBBatchGetItemCommand extends Command {
       }
     }
 
-    let allResponses: Record<string, Record<string, unknown>[]> = {};
+    const allResponses: Record<string, Record<string, unknown>[]> = {};
     let currentRequestItems = { ...requestItems };
     let retryCount = 0;
     const maxRetries = 3;
@@ -194,7 +199,7 @@ export default class DynamoDBBatchGetItemCommand extends Command {
         RequestItems: currentRequestItems,
       });
 
-      const response = await docClient.send(command);
+      const response = await documentClient.send(command);
 
       // Merge responses
       if (response.Responses) {
@@ -214,7 +219,7 @@ export default class DynamoDBBatchGetItemCommand extends Command {
         if (retryCount < maxRetries) {
           // Exponential backoff
           const delay = Math.pow(2, retryCount) * 100;
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       } else {
         currentRequestItems = {};
@@ -231,7 +236,9 @@ export default class DynamoDBBatchGetItemCommand extends Command {
    * Format and display the batch get results
    *
    * @param result - Batch get result to display
+   * @param result.responses
    * @param format - Output format to use
+   * @param result.unprocessedKeys
    * @returns Promise resolving when output is complete
    * @internal
    */
@@ -240,9 +247,12 @@ export default class DynamoDBBatchGetItemCommand extends Command {
       responses: Record<string, Record<string, unknown>[]>;
       unprocessedKeys: Record<string, unknown>;
     },
-    format: string
+    format: string,
   ): Promise<void> {
-    const totalItems = Object.values(result.responses).reduce((sum, items) => sum + items.length, 0);
+    const totalItems = Object.values(result.responses).reduce(
+      (sum, items) => sum + items.length,
+      0,
+    );
 
     if (totalItems === 0) {
       this.log("No items found matching the batch get request.");
@@ -274,7 +284,8 @@ export default class DynamoDBBatchGetItemCommand extends Command {
         const output = {
           responses: result.responses,
           totalItems,
-          unprocessedKeys: Object.keys(result.unprocessedKeys).length > 0 ? result.unprocessedKeys : undefined,
+          unprocessedKeys:
+            Object.keys(result.unprocessedKeys).length > 0 ? result.unprocessedKeys : undefined,
         };
         this.log(JSON.stringify(output, null, 2));
         break;

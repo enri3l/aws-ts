@@ -8,9 +8,9 @@
 
 import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBUpdateItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBUpdateItemSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { UpdateItemParameters } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -28,27 +28,33 @@ export default class DynamoDBUpdateItemCommand extends Command {
   static override readonly examples = [
     {
       description: "Update item attributes",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'SET #name = :name, email = :email' --expression-attribute-names '{\"#name\": \"name\"}' --expression-attribute-values '{\":name\": \"Jane Doe\", \":email\": \"jane@example.com\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #name = :name, email = :email\' --expression-attribute-names \'{"#name": "name"}\' --expression-attribute-values \'{":name": "Jane Doe", ":email": "jane@example.com"}\'',
     },
     {
       description: "Increment a numeric attribute",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'SET #count = #count + :inc' --expression-attribute-names '{\"#count\": \"count\"}' --expression-attribute-values '{\":inc\": 1}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #count = #count + :inc\' --expression-attribute-names \'{"#count": "count"}\' --expression-attribute-values \'{":inc": 1}\'',
     },
     {
       description: "Add items to a list",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'SET tags = list_append(tags, :vals)' --expression-attribute-values '{\":vals\": [\"new-tag\"]}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET tags = list_append(tags, :vals)\' --expression-attribute-values \'{":vals": ["new-tag"]}\'',
     },
     {
       description: "Remove attributes",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'REMOVE old_attribute, deprecated_field'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'REMOVE old_attribute, deprecated_field'",
     },
     {
       description: "Conditional update",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'SET #status = :status' --condition-expression '#status = :current' --expression-attribute-names '{\"#status\": \"status\"}' --expression-attribute-values '{\":status\": \"inactive\", \":current\": \"active\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #status = :status\' --condition-expression \'#status = :current\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":status": "inactive", ":current": "active"}\'',
     },
     {
       description: "Update with return values",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'SET #count = #count + :inc' --expression-attribute-names '{\"#count\": \"count\"}' --expression-attribute-values '{\":inc\": 1}' --return-values ALL_NEW",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #count = #count + :inc\' --expression-attribute-names \'{"#count": "count"}\' --expression-attribute-values \'{":inc": 1}\' --return-values ALL_NEW',
     },
   ];
 
@@ -133,7 +139,7 @@ export default class DynamoDBUpdateItemCommand extends Command {
       if (args.key.startsWith("file://")) {
         const filePath = args.key.replace("file://", "");
         const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf-8");
+        const fileContent = await fs.readFile(filePath, "utf8");
         keyObject = JSON.parse(fileContent);
       } else {
         keyObject = JSON.parse(args.key);
@@ -174,24 +180,30 @@ export default class DynamoDBUpdateItemCommand extends Command {
       });
 
       // Prepare update item parameters
-      const updateItemParams: UpdateItemParameters = {
+      const updateItemParameters: UpdateItemParameters = {
         tableName: input.tableName,
         key: keyObject,
         updateExpression: input.updateExpression,
         conditionExpression: input.conditionExpression,
         expressionAttributeNames,
         expressionAttributeValues,
-        returnValues: input.returnValues as "NONE" | "ALL_OLD" | "UPDATED_OLD" | "ALL_NEW" | "UPDATED_NEW",
+        returnValues: input.returnValues,
       };
 
       // Execute update item operation
-      const result = await dynamoService.updateItem(updateItemParams, {
+      const result = await dynamoService.updateItem(updateItemParameters, {
         region: input.region,
         profile: input.profile,
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(result, input.format, input.tableName, input.returnValues, keyObject);
+      await this.formatAndDisplayOutput(
+        result,
+        input.format,
+        input.tableName,
+        input.returnValues,
+        keyObject,
+      );
     } catch (error) {
       if (error instanceof SyntaxError && error.message.includes("JSON")) {
         this.error(`Invalid JSON in parameter: ${error.message}`, { exit: 1 });
@@ -222,7 +234,7 @@ export default class DynamoDBUpdateItemCommand extends Command {
     format: string,
     tableName: string,
     returnValues: string,
-    key: Record<string, unknown>
+    key: Record<string, unknown>,
   ): Promise<void> {
     if (returnValues === "NONE" || !result) {
       this.log(`Item successfully updated in table '${tableName}' with key:`);
@@ -280,16 +292,21 @@ export default class DynamoDBUpdateItemCommand extends Command {
    */
   private getResultLabel(returnValues: string): string {
     switch (returnValues) {
-      case "ALL_OLD":
+      case "ALL_OLD": {
         return "Previous item";
-      case "UPDATED_OLD":
+      }
+      case "UPDATED_OLD": {
         return "Previous values of updated attributes";
-      case "ALL_NEW":
+      }
+      case "ALL_NEW": {
         return "Updated item";
-      case "UPDATED_NEW":
+      }
+      case "UPDATED_NEW": {
         return "New values of updated attributes";
-      default:
+      }
+      default: {
         return "Result";
+      }
     }
   }
 
@@ -310,8 +327,8 @@ export default class DynamoDBUpdateItemCommand extends Command {
     }
 
     if (typeof value === "object") {
-      const jsonStr = JSON.stringify(value);
-      return jsonStr.length > 100 ? `${jsonStr.slice(0, 97)}...` : jsonStr;
+      const jsonString = JSON.stringify(value);
+      return jsonString.length > 100 ? `${jsonString.slice(0, 97)}...` : jsonString;
     }
 
     return String(value);

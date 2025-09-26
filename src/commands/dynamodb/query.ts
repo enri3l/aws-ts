@@ -8,9 +8,9 @@
 
 import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBQuery } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBQuerySchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { QueryParameters } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -28,27 +28,33 @@ export default class DynamoDBQueryCommand extends Command {
   static override readonly examples = [
     {
       description: "Query by partition key",
-      command: "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --expression-attribute-values '{\":pk\": \"USER#123\"}'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --expression-attribute-values '{\":pk\": \"USER#123\"}'",
     },
     {
       description: "Query with partition key and sort key condition",
-      command: "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk AND sk BEGINS_WITH :sk' --expression-attribute-values '{\":pk\": \"USER#123\", \":sk\": \"ORDER#\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table --key-condition-expression \'pk = :pk AND sk BEGINS_WITH :sk\' --expression-attribute-values \'{":pk": "USER#123", ":sk": "ORDER#"}\'',
     },
     {
       description: "Query with filter expression",
-      command: "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --filter-expression '#status = :status' --expression-attribute-names '{\"#status\": \"status\"}' --expression-attribute-values '{\":pk\": \"USER#123\", \":status\": \"ACTIVE\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table --key-condition-expression \'pk = :pk\' --filter-expression \'#status = :status\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":pk": "USER#123", ":status": "ACTIVE"}\'',
     },
     {
       description: "Query with projection expression",
-      command: "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --projection-expression 'id, #name, email' --expression-attribute-names '{\"#name\": \"name\"}' --expression-attribute-values '{\":pk\": \"USER#123\"}'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --projection-expression 'id, #name, email' --expression-attribute-names '{\"#name\": \"name\"}' --expression-attribute-values '{\":pk\": \"USER#123\"}'",
     },
     {
       description: "Query in reverse order",
-      command: "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --expression-attribute-values '{\":pk\": \"USER#123\"}' --no-scan-index-forward",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --expression-attribute-values '{\":pk\": \"USER#123\"}' --no-scan-index-forward",
     },
     {
       description: "Query with pagination using limit",
-      command: "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --expression-attribute-values '{\":pk\": \"USER#123\"}' --limit 10",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table --key-condition-expression 'pk = :pk' --expression-attribute-values '{\":pk\": \"USER#123\"}' --limit 10",
     },
   ];
 
@@ -97,7 +103,7 @@ export default class DynamoDBQueryCommand extends Command {
       char: "l",
       description: "Maximum number of items to return",
       min: 1,
-      max: 10000,
+      max: 10_000,
     }),
 
     "consistent-read": Flags.boolean({
@@ -186,7 +192,7 @@ export default class DynamoDBQueryCommand extends Command {
       });
 
       // Prepare query parameters
-      const queryParams: QueryParameters = {
+      const queryParameters: QueryParameters = {
         tableName: input.tableName,
         keyConditionExpression: input.keyConditionExpression,
         filterExpression: input.filterExpression,
@@ -200,7 +206,7 @@ export default class DynamoDBQueryCommand extends Command {
       };
 
       // Execute query operation
-      const result = await dynamoService.query(queryParams, {
+      const result = await dynamoService.query(queryParameters, {
         region: input.region,
         profile: input.profile,
       });
@@ -221,15 +227,24 @@ export default class DynamoDBQueryCommand extends Command {
    * Format and display the query results output
    *
    * @param result - Query result to display
+   * @param result.items
    * @param format - Output format to use
+   * @param result.lastEvaluatedKey
    * @param tableName - Name of the queried table
+   * @param result.count
+   * @param result.scannedCount
    * @returns Promise resolving when output is complete
    * @internal
    */
   private async formatAndDisplayOutput(
-    result: { items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown>; count: number; scannedCount?: number },
+    result: {
+      items: Record<string, unknown>[];
+      lastEvaluatedKey?: Record<string, unknown>;
+      count: number;
+      scannedCount?: number;
+    },
     format: string,
-    tableName: string
+    tableName: string,
   ): Promise<void> {
     if (result.items.length === 0) {
       this.log(`No items found in table '${tableName}' matching the query conditions.`);

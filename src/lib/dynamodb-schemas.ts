@@ -237,12 +237,12 @@ export const DynamoDBScanSchema = DynamoDBConfigSchema.extend({
   /**
    * Segment number for parallel scans
    */
-  segment: z.number().int().min(0).max(999999).optional(),
+  segment: z.number().int().min(0).max(999_999).optional(),
 
   /**
    * Total segments for parallel scans
    */
-  totalSegments: z.number().int().min(1).max(1000000).optional(),
+  totalSegments: z.number().int().min(1).max(1_000_000).optional(),
 
   /**
    * Exclusive start key for pagination (JSON string)
@@ -378,7 +378,9 @@ export const DynamoDBUpdateItemSchema = DynamoDBConfigSchema.pick({
   /**
    * Return values option
    */
-  returnValues: z.enum(["NONE", "ALL_OLD", "UPDATED_OLD", "ALL_NEW", "UPDATED_NEW"]).default("NONE"),
+  returnValues: z
+    .enum(["NONE", "ALL_OLD", "UPDATED_OLD", "ALL_NEW", "UPDATED_NEW"])
+    .default("NONE"),
 });
 
 /**

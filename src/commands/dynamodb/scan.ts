@@ -8,9 +8,9 @@
 
 import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBScan } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBScanSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { ScanParameters } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -32,11 +32,13 @@ export default class DynamoDBScanCommand extends Command {
     },
     {
       description: "Scan with a filter expression",
-      command: "<%= config.bin %> <%= command.id %> my-table --filter-expression '#status = :active' --expression-attribute-names '{\"#status\": \"status\"}' --expression-attribute-values '{\":active\": \"ACTIVE\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table --filter-expression \'#status = :active\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":active": "ACTIVE"}\'',
     },
     {
       description: "Scan with projection expression to select specific attributes",
-      command: "<%= config.bin %> <%= command.id %> my-table --projection-expression 'id, #name, email' --expression-attribute-names '{\"#name\": \"name\"}'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table --projection-expression 'id, #name, email' --expression-attribute-names '{\"#name\": \"name\"}'",
     },
     {
       description: "Scan a Global Secondary Index",
@@ -96,7 +98,7 @@ export default class DynamoDBScanCommand extends Command {
       char: "l",
       description: "Maximum number of items to return",
       min: 1,
-      max: 10000,
+      max: 10_000,
     }),
 
     "consistent-read": Flags.boolean({
@@ -112,7 +114,7 @@ export default class DynamoDBScanCommand extends Command {
     "total-segments": Flags.integer({
       description: "Total segments for parallel scans",
       min: 1,
-      max: 1000000,
+      max: 1_000_000,
     }),
 
     region: Flags.string({
@@ -193,7 +195,7 @@ export default class DynamoDBScanCommand extends Command {
       });
 
       // Prepare scan parameters
-      const scanParams: ScanParameters = {
+      const scanParameters: ScanParameters = {
         tableName: input.tableName,
         indexName: input.indexName,
         filterExpression: input.filterExpression,
@@ -208,7 +210,7 @@ export default class DynamoDBScanCommand extends Command {
       };
 
       // Execute scan operation
-      const result = await dynamoService.scan(scanParams, {
+      const result = await dynamoService.scan(scanParameters, {
         region: input.region,
         profile: input.profile,
       });
@@ -229,15 +231,24 @@ export default class DynamoDBScanCommand extends Command {
    * Format and display the scan results output
    *
    * @param result - Scan result to display
+   * @param result.items
    * @param format - Output format to use
+   * @param result.lastEvaluatedKey
    * @param tableName - Name of the scanned table
+   * @param result.count
+   * @param result.scannedCount
    * @returns Promise resolving when output is complete
    * @internal
    */
   private async formatAndDisplayOutput(
-    result: { items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown>; count: number; scannedCount?: number },
+    result: {
+      items: Record<string, unknown>[];
+      lastEvaluatedKey?: Record<string, unknown>;
+      count: number;
+      scannedCount?: number;
+    },
     format: string,
-    tableName: string
+    tableName: string,
   ): Promise<void> {
     if (result.items.length === 0) {
       this.log(`No items found in table '${tableName}'.`);

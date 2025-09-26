@@ -8,9 +8,9 @@
 
 import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBGetItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBGetItemSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { GetItemParameters } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -28,23 +28,25 @@ export default class DynamoDBGetItemCommand extends Command {
   static override readonly examples = [
     {
       description: "Get an item by partition key",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}'",
+      command: '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\'',
     },
     {
       description: "Get an item with partition and sort key",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"pk\": \"USER\", \"sk\": \"user123\"}'",
+      command: '<%= config.bin %> <%= command.id %> my-table \'{"pk": "USER", "sk": "user123"}\'',
     },
     {
       description: "Get specific attributes using projection expression",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --projection-expression '#name, email, #status' --expression-attribute-names '{\"#name\": \"name\", \"#status\": \"status\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --projection-expression \'#name, email, #status\' --expression-attribute-names \'{"#name": "name", "#status": "status"}\'',
     },
     {
       description: "Get item with consistent read",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --consistent-read",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --consistent-read',
     },
     {
       description: "Get item with JSON output",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --format json",
+      command: '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --format json',
     },
     {
       description: "Get item using file input for complex keys",
@@ -121,7 +123,7 @@ export default class DynamoDBGetItemCommand extends Command {
       if (args.key.startsWith("file://")) {
         const filePath = args.key.replace("file://", "");
         const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf-8");
+        const fileContent = await fs.readFile(filePath, "utf8");
         keyObject = JSON.parse(fileContent);
       } else {
         keyObject = JSON.parse(args.key);
@@ -156,7 +158,7 @@ export default class DynamoDBGetItemCommand extends Command {
       });
 
       // Prepare get item parameters
-      const getItemParams: GetItemParameters = {
+      const getItemParameters: GetItemParameters = {
         tableName: input.tableName,
         key: keyObject,
         projectionExpression: input.projectionExpression,
@@ -165,7 +167,7 @@ export default class DynamoDBGetItemCommand extends Command {
       };
 
       // Execute get item operation
-      const item = await dynamoService.getItem(getItemParams, {
+      const item = await dynamoService.getItem(getItemParameters, {
         region: input.region,
         profile: input.profile,
       });
@@ -200,7 +202,7 @@ export default class DynamoDBGetItemCommand extends Command {
     item: Record<string, unknown> | undefined,
     format: string,
     tableName: string,
-    key: Record<string, unknown>
+    key: Record<string, unknown>,
   ): Promise<void> {
     if (!item) {
       this.log(`Item not found in table '${tableName}' with key:`);
@@ -266,8 +268,8 @@ export default class DynamoDBGetItemCommand extends Command {
     }
 
     if (typeof value === "object") {
-      const jsonStr = JSON.stringify(value);
-      return jsonStr.length > 100 ? `${jsonStr.slice(0, 97)}...` : jsonStr;
+      const jsonString = JSON.stringify(value);
+      return jsonString.length > 100 ? `${jsonString.slice(0, 97)}...` : jsonString;
     }
 
     return String(value);
