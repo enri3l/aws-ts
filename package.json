@@ -120,6 +120,9 @@
     "topics": {
       "auth": {
         "description": "AWS authentication and profile management commands"
+      },
+      "dynamodb": {
+        "description": "DynamoDB table operations and data management commands"
       }
     }
   }
