@@ -7,11 +7,12 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataProcessor } from "../../lib/data-processing.js";
+import { PutItemParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBPutItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBPutItemSchema } from "../../lib/dynamodb-schemas.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
-import type { PutItemParameters } from "../../services/dynamodb-service.js";
+import { handleDynamoDBCommandError } from "../../lib/errors.js";
+import { FormatterFactory } from "../../lib/formatters.js";
+import { parseJsonInput, parseJsonStringInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -123,23 +124,18 @@ export default class DynamoDBPutItemCommand extends Command {
 
     try {
       // Parse item input (JSON string or file path)
-      let itemObject: Record<string, unknown>;
-      if (args.item.startsWith("file://")) {
-        const filePath = args.item.replace("file://", "");
-        const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf8");
-        itemObject = JSON.parse(fileContent);
-      } else {
-        itemObject = JSON.parse(args.item);
-      }
+      const itemObject = await parseJsonInput(args.item, "Item input");
 
       // Parse expression attributes if provided
       const expressionAttributeNames = flags["expression-attribute-names"]
-        ? JSON.parse(flags["expression-attribute-names"])
+        ? await parseJsonStringInput(
+            flags["expression-attribute-names"],
+            "Expression attribute names",
+          )
         : undefined;
 
       const expressionAttributeValues = flags["expression-attribute-values"]
-        ? JSON.parse(flags["expression-attribute-values"])
+        ? await parseJsonInput(flags["expression-attribute-values"], "Expression attribute values")
         : undefined;
 
       // Validate input using Zod schema
@@ -161,148 +157,36 @@ export default class DynamoDBPutItemCommand extends Command {
         enableDebugLogging: input.verbose,
         enableProgressIndicators: true,
         clientConfig: {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
       });
 
       // Prepare put item parameters
-      const putItemParameters: PutItemParameters = {
-        tableName: input.tableName,
-        item: itemObject,
-        conditionExpression: input.conditionExpression,
+      const putItemParameters = PutItemParameterBuilder.build(
+        input,
+        itemObject,
         expressionAttributeNames,
         expressionAttributeValues,
-        returnValues: input.returnValues,
-      };
+      );
 
       // Execute put item operation
       const result = await dynamoService.putItem(putItemParameters, {
-        region: input.region,
-        profile: input.profile,
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
       // Format output based on requested format
-      await this.formatAndDisplayOutput(result, input.format, input.tableName, input.returnValues);
+      if (input.returnValues === "NONE" || !result) {
+        this.log(`Item successfully put to table '${input.tableName}'.`);
+      } else {
+        this.log(`Item successfully put to table '${input.tableName}'. Previous item:`);
+        const formatter = FormatterFactory.create(input.format, (message) => this.log(message));
+        formatter.display(result);
+      }
     } catch (error) {
-      if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        this.error(`Invalid JSON in parameter: ${error.message}`, { exit: 1 });
-      }
-
-      if (error instanceof Error && error.message.includes("ENOENT")) {
-        this.error("Item file not found. Ensure the file path is correct.", { exit: 1 });
-      }
-
-      const formattedError = formatErrorWithGuidance(error, flags.verbose);
+      const formattedError = handleDynamoDBCommandError(error, flags.verbose, "put item operation");
       this.error(formattedError, { exit: 1 });
     }
-  }
-
-  /**
-   * Format and display the put item result
-   *
-   * @param result - Put item result (previous item if returnValues was set)
-   * @param format - Output format to use
-   * @param tableName - Name of the table
-   * @param returnValues - Return values option used
-   * @returns Promise resolving when output is complete
-   * @internal
-   */
-  private async formatAndDisplayOutput(
-    result: Record<string, unknown> | undefined,
-    format: string,
-    tableName: string,
-    returnValues: string,
-  ): Promise<void> {
-    if (returnValues === "NONE" || !result) {
-      this.log(`Item successfully put to table '${tableName}'.`);
-      return;
-    }
-
-    this.log(`Item successfully put to table '${tableName}'. Previous item:`);
-
-    switch (format) {
-      case "table": {
-        // Convert item to key-value pairs for table display
-        const itemData = Object.entries(result).map(([key, value]) => ({
-          Attribute: key,
-          Value: this.formatValue(value),
-          Type: this.getValueType(value),
-        }));
-
-        const processor = new DataProcessor({ format: "table" });
-        const output = processor.formatOutput(itemData);
-        this.log(output);
-        break;
-      }
-
-      case "json": {
-        this.log(JSON.stringify(result, null, 2));
-        break;
-      }
-
-      case "jsonl": {
-        this.log(JSON.stringify(result));
-        break;
-      }
-
-      case "csv": {
-        const processor = new DataProcessor({ format: "csv" });
-        const output = processor.formatOutput([result]);
-        this.log(output);
-        break;
-      }
-
-      default: {
-        throw new Error(`Unsupported output format: ${format}`);
-      }
-    }
-  }
-
-  /**
-   * Format a value for display in table format
-   *
-   * @param value - Value to format
-   * @returns Formatted string representation
-   * @internal
-   */
-  private formatValue(value: unknown): string {
-    if (value === null || value === undefined) {
-      return "null";
-    }
-
-    if (typeof value === "string") {
-      return value.length > 100 ? `${value.slice(0, 97)}...` : value;
-    }
-
-    if (typeof value === "object") {
-      const jsonString = JSON.stringify(value);
-      return jsonString.length > 100 ? `${jsonString.slice(0, 97)}...` : jsonString;
-    }
-
-    return String(value);
-  }
-
-  /**
-   * Get the type of a value for display
-   *
-   * @param value - Value to get type for
-   * @returns Type description
-   * @internal
-   */
-  private getValueType(value: unknown): string {
-    if (value === null || value === undefined) {
-      return "null";
-    }
-
-    if (Array.isArray(value)) {
-      return `array[${value.length}]`;
-    }
-
-    if (typeof value === "object") {
-      return "object";
-    }
-
-    return typeof value;
   }
 }

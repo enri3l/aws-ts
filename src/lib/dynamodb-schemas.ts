@@ -14,18 +14,16 @@ import { AwsProfileSchema, AwsRegionSchema, TableNameSchema } from "./schemas.js
  *
  * @public
  */
-export const AttributeTypeSchema = z.enum(["S", "N", "B"], {
-  description: "S=String, N=Number, B=Binary",
-});
+export const AttributeTypeSchema = z.enum(["S", "N", "B"]).describe("S=String, N=Number, B=Binary");
 
 /**
  * Schema for DynamoDB key types
  *
  * @public
  */
-export const KeyTypeSchema = z.enum(["HASH", "RANGE"], {
-  description: "HASH=Partition Key, RANGE=Sort Key",
-});
+export const KeyTypeSchema = z
+  .enum(["HASH", "RANGE"])
+  .describe("HASH=Partition Key, RANGE=Sort Key");
 
 /**
  * Schema for DynamoDB index names
@@ -47,7 +45,7 @@ export const IndexNameSchema = z
  * @public
  */
 export const ExpressionAttributeNamesSchema = z
-  .record(z.string().regex(/^#\w+$/, "Attribute name must start with #"))
+  .record(z.string().regex(/^#\w+$/, { message: "Attribute name must start with #" }), z.string())
   .optional();
 
 /**
@@ -56,7 +54,7 @@ export const ExpressionAttributeNamesSchema = z
  * @public
  */
 export const ExpressionAttributeValuesSchema = z
-  .record(z.string().regex(/^:\w+$/, "Attribute value must start with :"), z.unknown())
+  .record(z.string().regex(/^:\w+$/, { message: "Attribute value must start with :" }), z.unknown())
   .optional();
 
 /**
@@ -256,7 +254,7 @@ export const DynamoDBScanSchema = DynamoDBConfigSchema.extend({
  * @public
  */
 export const ItemKeySchema = z
-  .record(z.unknown())
+  .record(z.string(), z.unknown())
   .refine((key) => Object.keys(key).length > 0, "Item key cannot be empty");
 
 /**
