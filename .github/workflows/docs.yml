@@ -112,7 +112,7 @@ jobs:
             --exclude "linkedin.com"
             --format markdown
             docs/.vitepress/dist/**/*.html
-          fail: false # Don't fail initially - report issues for review
+          fail: true # Fail the workflow on broken links
           format: detailed # Detailed output for debugging
 
       # Generate link checking summary
