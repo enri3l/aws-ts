@@ -9,8 +9,6 @@
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
-  BatchGetCommand,
-  BatchWriteCommand,
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
@@ -267,7 +265,7 @@ export class DynamoDBService {
 
     if (!this.docClientCache.has(cacheKey)) {
       const dynamoClient = await this.getDynamoDBClient(config);
-      const docClient = DynamoDBDocumentClient.from(dynamoClient, {
+      const documentClient = DynamoDBDocumentClient.from(dynamoClient, {
         marshallOptions: {
           removeUndefinedValues: true,
           convertEmptyValues: true,
@@ -276,7 +274,7 @@ export class DynamoDBService {
           wrapNumbers: false,
         },
       });
-      this.docClientCache.set(cacheKey, docClient);
+      this.docClientCache.set(cacheKey, documentClient);
     }
 
     return this.docClientCache.get(cacheKey)!;
@@ -349,47 +347,48 @@ export class DynamoDBService {
       const table = response.Table;
 
       if (!table) {
-        throw new ServiceError(
-          `Table '${tableName}' not found`,
-          "DynamoDB",
-          "describe-table",
-          { tableName },
-        );
+        throw new ServiceError(`Table '${tableName}' not found`, "DynamoDB", "describe-table", {
+          tableName,
+        });
       }
 
       const description: TableDescription = {
         tableName: table.TableName!,
         tableStatus: table.TableStatus!,
-        keySchema: table.KeySchema?.map(key => ({
-          attributeName: key.AttributeName!,
-          keyType: key.KeyType! as "HASH" | "RANGE",
-        })) || [],
-        attributeDefinitions: table.AttributeDefinitions?.map(attr => ({
-          attributeName: attr.AttributeName!,
-          attributeType: attr.AttributeType! as "S" | "N" | "B",
-        })) || [],
+        keySchema:
+          table.KeySchema?.map((key) => ({
+            attributeName: key.AttributeName!,
+            keyType: key.KeyType! as "HASH" | "RANGE",
+          })) || [],
+        attributeDefinitions:
+          table.AttributeDefinitions?.map((attribute) => ({
+            attributeName: attribute.AttributeName!,
+            attributeType: attribute.AttributeType! as "S" | "N" | "B",
+          })) || [],
         billingMode: table.BillingModeSummary?.BillingMode,
         itemCount: table.ItemCount,
         tableSizeBytes: table.TableSizeBytes,
       };
 
       if (table.GlobalSecondaryIndexes) {
-        description.globalSecondaryIndexes = table.GlobalSecondaryIndexes.map(gsi => ({
+        description.globalSecondaryIndexes = table.GlobalSecondaryIndexes.map((gsi) => ({
           indexName: gsi.IndexName!,
-          keySchema: gsi.KeySchema?.map(key => ({
-            attributeName: key.AttributeName!,
-            keyType: key.KeyType! as "HASH" | "RANGE",
-          })) || [],
+          keySchema:
+            gsi.KeySchema?.map((key) => ({
+              attributeName: key.AttributeName!,
+              keyType: key.KeyType! as "HASH" | "RANGE",
+            })) || [],
         }));
       }
 
       if (table.LocalSecondaryIndexes) {
-        description.localSecondaryIndexes = table.LocalSecondaryIndexes.map(lsi => ({
+        description.localSecondaryIndexes = table.LocalSecondaryIndexes.map((lsi) => ({
           indexName: lsi.IndexName!,
-          keySchema: lsi.KeySchema?.map(key => ({
-            attributeName: key.AttributeName!,
-            keyType: key.KeyType! as "HASH" | "RANGE",
-          })) || [],
+          keySchema:
+            lsi.KeySchema?.map((key) => ({
+              attributeName: key.AttributeName!,
+              keyType: key.KeyType! as "HASH" | "RANGE",
+            })) || [],
         }));
       }
 
@@ -418,31 +417,32 @@ export class DynamoDBService {
    * Query a DynamoDB table or index
    *
    * @param params - Query parameters
+   * @param parameters
    * @param config - Client configuration options
    * @returns Promise resolving to query results
    * @throws When query operation fails
    */
-  async query(params: QueryParameters, config: AwsClientConfig = {}): Promise<PaginatedResult> {
-    const spinner = this.createSpinner(`Querying table '${params.tableName}'...`);
+  async query(parameters: QueryParameters, config: AwsClientConfig = {}): Promise<PaginatedResult> {
+    const spinner = this.createSpinner(`Querying table '${parameters.tableName}'...`);
 
     try {
-      const docClient = await this.getDocumentClient(config);
+      const documentClient = await this.getDocumentClient(config);
 
       const command = new QueryCommand({
-        TableName: params.tableName,
-        IndexName: params.indexName,
-        KeyConditionExpression: params.keyConditionExpression,
-        FilterExpression: params.filterExpression,
-        ExpressionAttributeNames: params.expressionAttributeNames,
-        ExpressionAttributeValues: params.expressionAttributeValues,
-        ProjectionExpression: params.projectionExpression,
-        Limit: params.limit,
-        ExclusiveStartKey: params.exclusiveStartKey,
-        ConsistentRead: params.consistentRead,
-        ScanIndexForward: params.scanIndexForward,
+        TableName: parameters.tableName,
+        IndexName: parameters.indexName,
+        KeyConditionExpression: parameters.keyConditionExpression,
+        FilterExpression: parameters.filterExpression,
+        ExpressionAttributeNames: parameters.expressionAttributeNames,
+        ExpressionAttributeValues: parameters.expressionAttributeValues,
+        ProjectionExpression: parameters.projectionExpression,
+        Limit: parameters.limit,
+        ExclusiveStartKey: parameters.exclusiveStartKey,
+        ConsistentRead: parameters.consistentRead,
+        ScanIndexForward: parameters.scanIndexForward,
       });
 
-      const response = await docClient.send(command);
+      const response = await documentClient.send(command);
 
       const result: PaginatedResult = {
         items: response.Items || [],
@@ -454,13 +454,13 @@ export class DynamoDBService {
       spinner.succeed(`Query completed: ${result.count} items returned`);
       return result;
     } catch (error) {
-      spinner.fail(`Failed to query table '${params.tableName}'`);
+      spinner.fail(`Failed to query table '${parameters.tableName}'`);
       throw new ServiceError(
-        `Failed to query table '${params.tableName}': ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to query table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
         "DynamoDB",
         "query",
         error,
-        { tableName: params.tableName, indexName: params.indexName },
+        { tableName: parameters.tableName, indexName: parameters.indexName },
       );
     }
   }
@@ -469,31 +469,32 @@ export class DynamoDBService {
    * Scan a DynamoDB table or index
    *
    * @param params - Scan parameters
+   * @param parameters
    * @param config - Client configuration options
    * @returns Promise resolving to scan results
    * @throws When scan operation fails
    */
-  async scan(params: ScanParameters, config: AwsClientConfig = {}): Promise<PaginatedResult> {
-    const spinner = this.createSpinner(`Scanning table '${params.tableName}'...`);
+  async scan(parameters: ScanParameters, config: AwsClientConfig = {}): Promise<PaginatedResult> {
+    const spinner = this.createSpinner(`Scanning table '${parameters.tableName}'...`);
 
     try {
-      const docClient = await this.getDocumentClient(config);
+      const documentClient = await this.getDocumentClient(config);
 
       const command = new ScanCommand({
-        TableName: params.tableName,
-        IndexName: params.indexName,
-        FilterExpression: params.filterExpression,
-        ExpressionAttributeNames: params.expressionAttributeNames,
-        ExpressionAttributeValues: params.expressionAttributeValues,
-        ProjectionExpression: params.projectionExpression,
-        Limit: params.limit,
-        ExclusiveStartKey: params.exclusiveStartKey,
-        ConsistentRead: params.consistentRead,
-        Segment: params.segment,
-        TotalSegments: params.totalSegments,
+        TableName: parameters.tableName,
+        IndexName: parameters.indexName,
+        FilterExpression: parameters.filterExpression,
+        ExpressionAttributeNames: parameters.expressionAttributeNames,
+        ExpressionAttributeValues: parameters.expressionAttributeValues,
+        ProjectionExpression: parameters.projectionExpression,
+        Limit: parameters.limit,
+        ExclusiveStartKey: parameters.exclusiveStartKey,
+        ConsistentRead: parameters.consistentRead,
+        Segment: parameters.segment,
+        TotalSegments: parameters.totalSegments,
       });
 
-      const response = await docClient.send(command);
+      const response = await documentClient.send(command);
 
       const result: PaginatedResult = {
         items: response.Items || [],
@@ -505,13 +506,13 @@ export class DynamoDBService {
       spinner.succeed(`Scan completed: ${result.count} items returned`);
       return result;
     } catch (error) {
-      spinner.fail(`Failed to scan table '${params.tableName}'`);
+      spinner.fail(`Failed to scan table '${parameters.tableName}'`);
       throw new ServiceError(
-        `Failed to scan table '${params.tableName}': ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to scan table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
         "DynamoDB",
         "scan",
         error,
-        { tableName: params.tableName, indexName: params.indexName },
+        { tableName: parameters.tableName, indexName: parameters.indexName },
       );
     }
   }
@@ -520,25 +521,29 @@ export class DynamoDBService {
    * Get a single item from a DynamoDB table
    *
    * @param params - Get item parameters
+   * @param parameters
    * @param config - Client configuration options
    * @returns Promise resolving to the item or undefined if not found
    * @throws When get item operation fails
    */
-  async getItem(params: GetItemParameters, config: AwsClientConfig = {}): Promise<Record<string, unknown> | undefined> {
-    const spinner = this.createSpinner(`Getting item from table '${params.tableName}'...`);
+  async getItem(
+    parameters: GetItemParameters,
+    config: AwsClientConfig = {},
+  ): Promise<Record<string, unknown> | undefined> {
+    const spinner = this.createSpinner(`Getting item from table '${parameters.tableName}'...`);
 
     try {
-      const docClient = await this.getDocumentClient(config);
+      const documentClient = await this.getDocumentClient(config);
 
       const command = new GetCommand({
-        TableName: params.tableName,
-        Key: params.key,
-        ProjectionExpression: params.projectionExpression,
-        ExpressionAttributeNames: params.expressionAttributeNames,
-        ConsistentRead: params.consistentRead,
+        TableName: parameters.tableName,
+        Key: parameters.key,
+        ProjectionExpression: parameters.projectionExpression,
+        ExpressionAttributeNames: parameters.expressionAttributeNames,
+        ConsistentRead: parameters.consistentRead,
       });
 
-      const response = await docClient.send(command);
+      const response = await documentClient.send(command);
 
       if (response.Item) {
         spinner.succeed("Item retrieved successfully");
@@ -548,13 +553,13 @@ export class DynamoDBService {
         return undefined;
       }
     } catch (error) {
-      spinner.fail(`Failed to get item from table '${params.tableName}'`);
+      spinner.fail(`Failed to get item from table '${parameters.tableName}'`);
       throw new ServiceError(
-        `Failed to get item from table '${params.tableName}': ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to get item from table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
         "DynamoDB",
         "get-item",
         error,
-        { tableName: params.tableName, key: params.key },
+        { tableName: parameters.tableName, key: parameters.key },
       );
     }
   }
@@ -563,37 +568,41 @@ export class DynamoDBService {
    * Put (create/update) an item in a DynamoDB table
    *
    * @param params - Put item parameters
+   * @param parameters
    * @param config - Client configuration options
    * @returns Promise resolving to the previous item if returnValues is set
    * @throws When put item operation fails
    */
-  async putItem(params: PutItemParameters, config: AwsClientConfig = {}): Promise<Record<string, unknown> | undefined> {
-    const spinner = this.createSpinner(`Putting item to table '${params.tableName}'...`);
+  async putItem(
+    parameters: PutItemParameters,
+    config: AwsClientConfig = {},
+  ): Promise<Record<string, unknown> | undefined> {
+    const spinner = this.createSpinner(`Putting item to table '${parameters.tableName}'...`);
 
     try {
-      const docClient = await this.getDocumentClient(config);
+      const documentClient = await this.getDocumentClient(config);
 
       const command = new PutCommand({
-        TableName: params.tableName,
-        Item: params.item,
-        ConditionExpression: params.conditionExpression,
-        ExpressionAttributeNames: params.expressionAttributeNames,
-        ExpressionAttributeValues: params.expressionAttributeValues,
-        ReturnValues: params.returnValues,
+        TableName: parameters.tableName,
+        Item: parameters.item,
+        ConditionExpression: parameters.conditionExpression,
+        ExpressionAttributeNames: parameters.expressionAttributeNames,
+        ExpressionAttributeValues: parameters.expressionAttributeValues,
+        ReturnValues: parameters.returnValues,
       });
 
-      const response = await docClient.send(command);
+      const response = await documentClient.send(command);
 
       spinner.succeed("Item saved successfully");
       return response.Attributes;
     } catch (error) {
-      spinner.fail(`Failed to put item to table '${params.tableName}'`);
+      spinner.fail(`Failed to put item to table '${parameters.tableName}'`);
       throw new ServiceError(
-        `Failed to put item to table '${params.tableName}': ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to put item to table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
         "DynamoDB",
         "put-item",
         error,
-        { tableName: params.tableName },
+        { tableName: parameters.tableName },
       );
     }
   }
@@ -602,38 +611,42 @@ export class DynamoDBService {
    * Update an existing item in a DynamoDB table
    *
    * @param params - Update item parameters
+   * @param parameters
    * @param config - Client configuration options
    * @returns Promise resolving to the updated attributes if returnValues is set
    * @throws When update item operation fails
    */
-  async updateItem(params: UpdateItemParameters, config: AwsClientConfig = {}): Promise<Record<string, unknown> | undefined> {
-    const spinner = this.createSpinner(`Updating item in table '${params.tableName}'...`);
+  async updateItem(
+    parameters: UpdateItemParameters,
+    config: AwsClientConfig = {},
+  ): Promise<Record<string, unknown> | undefined> {
+    const spinner = this.createSpinner(`Updating item in table '${parameters.tableName}'...`);
 
     try {
-      const docClient = await this.getDocumentClient(config);
+      const documentClient = await this.getDocumentClient(config);
 
       const command = new UpdateCommand({
-        TableName: params.tableName,
-        Key: params.key,
-        UpdateExpression: params.updateExpression,
-        ConditionExpression: params.conditionExpression,
-        ExpressionAttributeNames: params.expressionAttributeNames,
-        ExpressionAttributeValues: params.expressionAttributeValues,
-        ReturnValues: params.returnValues,
+        TableName: parameters.tableName,
+        Key: parameters.key,
+        UpdateExpression: parameters.updateExpression,
+        ConditionExpression: parameters.conditionExpression,
+        ExpressionAttributeNames: parameters.expressionAttributeNames,
+        ExpressionAttributeValues: parameters.expressionAttributeValues,
+        ReturnValues: parameters.returnValues,
       });
 
-      const response = await docClient.send(command);
+      const response = await documentClient.send(command);
 
       spinner.succeed("Item updated successfully");
       return response.Attributes;
     } catch (error) {
-      spinner.fail(`Failed to update item in table '${params.tableName}'`);
+      spinner.fail(`Failed to update item in table '${parameters.tableName}'`);
       throw new ServiceError(
-        `Failed to update item in table '${params.tableName}': ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to update item in table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
         "DynamoDB",
         "update-item",
         error,
-        { tableName: params.tableName, key: params.key },
+        { tableName: parameters.tableName, key: parameters.key },
       );
     }
   }

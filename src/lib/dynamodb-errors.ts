@@ -277,7 +277,14 @@ export class BatchOperationError extends BaseError {
  */
 export function isDynamoDBError(
   error: unknown,
-): error is DynamoDBError | TableError | QueryError | ScanError | ItemError | ExpressionError | BatchOperationError {
+): error is
+  | DynamoDBError
+  | TableError
+  | QueryError
+  | ScanError
+  | ItemError
+  | ExpressionError
+  | BatchOperationError {
   return (
     error instanceof DynamoDBError ||
     error instanceof TableError ||
@@ -300,32 +307,39 @@ export function isDynamoDBError(
 export function getDynamoDBErrorGuidance(error: unknown): string {
   if (isDynamoDBError(error)) {
     switch (error.code) {
-      case "TABLE_ERROR":
+      case "TABLE_ERROR": {
         if (error.metadata.operation === "describe-table") {
           return "Verify the table name is correct and exists in the specified region. Use 'aws-ts dynamodb list-tables' to see available tables.";
         }
         return "Check table status and ensure the table exists in the correct region with proper permissions.";
+      }
 
-      case "QUERY_ERROR":
+      case "QUERY_ERROR": {
         return "Verify your key condition expression syntax and ensure the partition key is specified. Check that attribute names and values are correctly mapped.";
+      }
 
-      case "SCAN_ERROR":
+      case "SCAN_ERROR": {
         return "Check your filter expression syntax and consider using pagination for large datasets. Verify attribute names and values are correctly specified.";
+      }
 
-      case "ITEM_ERROR":
+      case "ITEM_ERROR": {
         if (error.message.includes("ConditionalCheckFailedException")) {
           return "The condition expression failed. Verify the item exists and meets the specified conditions before retrying.";
         }
         return "Check the item structure, primary key values, and any condition expressions. Ensure all required attributes are provided.";
+      }
 
-      case "EXPRESSION_ERROR":
+      case "EXPRESSION_ERROR": {
         return "Review your expression syntax. Ensure attribute names with reserved words use expression attribute names (#name) and values use expression attribute values (:value).";
+      }
 
-      case "BATCH_OPERATION_ERROR":
+      case "BATCH_OPERATION_ERROR": {
         return "Reduce batch size or implement retry logic for unprocessed items. Check for throttling and consider implementing exponential backoff.";
+      }
 
-      default:
+      default: {
         return "Check your AWS credentials, table permissions, and region configuration. Verify the table exists and is in an active state.";
+      }
     }
   }
 

@@ -8,9 +8,9 @@
 
 import { Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBListTables } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBListTablesSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
@@ -168,7 +168,7 @@ export default class DynamoDBListTablesCommand extends Command {
         // Create CSV data with headers
         const csvData = [
           { "Table Name": "Table Name" }, // Header row
-          ...tableNames.map(name => ({ "Table Name": name }))
+          ...tableNames.map((name) => ({ "Table Name": name })),
         ];
 
         const processor = new DataProcessor({ format: "csv" });

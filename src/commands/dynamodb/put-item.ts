@@ -8,9 +8,9 @@
 
 import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBPutItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBPutItemSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { PutItemParameters } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -28,7 +28,8 @@ export default class DynamoDBPutItemCommand extends Command {
   static override readonly examples = [
     {
       description: "Put a simple item",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\", \"name\": \"John Doe\", \"email\": \"john@example.com\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "name": "John Doe", "email": "john@example.com"}\'',
     },
     {
       description: "Put an item from a JSON file",
@@ -36,15 +37,18 @@ export default class DynamoDBPutItemCommand extends Command {
     },
     {
       description: "Put item only if it doesn't exist",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\", \"name\": \"John Doe\"}' --condition-expression 'attribute_not_exists(id)'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "name": "John Doe"}\' --condition-expression \'attribute_not_exists(id)\'',
     },
     {
       description: "Put item with return values",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\", \"name\": \"John Doe\"}' --return-values ALL_OLD",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "name": "John Doe"}\' --return-values ALL_OLD',
     },
     {
       description: "Put item with expression attribute names",
-      command: "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\", \"status\": \"active\"}' --condition-expression 'attribute_not_exists(#status) OR #status <> :status' --expression-attribute-names '{\"#status\": \"status\"}' --expression-attribute-values '{\":status\": \"inactive\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "status": "active"}\' --condition-expression \'attribute_not_exists(#status) OR #status <> :status\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":status": "inactive"}\'',
     },
   ];
 
@@ -123,7 +127,7 @@ export default class DynamoDBPutItemCommand extends Command {
       if (args.item.startsWith("file://")) {
         const filePath = args.item.replace("file://", "");
         const fs = await import("node:fs/promises");
-        const fileContent = await fs.readFile(filePath, "utf-8");
+        const fileContent = await fs.readFile(filePath, "utf8");
         itemObject = JSON.parse(fileContent);
       } else {
         itemObject = JSON.parse(args.item);
@@ -163,17 +167,17 @@ export default class DynamoDBPutItemCommand extends Command {
       });
 
       // Prepare put item parameters
-      const putItemParams: PutItemParameters = {
+      const putItemParameters: PutItemParameters = {
         tableName: input.tableName,
         item: itemObject,
         conditionExpression: input.conditionExpression,
         expressionAttributeNames,
         expressionAttributeValues,
-        returnValues: input.returnValues as "NONE" | "ALL_OLD",
+        returnValues: input.returnValues,
       };
 
       // Execute put item operation
-      const result = await dynamoService.putItem(putItemParams, {
+      const result = await dynamoService.putItem(putItemParameters, {
         region: input.region,
         profile: input.profile,
       });
@@ -208,7 +212,7 @@ export default class DynamoDBPutItemCommand extends Command {
     result: Record<string, unknown> | undefined,
     format: string,
     tableName: string,
-    returnValues: string
+    returnValues: string,
   ): Promise<void> {
     if (returnValues === "NONE" || !result) {
       this.log(`Item successfully put to table '${tableName}'.`);
@@ -272,8 +276,8 @@ export default class DynamoDBPutItemCommand extends Command {
     }
 
     if (typeof value === "object") {
-      const jsonStr = JSON.stringify(value);
-      return jsonStr.length > 100 ? `${jsonStr.slice(0, 97)}...` : jsonStr;
+      const jsonString = JSON.stringify(value);
+      return jsonString.length > 100 ? `${jsonString.slice(0, 97)}...` : jsonString;
     }
 
     return String(value);

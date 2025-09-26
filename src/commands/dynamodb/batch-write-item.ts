@@ -6,12 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
 import { BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor, type DataFormat } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBBatchWriteItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBBatchWriteItemSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 interface BatchWriteResult {
@@ -173,7 +173,7 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
         {
           region: input.region,
           profile: input.profile,
-        }
+        },
       );
 
       // Format output based on requested format
@@ -200,21 +200,27 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
     const path = await import("node:path");
 
     const fileExtension = path.extname(filePath).toLowerCase();
-    const fileContent = await fs.readFile(filePath, "utf-8");
+    const fileContent = await fs.readFile(filePath, "utf8");
 
     let format: DataFormat;
     switch (fileExtension) {
-      case ".csv":
+      case ".csv": {
         format = "csv";
         break;
-      case ".json":
+      }
+      case ".json": {
         format = "json";
         break;
-      case ".jsonl":
+      }
+      case ".jsonl": {
         format = "jsonl";
         break;
-      default:
-        throw new Error(`Unsupported file format: ${fileExtension}. Supported formats: .csv, .json, .jsonl`);
+      }
+      default: {
+        throw new Error(
+          `Unsupported file format: ${fileExtension}. Supported formats: .csv, .json, .jsonl`,
+        );
+      }
     }
 
     const processor = new DataProcessor({ format });
@@ -229,6 +235,8 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
    * @param items - Items to write
    * @param options - Batch write options
    * @param config - AWS client configuration
+   * @param config.region
+   * @param config.profile
    * @returns Promise resolving to batch write results
    * @internal
    */
@@ -237,10 +245,10 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
     tableName: string,
     items: Record<string, unknown>[],
     options: DynamoDBBatchWriteItem,
-    config: { region?: string; profile?: string }
+    config: { region?: string; profile?: string },
   ): Promise<BatchWriteResult> {
     // Access private method to get document client
-    const docClient = await (dynamoService as any).getDocumentClient(config);
+    const documentClient = await (dynamoService as any).getDocumentClient(config);
 
     let processedItems = 0;
     let failedItems = 0;
@@ -248,8 +256,8 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
 
     // Create batches
     const batches: Record<string, unknown>[][] = [];
-    for (let i = 0; i < items.length; i += options.batchSize) {
-      batches.push(items.slice(i, i + options.batchSize));
+    for (let index = 0; index < items.length; index += options.batchSize) {
+      batches.push(items.slice(index, index + options.batchSize));
     }
 
     this.log(`Processing ${batches.length} batches of up to ${options.batchSize} items each...`);
@@ -258,15 +266,15 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
     const batchPromises: Promise<void>[] = [];
     const semaphore = new Array(options.maxConcurrency).fill(0);
 
-    for (let i = 0; i < batches.length; i++) {
+    for (let index = 0; index < batches.length; index++) {
       const batchPromise = this.processSingleBatch(
-        docClient,
+        documentClient,
         tableName,
-        batches[i],
-        i + 1,
+        batches[index],
+        index + 1,
         batches.length,
-        options
-      ).then(result => {
+        options,
+      ).then((result) => {
         processedItems += result.processed;
         failedItems += result.failed;
         allUnprocessedItems.push(...result.unprocessed);
@@ -275,8 +283,8 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
       batchPromises.push(batchPromise);
 
       // Control concurrency
-      if (batchPromises.length >= options.maxConcurrency || i === batches.length - 1) {
-        await Promise.all(batchPromises.splice(0, batchPromises.length));
+      if (batchPromises.length >= options.maxConcurrency || index === batches.length - 1) {
+        await Promise.all(batchPromises.splice(0));
       }
     }
 
@@ -291,21 +299,23 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
    * Process a single batch with retry logic
    *
    * @param docClient - DynamoDB document client
+   * @param documentClient
    * @param tableName - Name of the target table
    * @param batchItems - Items in this batch
    * @param batchNum - Batch number for progress reporting
+   * @param batchNumber
    * @param totalBatches - Total number of batches
    * @param options - Batch write options
    * @returns Promise resolving to batch processing result
    * @internal
    */
   private async processSingleBatch(
-    docClient: any,
+    documentClient: any,
     tableName: string,
     batchItems: Record<string, unknown>[],
-    batchNum: number,
+    batchNumber: number,
     totalBatches: number,
-    options: DynamoDBBatchWriteItem
+    options: DynamoDBBatchWriteItem,
   ): Promise<{ processed: number; failed: number; unprocessed: Record<string, unknown>[] }> {
     let currentItems = [...batchItems];
     let retryCount = 0;
@@ -315,21 +325,23 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
       try {
         // Prepare request items for batch write
         const requestItems = {
-          [tableName]: currentItems.map(item => ({
-            PutRequest: { Item: item }
-          }))
+          [tableName]: currentItems.map((item) => ({
+            PutRequest: { Item: item },
+          })),
         };
 
         const command = new BatchWriteCommand({
           RequestItems: requestItems,
         });
 
-        const response = await docClient.send(command);
+        const response = await documentClient.send(command);
         const initialCount = currentItems.length;
 
         // Handle unprocessed items
         if (response.UnprocessedItems && response.UnprocessedItems[tableName]) {
-          currentItems = response.UnprocessedItems[tableName].map((req: any) => req.PutRequest.Item);
+          currentItems = response.UnprocessedItems[tableName].map(
+            (request: any) => request.PutRequest.Item,
+          );
           processed += initialCount - currentItems.length;
         } else {
           processed += currentItems.length;
@@ -337,26 +349,30 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
         }
 
         if (options.verbose) {
-          this.log(`Batch ${batchNum}/${totalBatches}: Processed ${processed}/${batchItems.length} items`);
+          this.log(
+            `Batch ${batchNumber}/${totalBatches}: Processed ${processed}/${batchItems.length} items`,
+          );
         }
 
         if (currentItems.length > 0 && options.enableRetry && retryCount < options.maxRetries) {
           retryCount++;
           // Exponential backoff with jitter
-          const delay = Math.min(1000 * Math.pow(2, retryCount) + Math.random() * 1000, 30000);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          const delay = Math.min(1000 * Math.pow(2, retryCount) + Math.random() * 1000, 30_000);
+          await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           break;
         }
       } catch (error) {
         if (options.verbose) {
-          this.log(`Batch ${batchNum}/${totalBatches} failed: ${error instanceof Error ? error.message : String(error)}`);
+          this.log(
+            `Batch ${batchNumber}/${totalBatches} failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
 
         if (options.enableRetry && retryCount < options.maxRetries) {
           retryCount++;
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 30_000);
+          await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           break;
         }
@@ -365,7 +381,9 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
 
     const failed = currentItems.length;
     if (failed > 0 && options.verbose) {
-      this.log(`Batch ${batchNum}/${totalBatches}: ${failed} items failed after ${retryCount} retries`);
+      this.log(
+        `Batch ${batchNumber}/${totalBatches}: ${failed} items failed after ${retryCount} retries`,
+      );
     }
 
     return {
@@ -415,7 +433,8 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
           processedItems: result.processedItems,
           failedItems: result.failedItems,
           successRate: result.failedItems > 0 ? (result.processedItems / total) * 100 : 100,
-          unprocessedItems: result.unprocessedItems.length > 0 ? result.unprocessedItems : undefined,
+          unprocessedItems:
+            result.unprocessedItems.length > 0 ? result.unprocessedItems : undefined,
         };
         this.log(JSON.stringify(output, null, 2));
         break;

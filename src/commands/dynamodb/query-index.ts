@@ -8,9 +8,9 @@
 
 import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBQuery } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBQuerySchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { QueryParameters } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -28,27 +28,33 @@ export default class DynamoDBQueryIndexCommand extends Command {
   static override readonly examples = [
     {
       description: "Query a GSI by its partition key",
-      command: "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}'",
     },
     {
       description: "Query a GSI with partition key and sort key condition",
-      command: "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk AND gsi_sk BETWEEN :start AND :end' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\", \":start\": \"2023-01-01\", \":end\": \"2023-12-31\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression \'gsi_pk = :pk AND gsi_sk BETWEEN :start AND :end\' --expression-attribute-values \'{":pk": "STATUS#ACTIVE", ":start": "2023-01-01", ":end": "2023-12-31"}\'',
     },
     {
       description: "Query LSI with filter expression",
-      command: "<%= config.bin %> <%= command.id %> my-table my-lsi --key-condition-expression 'pk = :pk AND lsi_sk > :sk' --filter-expression '#status = :status' --expression-attribute-names '{\"#status\": \"status\"}' --expression-attribute-values '{\":pk\": \"USER#123\", \":sk\": \"2023-01-01\", \":status\": \"ACTIVE\"}'",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table my-lsi --key-condition-expression \'pk = :pk AND lsi_sk > :sk\' --filter-expression \'#status = :status\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":pk": "USER#123", ":sk": "2023-01-01", ":status": "ACTIVE"}\'',
     },
     {
       description: "Query GSI with projection expression",
-      command: "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --projection-expression 'id, #name, email' --expression-attribute-names '{\"#name\": \"name\"}' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --projection-expression 'id, #name, email' --expression-attribute-names '{\"#name\": \"name\"}' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}'",
     },
     {
       description: "Query GSI in reverse order",
-      command: "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}' --no-scan-index-forward",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}' --no-scan-index-forward",
     },
     {
       description: "Query GSI with pagination",
-      command: "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}' --limit 20",
+      command:
+        "<%= config.bin %> <%= command.id %> my-table my-gsi --key-condition-expression 'gsi_pk = :pk' --expression-attribute-values '{\":pk\": \"STATUS#ACTIVE\"}' --limit 20",
     },
   ];
 
@@ -102,7 +108,7 @@ export default class DynamoDBQueryIndexCommand extends Command {
       char: "l",
       description: "Maximum number of items to return",
       min: 1,
-      max: 10000,
+      max: 10_000,
     }),
 
     "consistent-read": Flags.boolean({
@@ -192,7 +198,7 @@ export default class DynamoDBQueryIndexCommand extends Command {
       });
 
       // Prepare query parameters
-      const queryParams: QueryParameters = {
+      const queryParameters: QueryParameters = {
         tableName: input.tableName,
         indexName: input.indexName,
         keyConditionExpression: input.keyConditionExpression,
@@ -207,7 +213,7 @@ export default class DynamoDBQueryIndexCommand extends Command {
       };
 
       // Execute query operation
-      const result = await dynamoService.query(queryParams, {
+      const result = await dynamoService.query(queryParameters, {
         region: input.region,
         profile: input.profile,
       });
@@ -228,20 +234,31 @@ export default class DynamoDBQueryIndexCommand extends Command {
    * Format and display the query results output
    *
    * @param result - Query result to display
+   * @param result.items
    * @param format - Output format to use
+   * @param result.lastEvaluatedKey
    * @param tableName - Name of the queried table
+   * @param result.count
    * @param indexName - Name of the queried index
+   * @param result.scannedCount
    * @returns Promise resolving when output is complete
    * @internal
    */
   private async formatAndDisplayOutput(
-    result: { items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown>; count: number; scannedCount?: number },
+    result: {
+      items: Record<string, unknown>[];
+      lastEvaluatedKey?: Record<string, unknown>;
+      count: number;
+      scannedCount?: number;
+    },
     format: string,
     tableName: string,
-    indexName?: string
+    indexName?: string,
   ): Promise<void> {
     if (result.items.length === 0) {
-      this.log(`No items found in index '${indexName}' of table '${tableName}' matching the query conditions.`);
+      this.log(
+        `No items found in index '${indexName}' of table '${tableName}' matching the query conditions.`,
+      );
       return;
     }
 

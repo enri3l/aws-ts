@@ -8,9 +8,9 @@
 
 import { Args, Command, Flags } from "@oclif/core";
 import { DataProcessor } from "../../lib/data-processing.js";
-import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { DynamoDBDescribeTable } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBDescribeTableSchema } from "../../lib/dynamodb-schemas.js";
+import { formatErrorWithGuidance } from "../../lib/errors.js";
 import type { TableDescription } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
@@ -137,7 +137,10 @@ export default class DynamoDBDescribeTableCommand extends Command {
    * @returns Promise resolving when output is complete
    * @internal
    */
-  private async formatAndDisplayOutput(tableDescription: TableDescription, format: string): Promise<void> {
+  private async formatAndDisplayOutput(
+    tableDescription: TableDescription,
+    format: string,
+  ): Promise<void> {
     switch (format) {
       case "table": {
         await this.displayTableFormat(tableDescription);
@@ -181,13 +184,24 @@ export default class DynamoDBDescribeTableCommand extends Command {
       { Property: "Status", Value: table.tableStatus },
       { Property: "Billing Mode", Value: table.billingMode || "N/A" },
       { Property: "Item Count", Value: table.itemCount?.toLocaleString() || "N/A" },
-      { Property: "Table Size", Value: table.tableSizeBytes ? `${(table.tableSizeBytes / 1024 / 1024).toFixed(2)} MB` : "N/A" },
+      {
+        Property: "Table Size",
+        Value: table.tableSizeBytes
+          ? `${(table.tableSizeBytes / 1024 / 1024).toFixed(2)} MB`
+          : "N/A",
+      },
     ];
 
     if (table.provisionedThroughput) {
       basicInfo.push(
-        { Property: "Read Capacity", Value: table.provisionedThroughput.readCapacityUnits.toString() },
-        { Property: "Write Capacity", Value: table.provisionedThroughput.writeCapacityUnits.toString() }
+        {
+          Property: "Read Capacity",
+          Value: table.provisionedThroughput.readCapacityUnits.toString(),
+        },
+        {
+          Property: "Write Capacity",
+          Value: table.provisionedThroughput.writeCapacityUnits.toString(),
+        },
       );
     }
 
@@ -198,7 +212,7 @@ export default class DynamoDBDescribeTableCommand extends Command {
     // Key Schema
     if (table.keySchema.length > 0) {
       this.log("\nKey Schema:");
-      const keySchemaData = table.keySchema.map(key => ({
+      const keySchemaData = table.keySchema.map((key) => ({
         "Attribute Name": key.attributeName,
         "Key Type": key.keyType,
       }));
@@ -208,9 +222,9 @@ export default class DynamoDBDescribeTableCommand extends Command {
     // Attribute Definitions
     if (table.attributeDefinitions.length > 0) {
       this.log("\nAttribute Definitions:");
-      const attributeData = table.attributeDefinitions.map(attr => ({
-        "Attribute Name": attr.attributeName,
-        "Attribute Type": attr.attributeType,
+      const attributeData = table.attributeDefinitions.map((attribute) => ({
+        "Attribute Name": attribute.attributeName,
+        "Attribute Type": attribute.attributeType,
       }));
       this.log(processor.formatOutput(attributeData));
     }
@@ -218,9 +232,11 @@ export default class DynamoDBDescribeTableCommand extends Command {
     // Global Secondary Indexes
     if (table.globalSecondaryIndexes && table.globalSecondaryIndexes.length > 0) {
       this.log("\nGlobal Secondary Indexes:");
-      const gsiData = table.globalSecondaryIndexes.map(gsi => ({
+      const gsiData = table.globalSecondaryIndexes.map((gsi) => ({
         "Index Name": gsi.indexName,
-        "Key Schema": gsi.keySchema.map(key => `${key.attributeName} (${key.keyType})`).join(", "),
+        "Key Schema": gsi.keySchema
+          .map((key) => `${key.attributeName} (${key.keyType})`)
+          .join(", "),
       }));
       this.log(processor.formatOutput(gsiData));
     }
@@ -228,9 +244,11 @@ export default class DynamoDBDescribeTableCommand extends Command {
     // Local Secondary Indexes
     if (table.localSecondaryIndexes && table.localSecondaryIndexes.length > 0) {
       this.log("\nLocal Secondary Indexes:");
-      const lsiData = table.localSecondaryIndexes.map(lsi => ({
+      const lsiData = table.localSecondaryIndexes.map((lsi) => ({
         "Index Name": lsi.indexName,
-        "Key Schema": lsi.keySchema.map(key => `${key.attributeName} (${key.keyType})`).join(", "),
+        "Key Schema": lsi.keySchema
+          .map((key) => `${key.attributeName} (${key.keyType})`)
+          .join(", "),
       }));
       this.log(processor.formatOutput(lsiData));
     }
@@ -245,19 +263,21 @@ export default class DynamoDBDescribeTableCommand extends Command {
    */
   private async displayCsvFormat(table: TableDescription): Promise<void> {
     // Flatten table data for CSV export
-    const csvData = [{
-      TableName: table.tableName,
-      Status: table.tableStatus,
-      BillingMode: table.billingMode || "",
-      ItemCount: table.itemCount || 0,
-      TableSizeBytes: table.tableSizeBytes || 0,
-      PartitionKey: table.keySchema.find(k => k.keyType === "HASH")?.attributeName || "",
-      SortKey: table.keySchema.find(k => k.keyType === "RANGE")?.attributeName || "",
-      ReadCapacity: table.provisionedThroughput?.readCapacityUnits || 0,
-      WriteCapacity: table.provisionedThroughput?.writeCapacityUnits || 0,
-      GSICount: table.globalSecondaryIndexes?.length || 0,
-      LSICount: table.localSecondaryIndexes?.length || 0,
-    }];
+    const csvData = [
+      {
+        TableName: table.tableName,
+        Status: table.tableStatus,
+        BillingMode: table.billingMode || "",
+        ItemCount: table.itemCount || 0,
+        TableSizeBytes: table.tableSizeBytes || 0,
+        PartitionKey: table.keySchema.find((k) => k.keyType === "HASH")?.attributeName || "",
+        SortKey: table.keySchema.find((k) => k.keyType === "RANGE")?.attributeName || "",
+        ReadCapacity: table.provisionedThroughput?.readCapacityUnits || 0,
+        WriteCapacity: table.provisionedThroughput?.writeCapacityUnits || 0,
+        GSICount: table.globalSecondaryIndexes?.length || 0,
+        LSICount: table.localSecondaryIndexes?.length || 0,
+      },
+    ];
 
     const processor = new DataProcessor({ format: "csv" });
     const output = processor.formatOutput(csvData);
