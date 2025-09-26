@@ -59,11 +59,11 @@ jobs:
         run: |
           # Core validation - these must always exist
           if [ ! -d "docs/.vitepress/dist" ]; then
-            echo "❌ Build output directory missing"
+            echo "Build output directory missing"
             exit 1
           fi
           if [ ! -f "docs/.vitepress/dist/index.html" ]; then
-            echo "❌ Index file missing from build"
+            echo "Index file missing from build"
             exit 1
           fi
 
@@ -75,13 +75,13 @@ jobs:
 
             if [ -f "$source_file" ]; then
               if [ -f "$output_file" ]; then
-                echo "✅ ${section} section built successfully"
+                echo "${section} section built successfully"
               else
-                echo "❌ ${section} section failed to build (source exists but output missing)"
+                echo "${section} section failed to build (source exists but output missing)"
                 return 1
               fi
             else
-              echo "ℹ️ ${section} section not yet created (skipping validation)"
+              echo "${section} section not yet created (skipping validation)"
             fi
             return 0
           }
@@ -92,7 +92,7 @@ jobs:
           validate_section "reference" || exit 1
           validate_section "api" || exit 1
 
-          echo "✅ Documentation build validation completed"
+          echo "Documentation build validation completed"
 
       # Check for broken links (internal and external)
       # Uses lychee for comprehensive link checking with optimized configuration
@@ -119,6 +119,6 @@ jobs:
       - name: Link check summary
         if: always()
         run: |
-          echo "📊 Link checking completed"
+          echo "Link checking completed"
           echo "Check the 'Check links' step above for detailed results"
           echo "Note: Link check failures are reported but don't fail the workflow"
