@@ -142,6 +142,11 @@ export default class DynamoDBScanCommand extends Command {
       description: "Enable verbose output with debug information",
       default: false,
     }),
+
+    force: Flags.boolean({
+      description: "Skip cost warnings for potentially expensive operations",
+      default: false,
+    }),
   };
 
   /**
@@ -186,6 +191,29 @@ export default class DynamoDBScanCommand extends Command {
           ...(input.profile && { profile: input.profile }),
         },
       });
+
+      // Cost warning for large table scans
+      if (!input.limit && !flags.force) {
+        const tableInfo = await dynamoService.describeTable(input.tableName, {
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
+        });
+
+        if (tableInfo.itemCount && tableInfo.itemCount > 50_000) {
+          // Calculate estimated RCUs (eventually consistent reads = 0.5 RCU per 4KB item)
+          const avgItemSizeKB = 1; // Conservative 1KB average
+          const itemsPerRCU = Math.floor(4 / avgItemSizeKB) * 2; // 2x for eventually consistent
+          const estimatedRCUs = Math.ceil(tableInfo.itemCount / itemsPerRCU);
+          const estimatedCost = estimatedRCUs * 0.000_13; // $0.13 per million RCUs
+
+          this.warn(`⚠️  COST WARNING: Large table scan detected`);
+          this.warn(`   📊 Items: ${tableInfo.itemCount.toLocaleString()}`);
+          this.warn(`   ⚡ Est. RCUs: ${estimatedRCUs.toLocaleString()}`);
+          this.warn(`   💰 Est. Cost: $${estimatedCost.toFixed(4)}`);
+          this.warn(`   💡 Use --limit, --filter-expression, or --force`);
+          this.error("Operation cancelled for cost safety. Use --force to proceed.", { exit: 1 });
+        }
+      }
 
       // Prepare scan parameters
       const scanParameters = ScanParameterBuilder.build(

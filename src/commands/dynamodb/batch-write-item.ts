@@ -212,6 +212,20 @@ export default class DynamoDBBatchWriteItemCommand extends Command {
 
       this.log(`Loaded ${items.length} items from ${input.inputFile}`);
 
+      // Enhanced cost estimation and logging
+      const avgItemSizeKB = 1; // Conservative 1KB average per item
+      const estimatedWCUs = Math.ceil(items.length * avgItemSizeKB);
+      const estimatedCost = estimatedWCUs * 0.000_65; // $0.65 per million WCUs
+      const totalBatches = Math.ceil(items.length / input.batchSize);
+
+      this.log(`📊 DynamoDB Batch Write Summary:`);
+      this.log(`   📦 Total items: ${items.length.toLocaleString()}`);
+      this.log(`   🔄 Batches: ${totalBatches.toLocaleString()}`);
+      this.log(`   ⚡ Est. WCUs: ${estimatedWCUs.toLocaleString()}`);
+      this.log(`   💰 Est. cost: $${estimatedCost.toFixed(4)}`);
+      this.log(`   🚀 Concurrency: ${input.maxConcurrency} batch requests`);
+      this.log(`   📊 Batch size: ${input.batchSize} items per batch`);
+
       // Execute batch write operations
       const result = await this.executeBatchWriteOperations(
         dynamoService,

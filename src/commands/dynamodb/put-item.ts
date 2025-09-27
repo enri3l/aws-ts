@@ -37,9 +37,14 @@ export default class DynamoDBPutItemCommand extends Command {
       command: "<%= config.bin %> <%= command.id %> my-table file://item.json",
     },
     {
-      description: "Put item only if it doesn't exist",
+      description: "Idempotent create - only create if doesn't exist (AWS recommended pattern)",
       command:
         '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "name": "John Doe"}\' --condition-expression \'attribute_not_exists(id)\'',
+    },
+    {
+      description: "Idempotent upsert with version control",
+      command:
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "name": "John Doe", "version": 1}\' --condition-expression \'attribute_not_exists(id) OR version < :newVersion\' --expression-attribute-values \'{":newVersion": 1}\'',
     },
     {
       description: "Put item with return values",
@@ -47,9 +52,9 @@ export default class DynamoDBPutItemCommand extends Command {
         '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "name": "John Doe"}\' --return-values ALL_OLD',
     },
     {
-      description: "Put item with expression attribute names",
+      description: "Conditional put with status check (idempotent pattern)",
       command:
-        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "status": "active"}\' --condition-expression \'attribute_not_exists(#status) OR #status <> :status\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":status": "inactive"}\'',
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123", "status": "active"}\' --condition-expression \'attribute_not_exists(#status) OR #status <> :status\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":status": "active"}\'',
     },
   ];
 

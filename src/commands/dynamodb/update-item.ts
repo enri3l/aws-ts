@@ -33,27 +33,27 @@ export default class DynamoDBUpdateItemCommand extends Command {
         '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #name = :name, email = :email\' --expression-attribute-names \'{"#name": "name"}\' --expression-attribute-values \'{":name": "Jane Doe", ":email": "jane@example.com"}\'',
     },
     {
-      description: "Increment a numeric attribute",
+      description: "Idempotent increment with existence check",
       command:
-        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #count = #count + :inc\' --expression-attribute-names \'{"#count": "count"}\' --expression-attribute-values \'{":inc": 1}\'',
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #count = if_not_exists(#count, :zero) + :inc\' --expression-attribute-names \'{"#count": "count"}\' --expression-attribute-values \'{":inc": 1, ":zero": 0}\'',
     },
     {
-      description: "Add items to a list",
+      description: "Optimistic locking with version control (AWS recommended)",
       command:
-        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET tags = list_append(tags, :vals)\' --expression-attribute-values \'{":vals": ["new-tag"]}\'',
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET version = version + :inc, #name = :name\' --condition-expression \'version = :current\' --expression-attribute-names \'{"#name": "name"}\' --expression-attribute-values \'{":inc": 1, ":name": "Jane", ":current": 5}\'',
     },
     {
-      description: "Remove attributes",
+      description: "Idempotent list append",
       command:
-        "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'REMOVE old_attribute, deprecated_field'",
+        "<%= config.bin %> <%= command.id %> my-table '{\"id\": \"user123\"}' --update-expression 'SET tags = if_not_exists(tags, :empty_list)' --expression-attribute-values '{\":empty_list\": []}'",
     },
     {
-      description: "Conditional update",
+      description: "Conditional update with existence check (idempotent pattern)",
       command:
-        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #status = :status\' --condition-expression \'#status = :current\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":status": "inactive", ":current": "active"}\'',
+        '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #status = :status\' --condition-expression \'attribute_exists(id) AND #status = :current\' --expression-attribute-names \'{"#status": "status"}\' --expression-attribute-values \'{":status": "inactive", ":current": "active"}\'',
     },
     {
-      description: "Update with return values",
+      description: "Update with return values showing changes",
       command:
         '<%= config.bin %> <%= command.id %> my-table \'{"id": "user123"}\' --update-expression \'SET #count = #count + :inc\' --expression-attribute-names \'{"#count": "count"}\' --expression-attribute-values \'{":inc": 1}\' --return-values ALL_NEW',
     },
