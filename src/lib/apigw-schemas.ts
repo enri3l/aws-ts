@@ -280,7 +280,7 @@ export const UnifiedApiSchema = z.object({
   /**
    * API endpoint URL
    */
-  endpoint: z.string().url().optional(),
+  endpoint: z.url().optional(),
 
   /**
    * Protocol type (for HTTP/WebSocket APIs)

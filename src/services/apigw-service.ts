@@ -8,8 +8,23 @@
  *
  */
 
-import { APIGatewayClient } from "@aws-sdk/client-api-gateway";
-import { ApiGatewayV2Client } from "@aws-sdk/client-apigatewayv2";
+import {
+  APIGatewayClient,
+  type Authorizer,
+  type DomainName,
+  type Integration,
+  type Model,
+  type RequestValidator,
+  type Resource,
+} from "@aws-sdk/client-api-gateway";
+import {
+  ApiGatewayV2Client,
+  type Cors,
+  type Route,
+  type Authorizer as V2Authorizer,
+  type DomainName as V2DomainName,
+  type Integration as V2Integration,
+} from "@aws-sdk/client-apigatewayv2";
 import ora from "ora";
 import {
   ApiConfigurationError,
@@ -145,6 +160,13 @@ export interface WebSocketApiDescription {
 }
 
 /**
+ * Union type for all API description types
+ *
+ * @public
+ */
+export type ApiDescription = RestApiDescription | HttpApiDescription | WebSocketApiDescription;
+
+/**
  * API Gateway stage configuration
  *
  * @public
@@ -195,16 +217,16 @@ export interface StageConfiguration {
  * @public
  */
 export interface ApiConfiguration {
-  api: RestApiDescription | HttpApiDescription | WebSocketApiDescription;
+  api: ApiDescription;
   stages?: StageConfiguration[] | undefined;
-  resources?: any[] | undefined; // REST API specific
-  routes?: any[] | undefined; // HTTP/WebSocket API specific
-  integrations?: any[] | undefined;
-  authorizers?: any[] | undefined;
-  models?: any[] | undefined; // REST API specific
-  requestValidators?: any[] | undefined; // REST API specific
-  corsConfiguration?: any | undefined;
-  domainNames?: any[] | undefined;
+  resources?: Resource[] | undefined; // REST API specific
+  routes?: Route[] | undefined; // HTTP/WebSocket API specific
+  integrations?: (Integration | V2Integration)[] | undefined;
+  authorizers?: (Authorizer | V2Authorizer)[] | undefined;
+  models?: Model[] | undefined; // REST API specific
+  requestValidators?: RequestValidator[] | undefined; // REST API specific
+  corsConfiguration?: Cors | undefined;
+  domainNames?: (DomainName | V2DomainName)[] | undefined;
 }
 
 /**
@@ -549,51 +571,24 @@ export class ApiGwService {
     apiId: string,
     config: AwsClientConfig = {},
     apiTypeHint?: ApiType,
-  ): Promise<RestApiDescription | HttpApiDescription | WebSocketApiDescription> {
+  ): Promise<ApiDescription> {
     const spinner = this.createSpinner(`Describing API '${apiId}'...`);
 
     try {
       // Try the hinted type first, if provided
       if (apiTypeHint) {
-        try {
-          return await this.describeApiByType(apiId, apiTypeHint, config);
-        } catch {
-          // If hint fails, fall through to auto-detection
-          if (this.options.enableDebugLogging) {
-            console.debug(
-              `API type hint '${apiTypeHint}' failed for ${apiId}, attempting auto-detection`,
-            );
-          }
+        const hintResult = await this.tryDescribeWithHint(apiId, apiTypeHint, config);
+        if (hintResult) {
+          spinner.succeed(`Described ${apiTypeHint.toUpperCase()} API '${apiId}'`);
+          return hintResult;
         }
       }
 
-      // Try REST API first (most common)
-      try {
-        const result = await this.describeApiByType(apiId, "rest", config);
-        spinner.succeed(`Described REST API '${apiId}'`);
-        return result;
-      } catch (restError) {
-        // Try HTTP API
-        try {
-          const result = await this.describeApiByType(apiId, "http", config);
-          spinner.succeed(`Described HTTP API '${apiId}'`);
-          return result;
-        } catch (httpError) {
-          // Try WebSocket API
-          try {
-            const result = await this.describeApiByType(apiId, "websocket", config);
-            spinner.succeed(`Described WebSocket API '${apiId}'`);
-            return result;
-          } catch (wsError) {
-            spinner.fail(`Failed to describe API '${apiId}'`);
-            throw new ApiTypeDetectionError(
-              `Unable to determine API type for '${apiId}'. API may not exist or you may lack permissions.`,
-              apiId,
-              { restError, httpError, wsError },
-            );
-          }
-        }
-      }
+      // Auto-detect API type by trying each type
+      const result = await this.autoDetectAndDescribeApi(apiId, config);
+      const apiType = detectApiType(result);
+      spinner.succeed(`Described ${apiType.toUpperCase()} API '${apiId}'`);
+      return result;
     } catch (error) {
       spinner.fail(`Failed to describe API '${apiId}'`);
 
@@ -611,6 +606,64 @@ export class ApiGwService {
   }
 
   /**
+   * Try to describe API with the provided type hint
+   *
+   * @param apiId - API ID
+   * @param apiTypeHint - Type hint to try
+   * @param config - Client configuration
+   * @returns API description or undefined if hint fails
+   * @internal
+   */
+  private async tryDescribeWithHint(
+    apiId: string,
+    apiTypeHint: ApiType,
+    config: AwsClientConfig,
+  ): Promise<ApiDescription | undefined> {
+    try {
+      return await this.describeApiByType(apiId, apiTypeHint, config);
+    } catch {
+      // If hint fails, fall through to auto-detection
+      if (this.options.enableDebugLogging) {
+        console.debug(
+          `API type hint '${apiTypeHint}' failed for ${apiId}, attempting auto-detection`,
+        );
+      }
+      return undefined;
+    }
+  }
+
+  /**
+   * Auto-detect API type by trying each type in sequence
+   *
+   * @param apiId - API ID
+   * @param config - Client configuration
+   * @returns API description
+   * @throws ApiTypeDetectionError if all types fail
+   * @internal
+   */
+  private async autoDetectAndDescribeApi(
+    apiId: string,
+    config: AwsClientConfig,
+  ): Promise<ApiDescription> {
+    const typeSequence: ApiType[] = ["rest", "http", "websocket"];
+    const errors: Record<string, unknown> = {};
+
+    for (const apiType of typeSequence) {
+      try {
+        return await this.describeApiByType(apiId, apiType, config);
+      } catch (error) {
+        errors[`${apiType}Error`] = error;
+      }
+    }
+
+    throw new ApiTypeDetectionError(
+      `Unable to determine API type for '${apiId}'. API may not exist or you may lack permissions.`,
+      apiId,
+      errors,
+    );
+  }
+
+  /**
    * Describe an API by specific type
    *
    * @param apiId - API ID to describe
@@ -623,7 +676,7 @@ export class ApiGwService {
     apiId: string,
     apiType: ApiType,
     config: AwsClientConfig = {},
-  ): Promise<RestApiDescription | HttpApiDescription | WebSocketApiDescription> {
+  ): Promise<ApiDescription> {
     switch (apiType) {
       case "rest": {
         const client = await this.getRestApiClient(config);
@@ -704,8 +757,8 @@ export class ApiGwService {
       }
 
       default: {
-        throw new ApiTypeDetectionError(`Unsupported API type: ${apiType}`, apiId, {
-          requestedType: apiType,
+        throw new ApiTypeDetectionError(`Unsupported API type: ${String(apiType)}`, apiId, {
+          requestedType: apiType as string,
         });
       }
     }
@@ -743,55 +796,29 @@ export class ApiGwService {
       const configuration: ApiConfiguration = { api };
 
       // Get stages (available for all API types)
-      if (options.includeStages !== false) {
-        try {
-          configuration.stages = await this.getApiStages(apiId, apiType, config);
-        } catch (error) {
-          if (this.options.enableDebugLogging) {
-            console.debug(`Failed to retrieve stages for API ${apiId}:`, error);
-          }
-        }
-      }
+      await this.addConfigurationStages(configuration, apiId, apiType, config, {
+        ...(options.includeStages !== undefined && { includeStages: options.includeStages }),
+      });
 
       // Get additional configuration based on API type
       switch (apiType) {
         case "rest": {
-          if (options.includeResources !== false) {
-            try {
-              configuration.resources = await this.getRestApiResources(apiId, config);
-            } catch (error) {
-              if (this.options.enableDebugLogging) {
-                console.debug(`Failed to retrieve resources for REST API ${apiId}:`, error);
-              }
-            }
-          }
+          await this.addRestApiConfiguration(configuration, apiId, config, {
+            ...(options.includeResources !== undefined && {
+              includeResources: options.includeResources,
+            }),
+          });
           break;
         }
 
         case "http":
         case "websocket": {
-          if (options.includeRoutes !== false) {
-            try {
-              configuration.routes = await this.getV2ApiRoutes(apiId, config);
-            } catch (error) {
-              if (this.options.enableDebugLogging) {
-                console.debug(`Failed to retrieve routes for ${apiType} API ${apiId}:`, error);
-              }
-            }
-          }
-
-          if (options.includeIntegrations !== false) {
-            try {
-              configuration.integrations = await this.getV2ApiIntegrations(apiId, config);
-            } catch (error) {
-              if (this.options.enableDebugLogging) {
-                console.debug(
-                  `Failed to retrieve integrations for ${apiType} API ${apiId}:`,
-                  error,
-                );
-              }
-            }
-          }
+          await this.addV2ApiConfiguration(configuration, apiId, apiType, config, {
+            ...(options.includeRoutes !== undefined && { includeRoutes: options.includeRoutes }),
+            ...(options.includeIntegrations !== undefined && {
+              includeIntegrations: options.includeIntegrations,
+            }),
+          });
           break;
         }
       }
@@ -808,6 +835,98 @@ export class ApiGwService {
         "get-api-config",
         error,
       );
+    }
+  }
+
+  /**
+   * Add stages configuration to API configuration
+   *
+   * @param configuration - Configuration object to modify
+   * @param apiId - API ID
+   * @param apiType - API type
+   * @param config - Client configuration
+   * @param options - Configuration options
+   * @internal
+   */
+  private async addConfigurationStages(
+    configuration: ApiConfiguration,
+    apiId: string,
+    apiType: ApiType,
+    config: AwsClientConfig,
+    options: { includeStages?: boolean },
+  ): Promise<void> {
+    if (options.includeStages !== false) {
+      try {
+        configuration.stages = await this.getApiStages(apiId, apiType, config);
+      } catch (error) {
+        if (this.options.enableDebugLogging) {
+          console.debug(`Failed to retrieve stages for API ${apiId}:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Add REST API specific configuration
+   *
+   * @param configuration - Configuration object to modify
+   * @param apiId - API ID
+   * @param config - Client configuration
+   * @param options - Configuration options
+   * @internal
+   */
+  private async addRestApiConfiguration(
+    configuration: ApiConfiguration,
+    apiId: string,
+    config: AwsClientConfig,
+    options: { includeResources?: boolean },
+  ): Promise<void> {
+    if (options.includeResources !== false) {
+      try {
+        configuration.resources = await this.getRestApiResources(apiId, config);
+      } catch (error) {
+        if (this.options.enableDebugLogging) {
+          console.debug(`Failed to retrieve resources for REST API ${apiId}:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Add HTTP/WebSocket API specific configuration
+   *
+   * @param configuration - Configuration object to modify
+   * @param apiId - API ID
+   * @param apiType - API type
+   * @param config - Client configuration
+   * @param options - Configuration options
+   * @internal
+   */
+  private async addV2ApiConfiguration(
+    configuration: ApiConfiguration,
+    apiId: string,
+    apiType: ApiType,
+    config: AwsClientConfig,
+    options: { includeRoutes?: boolean; includeIntegrations?: boolean },
+  ): Promise<void> {
+    if (options.includeRoutes !== false) {
+      try {
+        configuration.routes = await this.getV2ApiRoutes(apiId, config);
+      } catch (error) {
+        if (this.options.enableDebugLogging) {
+          console.debug(`Failed to retrieve routes for ${apiType} API ${apiId}:`, error);
+        }
+      }
+    }
+
+    if (options.includeIntegrations !== false) {
+      try {
+        configuration.integrations = await this.getV2ApiIntegrations(apiId, config);
+      } catch (error) {
+        if (this.options.enableDebugLogging) {
+          console.debug(`Failed to retrieve integrations for ${apiType} API ${apiId}:`, error);
+        }
+      }
     }
   }
 
@@ -874,7 +993,7 @@ export class ApiGwService {
 
       default: {
         throw new ApiConfigurationError(
-          `Unsupported API type for stage retrieval: ${apiType}`,
+          `Unsupported API type for stage retrieval: ${String(apiType)}`,
           apiId,
           "stages",
           "get-stages",
@@ -891,7 +1010,10 @@ export class ApiGwService {
    * @returns Promise resolving to resources
    * @internal
    */
-  private async getRestApiResources(apiId: string, config: AwsClientConfig = {}): Promise<any[]> {
+  private async getRestApiResources(
+    apiId: string,
+    config: AwsClientConfig = {},
+  ): Promise<Resource[]> {
     const client = await this.getRestApiClient(config);
     const { GetResourcesCommand } = await import("@aws-sdk/client-api-gateway");
 
@@ -907,7 +1029,7 @@ export class ApiGwService {
    * @returns Promise resolving to routes
    * @internal
    */
-  private async getV2ApiRoutes(apiId: string, config: AwsClientConfig = {}): Promise<any[]> {
+  private async getV2ApiRoutes(apiId: string, config: AwsClientConfig = {}): Promise<Route[]> {
     const client = await this.getV2ApiClient(config);
     const { GetRoutesCommand } = await import("@aws-sdk/client-apigatewayv2");
 
@@ -923,7 +1045,10 @@ export class ApiGwService {
    * @returns Promise resolving to integrations
    * @internal
    */
-  private async getV2ApiIntegrations(apiId: string, config: AwsClientConfig = {}): Promise<any[]> {
+  private async getV2ApiIntegrations(
+    apiId: string,
+    config: AwsClientConfig = {},
+  ): Promise<V2Integration[]> {
     const client = await this.getV2ApiClient(config);
     const { GetIntegrationsCommand } = await import("@aws-sdk/client-apigatewayv2");
 

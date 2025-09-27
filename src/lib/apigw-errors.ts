@@ -296,40 +296,19 @@ export function getApiGatewayErrorGuidance(error: unknown): string {
   if (isApiGatewayError(error)) {
     switch (error.code) {
       case "API_ERROR": {
-        if (error.metadata.operation === "describe-api") {
-          return "Verify the API ID is correct and the API exists in the specified region. Use 'aws-ts apigw list-apis' to see available APIs.";
-        }
-        if (error.message.includes("NotFoundException")) {
-          return "The specified API was not found. Check the API ID and ensure it exists in the correct region.";
-        }
-        return "Check API ID, permissions, and ensure the API exists in the correct region with proper access rights.";
+        return getApiErrorGuidance(error);
       }
 
       case "API_DISCOVERY_ERROR": {
-        if (error.metadata.cause && String(error.metadata.cause).includes("AccessDenied")) {
-          return "Insufficient permissions to list APIs. Ensure your AWS credentials have the necessary API Gateway permissions (apigateway:GET).";
-        }
-        return "Check your AWS credentials and API Gateway permissions. Verify you have access to list APIs in the specified region.";
+        return getApiDiscoveryErrorGuidance(error);
       }
 
       case "API_CONFIGURATION_ERROR": {
-        if (error.metadata.configType === "stages") {
-          return "Failed to retrieve stage configuration. Verify the API has deployed stages and you have permissions to access stage details.";
-        }
-        if (error.metadata.configType === "resources") {
-          return "Failed to retrieve resource configuration. This operation is only available for REST APIs. For HTTP/WebSocket APIs, use route configuration instead.";
-        }
-        if (error.metadata.configType === "routes") {
-          return "Failed to retrieve route configuration. This operation is only available for HTTP and WebSocket APIs.";
-        }
-        return "Check API type compatibility and ensure you have permissions to access the requested configuration details.";
+        return getApiConfigurationErrorGuidance(error);
       }
 
       case "API_TYPE_DETECTION_ERROR": {
-        if (error.metadata.suggestedType) {
-          return `Unable to automatically detect API type. Try specifying --type ${error.metadata.suggestedType} explicitly, or use 'aws-ts apigw list-apis' to see API types.`;
-        }
-        return "Unable to detect API type from metadata. Specify the API type explicitly using the --type flag (rest, http, or websocket).";
+        return getApiTypeDetectionErrorGuidance(error);
       }
 
       case "CLIENT_SELECTION_ERROR": {
@@ -337,10 +316,7 @@ export function getApiGatewayErrorGuidance(error: unknown): string {
       }
 
       case "PAGINATION_ERROR": {
-        if (error.metadata.positionToken) {
-          return "Invalid pagination token. Start over without the position token or use a more recent token from a previous request.";
-        }
-        return "Pagination failed. Try reducing the page size using --max-items or restart the operation without pagination tokens.";
+        return getPaginationErrorGuidance(error);
       }
 
       default: {
@@ -350,6 +326,89 @@ export function getApiGatewayErrorGuidance(error: unknown): string {
   }
 
   return "Unknown API Gateway error. Check AWS credentials and API Gateway configuration.";
+}
+
+/**
+ * Get guidance for API errors
+ *
+ * @param error - API Gateway error
+ * @returns Error guidance
+ * @internal
+ */
+function getApiErrorGuidance(error: ApiGatewayError): string {
+  if (error.metadata.operation === "describe-api") {
+    return "Verify the API ID is correct and the API exists in the specified region. Use 'aws-ts apigw list-apis' to see available APIs.";
+  }
+  if (error.message.includes("NotFoundException")) {
+    return "The specified API was not found. Check the API ID and ensure it exists in the correct region.";
+  }
+  return "Check API ID, permissions, and ensure the API exists in the correct region with proper access rights.";
+}
+
+/**
+ * Get guidance for API discovery errors
+ *
+ * @param error - API Gateway error
+ * @returns Error guidance
+ * @internal
+ */
+function getApiDiscoveryErrorGuidance(error: ApiGatewayError): string {
+  if (
+    error.metadata.cause &&
+    typeof error.metadata.cause === "string" &&
+    error.metadata.cause.includes("AccessDenied")
+  ) {
+    return "Insufficient permissions to list APIs. Ensure your AWS credentials have the necessary API Gateway permissions (apigateway:GET).";
+  }
+  return "Check your AWS credentials and API Gateway permissions. Verify you have access to list APIs in the specified region.";
+}
+
+/**
+ * Get guidance for API configuration errors
+ *
+ * @param error - API Gateway error
+ * @returns Error guidance
+ * @internal
+ */
+function getApiConfigurationErrorGuidance(error: ApiGatewayError): string {
+  if (error.metadata.configType === "stages") {
+    return "Failed to retrieve stage configuration. Verify the API has deployed stages and you have permissions to access stage details.";
+  }
+  if (error.metadata.configType === "resources") {
+    return "Failed to retrieve resource configuration. This operation is only available for REST APIs. For HTTP/WebSocket APIs, use route configuration instead.";
+  }
+  if (error.metadata.configType === "routes") {
+    return "Failed to retrieve route configuration. This operation is only available for HTTP and WebSocket APIs.";
+  }
+  return "Check API type compatibility and ensure you have permissions to access the requested configuration details.";
+}
+
+/**
+ * Get guidance for API type detection errors
+ *
+ * @param error - API Gateway error
+ * @returns Error guidance
+ * @internal
+ */
+function getApiTypeDetectionErrorGuidance(error: ApiGatewayError): string {
+  if (error.metadata.suggestedType && typeof error.metadata.suggestedType === "string") {
+    return `Unable to automatically detect API type. Try specifying --type ${error.metadata.suggestedType} explicitly, or use 'aws-ts apigw list-apis' to see API types.`;
+  }
+  return "Unable to detect API type from metadata. Specify the API type explicitly using the --type flag (rest, http, or websocket).";
+}
+
+/**
+ * Get guidance for pagination errors
+ *
+ * @param error - API Gateway error
+ * @returns Error guidance
+ * @internal
+ */
+function getPaginationErrorGuidance(error: ApiGatewayError): string {
+  if (error.metadata.positionToken) {
+    return "Invalid pagination token. Start over without the position token or use a more recent token from a previous request.";
+  }
+  return "Pagination failed. Try reducing the page size using --max-items or restart the operation without pagination tokens.";
 }
 
 /**
@@ -363,7 +422,26 @@ export function getApiGatewayErrorGuidance(error: unknown): string {
  * @public
  */
 export function handleApiGwCommandError(error: unknown, verbose = false, context?: string): string {
-  // Handle AWS SDK errors specifically
+  // Try specific error handlers first
+  const awsSdkResult = handleAwsSdkError(error, context);
+  if (awsSdkResult) return awsSdkResult;
+
+  const commonErrorResult = handleCommonErrors(error, context);
+  if (commonErrorResult) return commonErrorResult;
+
+  // Handle all other errors with guidance
+  return formatErrorWithGuidance(error, verbose);
+}
+
+/**
+ * Handle AWS SDK specific errors
+ *
+ * @param error - Error to handle
+ * @param context - Optional context
+ * @returns Formatted error message or undefined if not handled
+ * @internal
+ */
+function handleAwsSdkError(error: unknown, context?: string): string | undefined {
   if (error && typeof error === "object" && "name" in error) {
     switch ((error as { name: string }).name) {
       case "NotFoundException": {
@@ -385,7 +463,18 @@ export function handleApiGwCommandError(error: unknown, verbose = false, context
       }
     }
   }
+  return undefined;
+}
 
+/**
+ * Handle common error types
+ *
+ * @param error - Error to handle
+ * @param context - Optional context
+ * @returns Formatted error message or undefined if not handled
+ * @internal
+ */
+function handleCommonErrors(error: unknown, context?: string): string | undefined {
   // Handle JSON parsing errors
   if (error instanceof SyntaxError && error.message.includes("JSON")) {
     return `Invalid JSON in parameter: ${error.message}`;
@@ -402,7 +491,18 @@ export function handleApiGwCommandError(error: unknown, verbose = false, context
     return `Command validation failed: ${error.message}`;
   }
 
-  // Handle all other errors with guidance
+  return undefined;
+}
+
+/**
+ * Format error with guidance
+ *
+ * @param error - Error to format
+ * @param verbose - Whether to include verbose details
+ * @returns Formatted error message
+ * @internal
+ */
+function formatErrorWithGuidance(error: unknown, verbose: boolean): string {
   const guidance = getApiGatewayErrorGuidance(error);
   const errorMessage = error instanceof Error ? error.message : String(error);
 
