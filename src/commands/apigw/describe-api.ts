@@ -11,7 +11,13 @@ import { handleApiGwCommandError } from "../../lib/apigw-errors.js";
 import type { ApiGwDescribeApi } from "../../lib/apigw-schemas.js";
 import { ApiGwDescribeApiSchema, validateApiId } from "../../lib/apigw-schemas.js";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
-import { ApiGwService } from "../../services/apigw-service.js";
+import {
+  ApiGwService,
+  type ApiDescription,
+  type HttpApiDescription,
+  type RestApiDescription,
+  type WebSocketApiDescription,
+} from "../../services/apigw-service.js";
 
 /**
  * API Gateway describe API command for detailed API information
@@ -162,7 +168,11 @@ export default class ApigwDescribeApiCommand extends Command {
    * @throws Error When unsupported output format is specified
    * @internal
    */
-  private formatAndDisplayOutput(api: any, format: string, includeMetadata: boolean): void {
+  private formatAndDisplayOutput(
+    api: ApiDescription,
+    format: string,
+    includeMetadata: boolean,
+  ): void {
     const apiType = this.detectApiTypeFromDescription(api);
 
     switch (format) {
@@ -172,12 +182,12 @@ export default class ApigwDescribeApiCommand extends Command {
       }
 
       case "json": {
-        this.log(JSON.stringify(api, this.jsonReplacer, 2));
+        this.log(JSON.stringify(api, this.jsonReplacer.bind(this), 2));
         break;
       }
 
       case "jsonl": {
-        this.log(JSON.stringify(api, this.jsonReplacer));
+        this.log(JSON.stringify(api, this.jsonReplacer.bind(this)));
         break;
       }
 
@@ -200,7 +210,7 @@ export default class ApigwDescribeApiCommand extends Command {
    * @param includeMetadata - Whether to include additional metadata
    * @internal
    */
-  private displayTableFormat(api: any, apiType: string, includeMetadata: boolean): void {
+  private displayTableFormat(api: ApiDescription, apiType: string, includeMetadata: boolean): void {
     this.log(`\nAPI Gateway ${apiType.toUpperCase()} API Details:\n`);
 
     // Basic information
@@ -216,15 +226,19 @@ export default class ApigwDescribeApiCommand extends Command {
       }
 
       // Endpoint configuration (REST APIs)
-      if (apiType === "rest" && api.endpointConfiguration) {
+      const restApiEndpointConfig =
+        apiType === "rest" ? (api as RestApiDescription).endpointConfiguration : undefined;
+      if (restApiEndpointConfig) {
         this.log(""); // Empty line
-        this.displayEndpointConfiguration(api.endpointConfiguration);
+        this.displayEndpointConfiguration(restApiEndpointConfig);
       }
 
       // CORS configuration (HTTP APIs)
-      if (apiType === "http" && api.corsConfiguration) {
+      const httpApiCorsConfig =
+        apiType === "http" ? (api as HttpApiDescription).corsConfiguration : undefined;
+      if (httpApiCorsConfig) {
         this.log(""); // Empty line
-        this.displayCorsConfiguration(api.corsConfiguration);
+        this.displayCorsConfiguration(httpApiCorsConfig);
       }
     }
   }
@@ -236,7 +250,7 @@ export default class ApigwDescribeApiCommand extends Command {
    * @param apiType - Detected API type
    * @internal
    */
-  private displayCsvFormat(api: any, apiType: string): void {
+  private displayCsvFormat(api: ApiDescription, apiType: string): void {
     const basicInfo = this.extractBasicInfo(api, apiType);
 
     const csvData = [
@@ -260,9 +274,15 @@ export default class ApigwDescribeApiCommand extends Command {
    * @returns Basic information object
    * @internal
    */
-  private extractBasicInfo(api: any, apiType: string): Record<string, string> {
+  private extractBasicInfo(api: ApiDescription, apiType: string): Record<string, string> {
+    // Use type-safe API ID extraction
+    const apiId =
+      apiType === "rest"
+        ? (api as RestApiDescription).id
+        : (api as HttpApiDescription | WebSocketApiDescription).apiId;
+
     const info: Record<string, string> = {
-      "API ID": api.id || api.apiId || "-",
+      "API ID": apiId || "-",
       Name: api.name || "-",
       Type: apiType.toUpperCase(),
       Description: api.description || "-",
@@ -272,18 +292,20 @@ export default class ApigwDescribeApiCommand extends Command {
 
     // Add type-specific fields
     if (apiType === "rest") {
-      if (api.endpointConfiguration?.types?.length > 0) {
-        info["Endpoint Type"] = api.endpointConfiguration.types.join(", ");
+      const restApi = api as RestApiDescription;
+      if ((restApi.endpointConfiguration?.types?.length ?? 0) > 0) {
+        info["Endpoint Type"] = restApi.endpointConfiguration!.types!.join(", ");
       }
-      if (api.apiKeySource) {
-        info["API Key Source"] = api.apiKeySource;
+      if (restApi.apiKeySource) {
+        info["API Key Source"] = restApi.apiKeySource;
       }
     } else {
-      if (api.protocolType) {
-        info["Protocol"] = api.protocolType;
+      const v2Api = api as HttpApiDescription | WebSocketApiDescription;
+      if (v2Api.protocolType) {
+        info["Protocol"] = v2Api.protocolType;
       }
-      if (api.apiEndpoint) {
-        info["Endpoint"] = api.apiEndpoint;
+      if (v2Api.apiEndpoint) {
+        info["Endpoint"] = v2Api.apiEndpoint;
       }
     }
 
@@ -298,34 +320,88 @@ export default class ApigwDescribeApiCommand extends Command {
    * @returns Configuration information object
    * @internal
    */
-  private extractConfigurationInfo(api: any, apiType: string): Record<string, string> {
+  private extractConfigurationInfo(api: ApiDescription, apiType: string): Record<string, string> {
+    switch (apiType) {
+      case "rest": {
+        return this.extractRestApiConfiguration(api as RestApiDescription);
+      }
+      case "http": {
+        return this.extractHttpApiConfiguration(api as HttpApiDescription);
+      }
+      case "websocket": {
+        return this.extractWebSocketApiConfiguration(api as WebSocketApiDescription);
+      }
+      default: {
+        return {};
+      }
+    }
+  }
+
+  /**
+   * Extract REST API specific configuration
+   *
+   * @param restApi - REST API description
+   * @returns Configuration information object
+   * @internal
+   */
+  private extractRestApiConfiguration(restApi: RestApiDescription): Record<string, string> {
     const config: Record<string, string> = {};
 
-    if (apiType === "rest") {
-      if (api.minimumCompressionSize !== undefined) {
-        config["Minimum Compression Size"] = String(api.minimumCompressionSize);
-      }
-      if (api.binaryMediaTypes?.length > 0) {
-        config["Binary Media Types"] = api.binaryMediaTypes.join(", ");
-      }
-      if (api.warnings?.length > 0) {
-        config["Warnings"] = api.warnings.join("; ");
-      }
-    } else {
-      if (api.apiGatewayManaged !== undefined) {
-        config["API Gateway Managed"] = String(api.apiGatewayManaged);
-      }
-      if (api.routeSelectionExpression) {
-        config["Route Selection"] = api.routeSelectionExpression;
-      }
-      if (apiType === "websocket") {
-        if (api.apiKeySelectionExpression) {
-          config["API Key Selection"] = api.apiKeySelectionExpression;
-        }
-        if (api.disableSchemaValidation !== undefined) {
-          config["Schema Validation"] = api.disableSchemaValidation ? "Disabled" : "Enabled";
-        }
-      }
+    if (restApi.minimumCompressionSize !== undefined) {
+      config["Minimum Compression Size"] = String(restApi.minimumCompressionSize);
+    }
+    if ((restApi.binaryMediaTypes?.length ?? 0) > 0) {
+      config["Binary Media Types"] = restApi.binaryMediaTypes!.join(", ");
+    }
+    if ((restApi.warnings?.length ?? 0) > 0) {
+      config["Warnings"] = restApi.warnings!.join("; ");
+    }
+
+    return config;
+  }
+
+  /**
+   * Extract HTTP API specific configuration
+   *
+   * @param httpApi - HTTP API description
+   * @returns Configuration information object
+   * @internal
+   */
+  private extractHttpApiConfiguration(httpApi: HttpApiDescription): Record<string, string> {
+    const config: Record<string, string> = {};
+
+    if (httpApi.apiGatewayManaged !== undefined) {
+      config["API Gateway Managed"] = String(httpApi.apiGatewayManaged);
+    }
+    if (httpApi.routeSelectionExpression) {
+      config["Route Selection"] = httpApi.routeSelectionExpression;
+    }
+
+    return config;
+  }
+
+  /**
+   * Extract WebSocket API specific configuration
+   *
+   * @param wsApi - WebSocket API description
+   * @returns Configuration information object
+   * @internal
+   */
+  private extractWebSocketApiConfiguration(wsApi: WebSocketApiDescription): Record<string, string> {
+    const config: Record<string, string> = {};
+
+    // Note: apiGatewayManaged property doesn't exist on WebSocketApiDescription
+    // if (wsApi.apiGatewayManaged !== undefined) {
+    //   config["API Gateway Managed"] = String(wsApi.apiGatewayManaged);
+    // }
+    if (wsApi.routeSelectionExpression) {
+      config["Route Selection"] = wsApi.routeSelectionExpression;
+    }
+    if (wsApi.apiKeySelectionExpression) {
+      config["API Key Selection"] = wsApi.apiKeySelectionExpression;
+    }
+    if (wsApi.disableSchemaValidation !== undefined) {
+      config["Schema Validation"] = wsApi.disableSchemaValidation ? "Disabled" : "Enabled";
     }
 
     return config;
@@ -353,13 +429,15 @@ export default class ApigwDescribeApiCommand extends Command {
    * @param endpointConfig - Endpoint configuration
    * @internal
    */
-  private displayEndpointConfiguration(endpointConfig: any): void {
+  private displayEndpointConfiguration(
+    endpointConfig: NonNullable<RestApiDescription["endpointConfiguration"]>,
+  ): void {
     this.log("Endpoint Configuration:");
-    if (endpointConfig.types?.length > 0) {
-      this.log(`  Types: ${endpointConfig.types.join(", ")}`);
+    if ((endpointConfig.types?.length ?? 0) > 0) {
+      this.log(`  Types: ${endpointConfig.types!.join(", ")}`);
     }
-    if (endpointConfig.vpcEndpointIds?.length > 0) {
-      this.log(`  VPC Endpoints: ${endpointConfig.vpcEndpointIds.join(", ")}`);
+    if ((endpointConfig.vpcEndpointIds?.length ?? 0) > 0) {
+      this.log(`  VPC Endpoints: ${endpointConfig.vpcEndpointIds!.join(", ")}`);
     }
   }
 
@@ -369,19 +447,21 @@ export default class ApigwDescribeApiCommand extends Command {
    * @param corsConfig - CORS configuration
    * @internal
    */
-  private displayCorsConfiguration(corsConfig: any): void {
+  private displayCorsConfiguration(
+    corsConfig: NonNullable<HttpApiDescription["corsConfiguration"]>,
+  ): void {
     this.log("CORS Configuration:");
     if (corsConfig.allowCredentials !== undefined) {
       this.log(`  Allow Credentials: ${corsConfig.allowCredentials}`);
     }
-    if (corsConfig.allowMethods?.length > 0) {
-      this.log(`  Allow Methods: ${corsConfig.allowMethods.join(", ")}`);
+    if ((corsConfig.allowMethods?.length ?? 0) > 0) {
+      this.log(`  Allow Methods: ${corsConfig.allowMethods!.join(", ")}`);
     }
-    if (corsConfig.allowOrigins?.length > 0) {
-      this.log(`  Allow Origins: ${corsConfig.allowOrigins.join(", ")}`);
+    if ((corsConfig.allowOrigins?.length ?? 0) > 0) {
+      this.log(`  Allow Origins: ${corsConfig.allowOrigins!.join(", ")}`);
     }
-    if (corsConfig.allowHeaders?.length > 0) {
-      this.log(`  Allow Headers: ${corsConfig.allowHeaders.join(", ")}`);
+    if ((corsConfig.allowHeaders?.length ?? 0) > 0) {
+      this.log(`  Allow Headers: ${corsConfig.allowHeaders!.join(", ")}`);
     }
     if (corsConfig.maxAge !== undefined) {
       this.log(`  Max Age: ${corsConfig.maxAge} seconds`);
@@ -395,10 +475,10 @@ export default class ApigwDescribeApiCommand extends Command {
    * @returns Detected API type
    * @internal
    */
-  private detectApiTypeFromDescription(api: any): string {
-    if (api.protocolType === "HTTP") return "http";
-    if (api.protocolType === "WEBSOCKET") return "websocket";
-    if (api.id && !api.protocolType) return "rest";
+  private detectApiTypeFromDescription(api: ApiDescription): string {
+    if ("protocolType" in api && api.protocolType === "HTTP") return "http";
+    if ("protocolType" in api && api.protocolType === "WEBSOCKET") return "websocket";
+    if ("id" in api && !("protocolType" in api)) return "rest";
     return "unknown";
   }
 
@@ -410,7 +490,7 @@ export default class ApigwDescribeApiCommand extends Command {
    * @returns Processed value
    * @internal
    */
-  private jsonReplacer(key: string, value: any): any {
+  private jsonReplacer(key: string, value: unknown): unknown {
     if (value instanceof Date) {
       return value.toISOString();
     }

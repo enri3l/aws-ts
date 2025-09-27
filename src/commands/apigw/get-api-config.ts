@@ -6,12 +6,29 @@
  *
  */
 
+import type { Integration as RestIntegration } from "@aws-sdk/client-api-gateway";
+import type { Route, Integration as V2Integration } from "@aws-sdk/client-apigatewayv2";
 import { Args, Command, Flags } from "@oclif/core";
 import { handleApiGwCommandError } from "../../lib/apigw-errors.js";
 import type { ApiGwGetApiConfig } from "../../lib/apigw-schemas.js";
 import { ApiGwGetApiConfigSchema, validateApiId } from "../../lib/apigw-schemas.js";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
-import { ApiGwService } from "../../services/apigw-service.js";
+import {
+  ApiGwService,
+  type ApiConfiguration,
+  type HttpApiDescription,
+  type RestApiDescription,
+  type WebSocketApiDescription,
+} from "../../services/apigw-service.js";
+
+/**
+ * Configuration summary info structure
+ * @internal
+ */
+interface SummaryInfo {
+  count: number;
+  details: string;
+}
 
 /**
  * API Gateway get API configuration command for comprehensive configuration export
@@ -211,7 +228,7 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @throws Error When unsupported output format is specified
    * @internal
    */
-  private formatAndDisplayOutput(config: any, format: string): void {
+  private formatAndDisplayOutput(config: ApiConfiguration, format: string): void {
     const apiType = this.detectApiTypeFromConfiguration(config);
 
     switch (format) {
@@ -221,12 +238,12 @@ export default class ApigwGetApiConfigCommand extends Command {
       }
 
       case "json": {
-        this.log(JSON.stringify(config, this.jsonReplacer, 2));
+        this.log(JSON.stringify(config, this.jsonReplacer.bind(this), 2));
         break;
       }
 
       case "jsonl": {
-        this.log(JSON.stringify(config, this.jsonReplacer));
+        this.log(JSON.stringify(config, this.jsonReplacer.bind(this)));
         break;
       }
 
@@ -248,9 +265,8 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param apiType - Detected API type
    * @internal
    */
-  private displayTableFormat(config: any, apiType: string): void {
+  private displayTableFormat(config: ApiConfiguration, apiType: string): void {
     const api = config.api;
-    const apiId = api.id || api.apiId;
 
     this.log(`\nAPI Gateway ${apiType.toUpperCase()} API Configuration:\n`);
 
@@ -258,27 +274,27 @@ export default class ApigwGetApiConfigCommand extends Command {
     this.displayApiOverview(api, apiType);
 
     // Stages
-    if (config.stages?.length > 0) {
+    if ((config.stages?.length ?? 0) > 0) {
       this.log("\n"); // Empty line
-      this.displayStages(config.stages);
+      this.displayStages(config.stages!);
     }
 
     // Resources (REST APIs)
-    if (config.resources?.length > 0) {
+    if ((config.resources?.length ?? 0) > 0) {
       this.log("\n"); // Empty line
-      this.displayResources(config.resources);
+      this.displayResources(config.resources!);
     }
 
     // Routes (HTTP/WebSocket APIs)
-    if (config.routes?.length > 0) {
+    if ((config.routes?.length ?? 0) > 0) {
       this.log("\n"); // Empty line
-      this.displayRoutes(config.routes);
+      this.displayRoutes(config.routes!);
     }
 
     // Integrations
-    if (config.integrations?.length > 0) {
+    if ((config.integrations?.length ?? 0) > 0) {
       this.log("\n"); // Empty line
-      this.displayIntegrations(config.integrations);
+      this.displayIntegrations(config.integrations!);
     }
 
     // Summary
@@ -293,13 +309,12 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param apiType - Detected API type
    * @internal
    */
-  private displayCsvFormat(config: any, apiType: string): void {
-    const api = config.api;
+  private displayCsvFormat(config: ApiConfiguration, apiType: string): void {
     const summary = this.buildConfigurationSummary(config, apiType);
 
     const csvData = [
       { Component: "Component", Count: "Count", Details: "Details" }, // Header row
-      ...Object.entries(summary).map(([component, info]: [string, any]) => ({
+      ...Object.entries(summary).map(([component, info]: [string, SummaryInfo]) => ({
         Component: component,
         Count: String(info.count || 0),
         Details: info.details || "-",
@@ -318,9 +333,13 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param apiType - API type
    * @internal
    */
-  private displayApiOverview(api: any, apiType: string): void {
+  private displayApiOverview(api: ApiConfiguration["api"], apiType: string): void {
     this.log("API Overview:");
-    const apiId = api.id || api.apiId;
+    // Use type-safe API ID extraction
+    const apiId =
+      apiType === "rest"
+        ? (api as RestApiDescription).id
+        : (api as HttpApiDescription | WebSocketApiDescription).apiId;
     this.log(`  ID: ${apiId}`);
     this.log(`  Name: ${api.name || "-"}`);
     this.log(`  Type: ${apiType.toUpperCase()}`);
@@ -328,15 +347,17 @@ export default class ApigwGetApiConfigCommand extends Command {
     this.log(`  Created: ${api.createdDate ? new Date(api.createdDate).toISOString() : "-"}`);
 
     if (apiType === "rest") {
-      if (api.endpointConfiguration?.types?.length > 0) {
-        this.log(`  Endpoint Type: ${api.endpointConfiguration.types.join(", ")}`);
+      const restApi = api as RestApiDescription;
+      if ((restApi.endpointConfiguration?.types?.length ?? 0) > 0) {
+        this.log(`  Endpoint Type: ${restApi.endpointConfiguration!.types!.join(", ")}`);
       }
     } else {
-      if (api.apiEndpoint) {
-        this.log(`  Endpoint: ${api.apiEndpoint}`);
+      const v2Api = api as HttpApiDescription | WebSocketApiDescription;
+      if (v2Api.apiEndpoint) {
+        this.log(`  Endpoint: ${v2Api.apiEndpoint}`);
       }
-      if (api.protocolType) {
-        this.log(`  Protocol: ${api.protocolType}`);
+      if (v2Api.protocolType) {
+        this.log(`  Protocol: ${v2Api.protocolType}`);
       }
     }
   }
@@ -347,7 +368,7 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param stages - Stage configurations
    * @internal
    */
-  private displayStages(stages: any[]): void {
+  private displayStages(stages: NonNullable<ApiConfiguration["stages"]>): void {
     this.log(`Stages (${stages.length}):`);
 
     if (stages.length === 0) {
@@ -377,7 +398,7 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param resources - Resource configurations
    * @internal
    */
-  private displayResources(resources: any[]): void {
+  private displayResources(resources: NonNullable<ApiConfiguration["resources"]>): void {
     this.log(`Resources (${resources.length}):`);
 
     if (resources.length === 0) {
@@ -403,7 +424,7 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param routes - Route configurations
    * @internal
    */
-  private displayRoutes(routes: any[]): void {
+  private displayRoutes(routes: NonNullable<ApiConfiguration["routes"]>): void {
     this.log(`Routes (${routes.length}):`);
 
     if (routes.length === 0) {
@@ -412,12 +433,12 @@ export default class ApigwGetApiConfigCommand extends Command {
     }
 
     for (const [index, route] of routes.entries()) {
-      this.log(`  ${index + 1}. ${route.routeKey || route.RouteKey || "-"}`);
-      if (route.target || route.Target) {
-        this.log(`     Target: ${route.target || route.Target}`);
+      this.log(`  ${index + 1}. ${route.RouteKey || "-"}`);
+      if (route.Target) {
+        this.log(`     Target: ${route.Target}`);
       }
-      if (route.routeId || route.RouteId) {
-        this.log(`     ID: ${route.routeId || route.RouteId}`);
+      if (route.RouteId) {
+        this.log(`     ID: ${route.RouteId}`);
       }
     }
   }
@@ -428,7 +449,7 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param integrations - Integration configurations
    * @internal
    */
-  private displayIntegrations(integrations: any[]): void {
+  private displayIntegrations(integrations: NonNullable<ApiConfiguration["integrations"]>): void {
     this.log(`Integrations (${integrations.length}):`);
 
     if (integrations.length === 0) {
@@ -437,14 +458,24 @@ export default class ApigwGetApiConfigCommand extends Command {
     }
 
     for (const [index, integration] of integrations.entries()) {
-      this.log(
-        `  ${index + 1}. ${integration.integrationType || integration.IntegrationType || "Unknown"}`,
-      );
-      if (integration.integrationUri || integration.IntegrationUri) {
-        this.log(`     URI: ${integration.integrationUri || integration.IntegrationUri}`);
+      // Determine integration type - REST APIs use "type", V2 APIs use "IntegrationType"
+      const integrationType =
+        (integration as RestIntegration).type ?? (integration as V2Integration).IntegrationType;
+      this.log(`  ${index + 1}. ${integrationType || "Unknown"}`);
+
+      // Determine integration URI - REST APIs use "uri", V2 APIs use "IntegrationUri"
+      const integrationUri =
+        (integration as RestIntegration).uri ?? (integration as V2Integration).IntegrationUri;
+      if (integrationUri) {
+        this.log(`     URI: ${integrationUri}`);
       }
-      if (integration.integrationMethod || integration.IntegrationMethod) {
-        this.log(`     Method: ${integration.integrationMethod || integration.IntegrationMethod}`);
+
+      // Determine integration method - REST APIs use "httpMethod", V2 APIs use "IntegrationMethod"
+      const integrationMethod =
+        (integration as RestIntegration).httpMethod ??
+        (integration as V2Integration).IntegrationMethod;
+      if (integrationMethod) {
+        this.log(`     Method: ${integrationMethod}`);
       }
     }
   }
@@ -456,7 +487,7 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @param apiType - API type
    * @internal
    */
-  private displayConfigurationSummary(config: any, apiType: string): void {
+  private displayConfigurationSummary(config: ApiConfiguration, apiType: string): void {
     const summary = this.buildConfigurationSummary(config, apiType);
 
     this.log("Configuration Summary:");
@@ -473,11 +504,14 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @returns Summary object
    * @internal
    */
-  private buildConfigurationSummary(config: any, apiType: string): Record<string, any> {
-    const summary: Record<string, any> = {
+  private buildConfigurationSummary(
+    config: ApiConfiguration,
+    apiType: string,
+  ): Record<string, SummaryInfo> {
+    const summary: Record<string, SummaryInfo> = {
       Stages: {
         count: config.stages?.length || 0,
-        details: config.stages?.map((s: any) => s.stageName).join(", ") || "-",
+        details: config.stages?.map((s) => s.stageName).join(", ") || "-",
       },
     };
 
@@ -486,7 +520,7 @@ export default class ApigwGetApiConfigCommand extends Command {
         count: config.resources?.length || 0,
         details:
           config.resources
-            ?.map((r: any) => r.path || r.pathPart || "/")
+            ?.map((r) => r.path || r.pathPart || "/")
             .slice(0, 3)
             .join(", ") || "-",
       };
@@ -495,7 +529,8 @@ export default class ApigwGetApiConfigCommand extends Command {
         count: config.routes?.length || 0,
         details:
           config.routes
-            ?.map((r: any) => r.routeKey || r.RouteKey)
+            ?.map((r: Route) => r.RouteKey)
+            .filter((key): key is string => key != undefined)
             .slice(0, 3)
             .join(", ") || "-",
       };
@@ -505,7 +540,12 @@ export default class ApigwGetApiConfigCommand extends Command {
       count: config.integrations?.length || 0,
       details:
         config.integrations
-          ?.map((index: any) => index.integrationType || index.IntegrationType)
+          ?.map(
+            (integration: RestIntegration | V2Integration) =>
+              (integration as RestIntegration).type ??
+              (integration as V2Integration).IntegrationType,
+          )
+          .filter((type) => type !== undefined)
           .slice(0, 3)
           .join(", ") || "-",
     };
@@ -520,11 +560,11 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @returns Detected API type
    * @internal
    */
-  private detectApiTypeFromConfiguration(config: any): string {
+  private detectApiTypeFromConfiguration(config: ApiConfiguration): string {
     const api = config.api;
-    if (api.protocolType === "HTTP") return "http";
-    if (api.protocolType === "WEBSOCKET") return "websocket";
-    if (api.id && !api.protocolType) return "rest";
+    if ("protocolType" in api && api.protocolType === "HTTP") return "http";
+    if ("protocolType" in api && api.protocolType === "WEBSOCKET") return "websocket";
+    if ("id" in api && !("protocolType" in api)) return "rest";
     return "unknown";
   }
 
@@ -536,7 +576,7 @@ export default class ApigwGetApiConfigCommand extends Command {
    * @returns Processed value
    * @internal
    */
-  private jsonReplacer(key: string, value: any): any {
+  private jsonReplacer(key: string, value: unknown): unknown {
     if (value instanceof Date) {
       return value.toISOString();
     }
