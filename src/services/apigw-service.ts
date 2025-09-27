@@ -82,10 +82,12 @@ export interface RestApiDescription {
   binaryMediaTypes?: string[] | undefined;
   minimumCompressionSize?: number | undefined;
   apiKeySource?: string | undefined;
-  endpointConfiguration?: {
-    types?: string[] | undefined;
-    vpcEndpointIds?: string[] | undefined;
-  } | undefined;
+  endpointConfiguration?:
+    | {
+        types?: string[] | undefined;
+        vpcEndpointIds?: string[] | undefined;
+      }
+    | undefined;
   policy?: string | undefined;
   tags?: Record<string, string> | undefined;
 }
@@ -104,14 +106,16 @@ export interface HttpApiDescription {
   apiEndpoint?: string | undefined;
   apiGatewayManaged?: boolean | undefined;
   version?: string | undefined;
-  corsConfiguration?: {
-    allowCredentials?: boolean | undefined;
-    allowHeaders?: string[] | undefined;
-    allowMethods?: string[] | undefined;
-    allowOrigins?: string[] | undefined;
-    exposeHeaders?: string[] | undefined;
-    maxAge?: number | undefined;
-  } | undefined;
+  corsConfiguration?:
+    | {
+        allowCredentials?: boolean | undefined;
+        allowHeaders?: string[] | undefined;
+        allowMethods?: string[] | undefined;
+        allowOrigins?: string[] | undefined;
+        exposeHeaders?: string[] | undefined;
+        maxAge?: number | undefined;
+      }
+    | undefined;
   routeSelectionExpression?: string | undefined;
   importInfo?: string[] | undefined;
   warnings?: string[] | undefined;
@@ -150,27 +154,35 @@ export interface StageConfiguration {
   description?: string | undefined;
   deploymentId?: string | undefined;
   variables?: Record<string, string> | undefined;
-  throttleSettings?: {
-    rateLimit?: number | undefined;
-    burstLimit?: number | undefined;
-  } | undefined;
+  throttleSettings?:
+    | {
+        rateLimit?: number | undefined;
+        burstLimit?: number | undefined;
+      }
+    | undefined;
   cachingEnabled?: boolean | undefined;
   cacheClusterEnabled?: boolean | undefined;
   cacheClusterSize?: string | undefined;
   cacheKeyParameters?: string[] | undefined;
-  canarySettings?: {
-    percentTraffic?: number | undefined;
-    deploymentId?: string | undefined;
-    useStageCache?: boolean | undefined;
-  } | undefined;
-  accessLogSettings?: {
-    destinationArn?: string | undefined;
-    format?: string | undefined;
-  } | undefined;
+  canarySettings?:
+    | {
+        percentTraffic?: number | undefined;
+        deploymentId?: string | undefined;
+        useStageCache?: boolean | undefined;
+      }
+    | undefined;
+  accessLogSettings?:
+    | {
+        destinationArn?: string | undefined;
+        format?: string | undefined;
+      }
+    | undefined;
   clientCertificateId?: string | undefined;
-  tracingConfig?: {
-    tracingEnabled?: boolean | undefined;
-  } | undefined;
+  tracingConfig?:
+    | {
+        tracingEnabled?: boolean | undefined;
+      }
+    | undefined;
   webAclArn?: string | undefined;
   lastUpdatedDate?: Date | undefined;
   createdDate?: Date | undefined;
