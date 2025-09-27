@@ -1,0 +1,545 @@
+/**
+ * API Gateway get API configuration command
+ *
+ * Retrieves comprehensive configuration details for a specific API Gateway API
+ * including stages, resources/routes, integrations, and authorizers.
+ *
+ */
+
+import { Args, Command, Flags } from "@oclif/core";
+import { handleApiGwCommandError } from "../../lib/apigw-errors.js";
+import type { ApiGwGetApiConfig } from "../../lib/apigw-schemas.js";
+import { ApiGwGetApiConfigSchema, validateApiId } from "../../lib/apigw-schemas.js";
+import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
+import { ApiGwService } from "../../services/apigw-service.js";
+
+/**
+ * API Gateway get API configuration command for comprehensive configuration export
+ *
+ * Provides detailed configuration information including stages, resources/routes,
+ * integrations, authorizers, and CORS settings with format options for export.
+ *
+ * @public
+ */
+export default class ApigwGetApiConfigCommand extends Command {
+  static override readonly description =
+    "Get comprehensive configuration details for an API Gateway API";
+
+  static override readonly examples = [
+    {
+      description: "Get complete API configuration with all components",
+      command: "<%= config.bin %> <%= command.id %> abc123def4",
+    },
+    {
+      description: "Get REST API configuration with type hint",
+      command: "<%= config.bin %> <%= command.id %> abc123def4 --type rest",
+    },
+    {
+      description: "Get HTTP API configuration excluding integrations",
+      command:
+        "<%= config.bin %> <%= command.id %> xyz789uvw1 --type http --no-include-integrations",
+    },
+    {
+      description: "Get API configuration with JSON output for automation",
+      command: "<%= config.bin %> <%= command.id %> def456ghi8 --format json",
+    },
+    {
+      description: "Get minimal API configuration (stages only)",
+      command:
+        "<%= config.bin %> <%= command.id %> jkl012mno3 --no-include-resources --no-include-routes --no-include-integrations --no-include-authorizers",
+    },
+    {
+      description: "Get WebSocket API configuration in specific region",
+      command: "<%= config.bin %> <%= command.id %> mno456pqr7 --type websocket --region us-west-2",
+    },
+    {
+      description: "Export API configuration for backup or migration",
+      command: "<%= config.bin %> <%= command.id %> stu901vwx2 --format json > api-backup.json",
+    },
+  ];
+
+  static override readonly args = {
+    apiId: Args.string({
+      name: "apiId",
+      description: "API Gateway API ID to get configuration for",
+      required: true,
+    }),
+  };
+
+  static override readonly flags = {
+    type: Flags.string({
+      description: "API type hint for faster lookup (rest, http, websocket)",
+      options: ["rest", "http", "websocket"],
+      helpValue: "TYPE",
+    }),
+
+    "include-stages": Flags.boolean({
+      description: "Include stage configurations",
+      default: true,
+      allowNo: true,
+    }),
+
+    "include-resources": Flags.boolean({
+      description: "Include resource configurations (REST APIs only)",
+      default: true,
+      allowNo: true,
+    }),
+
+    "include-routes": Flags.boolean({
+      description: "Include route configurations (HTTP/WebSocket APIs only)",
+      default: true,
+      allowNo: true,
+    }),
+
+    "include-integrations": Flags.boolean({
+      description: "Include integration configurations",
+      default: true,
+      allowNo: true,
+    }),
+
+    "include-authorizers": Flags.boolean({
+      description: "Include authorizer configurations",
+      default: true,
+      allowNo: true,
+    }),
+
+    "include-cors": Flags.boolean({
+      description: "Include CORS configuration",
+      default: true,
+      allowNo: true,
+    }),
+
+    region: Flags.string({
+      char: "r",
+      description: "AWS region containing the API",
+      helpValue: "REGION",
+    }),
+
+    profile: Flags.string({
+      char: "p",
+      description: "AWS profile to use for authentication",
+      helpValue: "PROFILE_NAME",
+    }),
+
+    format: Flags.string({
+      char: "f",
+      description: "Output format for API configuration",
+      options: ["table", "json", "jsonl", "csv"],
+      default: "table",
+    }),
+
+    verbose: Flags.boolean({
+      char: "v",
+      description: "Enable verbose output with debug information",
+      default: false,
+    }),
+  };
+
+  /**
+   * Execute the API Gateway get API configuration command
+   *
+   * @returns Promise resolving when command execution is complete
+   */
+  async run(): Promise<void> {
+    const { args, flags } = await this.parse(ApigwGetApiConfigCommand);
+
+    try {
+      // Validate API ID format
+      const apiId = validateApiId(args.apiId);
+
+      // Validate input using Zod schema
+      const input: ApiGwGetApiConfig = ApiGwGetApiConfigSchema.parse({
+        apiId,
+        region: flags.region,
+        profile: flags.profile,
+        format: flags.format,
+        verbose: flags.verbose,
+        type: flags.type,
+        includeStages: flags["include-stages"],
+        includeResources: flags["include-resources"],
+        includeRoutes: flags["include-routes"],
+        includeIntegrations: flags["include-integrations"],
+        includeAuthorizers: flags["include-authorizers"],
+        includeCors: flags["include-cors"],
+      });
+
+      // Create API Gateway service instance
+      const apiGwService = new ApiGwService({
+        enableDebugLogging: input.verbose,
+        enableProgressIndicators: true,
+        clientConfig: {
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
+        },
+      });
+
+      // Get comprehensive API configuration
+      const apiConfiguration = await apiGwService.getApiConfiguration(
+        input.apiId,
+        {
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
+        },
+        {
+          ...(input.type && { apiTypeHint: input.type }),
+          includeStages: input.includeStages,
+          includeResources: input.includeResources,
+          includeRoutes: input.includeRoutes,
+          includeIntegrations: input.includeIntegrations,
+          includeAuthorizers: input.includeAuthorizers,
+          includeCors: input.includeCors,
+        },
+      );
+
+      // Format output based on requested format
+      this.formatAndDisplayOutput(apiConfiguration, input.format);
+    } catch (error) {
+      const formattedError = handleApiGwCommandError(
+        error,
+        flags.verbose,
+        `get API configuration for '${args.apiId}'`,
+      );
+      this.error(formattedError, { exit: 1 });
+    }
+  }
+
+  /**
+   * Format and display the API configuration output
+   *
+   * @param config - API configuration to display
+   * @param format - Output format to use
+   * @throws Error When unsupported output format is specified
+   * @internal
+   */
+  private formatAndDisplayOutput(config: any, format: string): void {
+    const apiType = this.detectApiTypeFromConfiguration(config);
+
+    switch (format) {
+      case "table": {
+        this.displayTableFormat(config, apiType);
+        break;
+      }
+
+      case "json": {
+        this.log(JSON.stringify(config, this.jsonReplacer, 2));
+        break;
+      }
+
+      case "jsonl": {
+        this.log(JSON.stringify(config, this.jsonReplacer));
+        break;
+      }
+
+      case "csv": {
+        this.displayCsvFormat(config, apiType);
+        break;
+      }
+
+      default: {
+        throw new Error(`Unsupported output format: ${format}`);
+      }
+    }
+  }
+
+  /**
+   * Display API configuration in table format
+   *
+   * @param config - API configuration
+   * @param apiType - Detected API type
+   * @internal
+   */
+  private displayTableFormat(config: any, apiType: string): void {
+    const api = config.api;
+    const apiId = api.id || api.apiId;
+
+    this.log(`\nAPI Gateway ${apiType.toUpperCase()} API Configuration:\n`);
+
+    // API Overview
+    this.displayApiOverview(api, apiType);
+
+    // Stages
+    if (config.stages?.length > 0) {
+      this.log("\n"); // Empty line
+      this.displayStages(config.stages);
+    }
+
+    // Resources (REST APIs)
+    if (config.resources?.length > 0) {
+      this.log("\n"); // Empty line
+      this.displayResources(config.resources);
+    }
+
+    // Routes (HTTP/WebSocket APIs)
+    if (config.routes?.length > 0) {
+      this.log("\n"); // Empty line
+      this.displayRoutes(config.routes);
+    }
+
+    // Integrations
+    if (config.integrations?.length > 0) {
+      this.log("\n"); // Empty line
+      this.displayIntegrations(config.integrations);
+    }
+
+    // Summary
+    this.log("\n"); // Empty line
+    this.displayConfigurationSummary(config, apiType);
+  }
+
+  /**
+   * Display API configuration in CSV format
+   *
+   * @param config - API configuration
+   * @param apiType - Detected API type
+   * @internal
+   */
+  private displayCsvFormat(config: any, apiType: string): void {
+    const api = config.api;
+    const summary = this.buildConfigurationSummary(config, apiType);
+
+    const csvData = [
+      { Component: "Component", Count: "Count", Details: "Details" }, // Header row
+      ...Object.entries(summary).map(([component, info]: [string, any]) => ({
+        Component: component,
+        Count: String(info.count || 0),
+        Details: info.details || "-",
+      })),
+    ];
+
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput(csvData.map((item, index) => ({ data: item, index })));
+    this.log(output);
+  }
+
+  /**
+   * Display API overview section
+   *
+   * @param api - API information
+   * @param apiType - API type
+   * @internal
+   */
+  private displayApiOverview(api: any, apiType: string): void {
+    this.log("API Overview:");
+    const apiId = api.id || api.apiId;
+    this.log(`  ID: ${apiId}`);
+    this.log(`  Name: ${api.name || "-"}`);
+    this.log(`  Type: ${apiType.toUpperCase()}`);
+    this.log(`  Description: ${api.description || "-"}`);
+    this.log(`  Created: ${api.createdDate ? new Date(api.createdDate).toISOString() : "-"}`);
+
+    if (apiType === "rest") {
+      if (api.endpointConfiguration?.types?.length > 0) {
+        this.log(`  Endpoint Type: ${api.endpointConfiguration.types.join(", ")}`);
+      }
+    } else {
+      if (api.apiEndpoint) {
+        this.log(`  Endpoint: ${api.apiEndpoint}`);
+      }
+      if (api.protocolType) {
+        this.log(`  Protocol: ${api.protocolType}`);
+      }
+    }
+  }
+
+  /**
+   * Display stages section
+   *
+   * @param stages - Stage configurations
+   * @internal
+   */
+  private displayStages(stages: any[]): void {
+    this.log(`Stages (${stages.length}):`);
+
+    if (stages.length === 0) {
+      this.log("  No stages configured");
+      return;
+    }
+
+    for (const [index, stage] of stages.entries()) {
+      this.log(`  ${index + 1}. ${stage.stageName}`);
+      if (stage.description) {
+        this.log(`     Description: ${stage.description}`);
+      }
+      if (stage.deploymentId) {
+        this.log(`     Deployment: ${stage.deploymentId}`);
+      }
+      if (stage.throttleSettings) {
+        this.log(
+          `     Throttling: ${stage.throttleSettings.rateLimit || "N/A"} req/sec, ${stage.throttleSettings.burstLimit || "N/A"} burst`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Display resources section (REST APIs)
+   *
+   * @param resources - Resource configurations
+   * @internal
+   */
+  private displayResources(resources: any[]): void {
+    this.log(`Resources (${resources.length}):`);
+
+    if (resources.length === 0) {
+      this.log("  No resources configured");
+      return;
+    }
+
+    for (const [index, resource] of resources.entries()) {
+      this.log(`  ${index + 1}. ${resource.path || resource.pathPart || "/"}`);
+      if (resource.resourceMethods) {
+        const methods = Object.keys(resource.resourceMethods).join(", ");
+        this.log(`     Methods: ${methods}`);
+      }
+      if (resource.id) {
+        this.log(`     ID: ${resource.id}`);
+      }
+    }
+  }
+
+  /**
+   * Display routes section (HTTP/WebSocket APIs)
+   *
+   * @param routes - Route configurations
+   * @internal
+   */
+  private displayRoutes(routes: any[]): void {
+    this.log(`Routes (${routes.length}):`);
+
+    if (routes.length === 0) {
+      this.log("  No routes configured");
+      return;
+    }
+
+    for (const [index, route] of routes.entries()) {
+      this.log(`  ${index + 1}. ${route.routeKey || route.RouteKey || "-"}`);
+      if (route.target || route.Target) {
+        this.log(`     Target: ${route.target || route.Target}`);
+      }
+      if (route.routeId || route.RouteId) {
+        this.log(`     ID: ${route.routeId || route.RouteId}`);
+      }
+    }
+  }
+
+  /**
+   * Display integrations section
+   *
+   * @param integrations - Integration configurations
+   * @internal
+   */
+  private displayIntegrations(integrations: any[]): void {
+    this.log(`Integrations (${integrations.length}):`);
+
+    if (integrations.length === 0) {
+      this.log("  No integrations configured");
+      return;
+    }
+
+    for (const [index, integration] of integrations.entries()) {
+      this.log(
+        `  ${index + 1}. ${integration.integrationType || integration.IntegrationType || "Unknown"}`,
+      );
+      if (integration.integrationUri || integration.IntegrationUri) {
+        this.log(`     URI: ${integration.integrationUri || integration.IntegrationUri}`);
+      }
+      if (integration.integrationMethod || integration.IntegrationMethod) {
+        this.log(`     Method: ${integration.integrationMethod || integration.IntegrationMethod}`);
+      }
+    }
+  }
+
+  /**
+   * Display configuration summary
+   *
+   * @param config - API configuration
+   * @param apiType - API type
+   * @internal
+   */
+  private displayConfigurationSummary(config: any, apiType: string): void {
+    const summary = this.buildConfigurationSummary(config, apiType);
+
+    this.log("Configuration Summary:");
+    for (const [component, info] of Object.entries(summary)) {
+      this.log(`  ${component}: ${info.count} configured`);
+    }
+  }
+
+  /**
+   * Build configuration summary object
+   *
+   * @param config - API configuration
+   * @param apiType - API type
+   * @returns Summary object
+   * @internal
+   */
+  private buildConfigurationSummary(config: any, apiType: string): Record<string, any> {
+    const summary: Record<string, any> = {
+      Stages: {
+        count: config.stages?.length || 0,
+        details: config.stages?.map((s: any) => s.stageName).join(", ") || "-",
+      },
+    };
+
+    if (apiType === "rest") {
+      summary["Resources"] = {
+        count: config.resources?.length || 0,
+        details:
+          config.resources
+            ?.map((r: any) => r.path || r.pathPart || "/")
+            .slice(0, 3)
+            .join(", ") || "-",
+      };
+    } else {
+      summary["Routes"] = {
+        count: config.routes?.length || 0,
+        details:
+          config.routes
+            ?.map((r: any) => r.routeKey || r.RouteKey)
+            .slice(0, 3)
+            .join(", ") || "-",
+      };
+    }
+
+    summary["Integrations"] = {
+      count: config.integrations?.length || 0,
+      details:
+        config.integrations
+          ?.map((index: any) => index.integrationType || index.IntegrationType)
+          .slice(0, 3)
+          .join(", ") || "-",
+    };
+
+    return summary;
+  }
+
+  /**
+   * Detect API type from configuration object
+   *
+   * @param config - API configuration
+   * @returns Detected API type
+   * @internal
+   */
+  private detectApiTypeFromConfiguration(config: any): string {
+    const api = config.api;
+    if (api.protocolType === "HTTP") return "http";
+    if (api.protocolType === "WEBSOCKET") return "websocket";
+    if (api.id && !api.protocolType) return "rest";
+    return "unknown";
+  }
+
+  /**
+   * JSON replacer for handling Date objects
+   *
+   * @param key - Object key
+   * @param value - Object value
+   * @returns Processed value
+   * @internal
+   */
+  private jsonReplacer(key: string, value: any): any {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return value;
+  }
+}
