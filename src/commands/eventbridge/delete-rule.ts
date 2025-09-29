@@ -155,7 +155,7 @@ export default class EventBridgeDeleteRuleCommand extends Command {
       if (!input.force) {
         const confirmed = await this.requestUserConfirmation(input);
         if (!confirmed) {
-          this.log("❌ Deletion cancelled");
+          this.log("Deletion cancelled");
           return;
         }
       }
@@ -181,7 +181,7 @@ export default class EventBridgeDeleteRuleCommand extends Command {
   ): Promise<void> {
     if (input.verbose) {
       this.log(
-        `🔍 Verbose: Preparing to delete rule '${input.name}' on event bus '${input.eventBusName}'`,
+        `Verbose: Preparing to delete rule '${input.name}' on event bus '${input.eventBusName}'`,
       );
 
       // Validate that the rule exists
@@ -194,10 +194,10 @@ export default class EventBridgeDeleteRuleCommand extends Command {
           },
           input.eventBusName,
         );
-        this.log(`✅ Rule exists and can be deleted`);
+        this.log(`Rule exists and can be deleted`);
       } catch (error) {
         this.log(
-          `❌ Rule validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          `Rule validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
       }
     }
@@ -211,7 +211,7 @@ export default class EventBridgeDeleteRuleCommand extends Command {
    * @internal
    */
   private async requestUserConfirmation(input: EventBridgeDeleteRule): Promise<boolean> {
-    this.log(`⚠️  You are about to delete rule: ${input.name}`);
+    this.log(`You are about to delete rule: ${input.name}`);
     this.log(`   Event Bus: ${input.eventBusName}`);
     this.log(`   Region: ${input.region || "default"}`);
     this.log(`   Profile: ${input.profile || "default"}`);
@@ -278,10 +278,10 @@ export default class EventBridgeDeleteRuleCommand extends Command {
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Rule Deleted: ${ruleName}\n`);
+        this.log(`Rule Deleted: ${ruleName}\n`);
 
         // Deletion Summary
-        this.log("🗑️  Deletion Summary:");
+        this.log("Deletion Summary:");
         const deletionInfo = [
           ["Rule Name", ruleName],
           ["Event Bus", eventBusName],
@@ -295,7 +295,7 @@ export default class EventBridgeDeleteRuleCommand extends Command {
         }
 
         this.log(
-          "\n💡 Note: Rule deletion is irreversible. All associated targets have been removed.",
+          "\nNote: Rule deletion is irreversible. All associated targets have been removed.",
         );
         break;
       }

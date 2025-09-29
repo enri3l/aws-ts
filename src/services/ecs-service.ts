@@ -346,9 +346,26 @@ export class ECSService {
   /**
    * List all ECS clusters
    *
+   * Retrieves a list of all ECS cluster names in the configured region.
+   * Returns cluster names only, without detailed metadata.
+   *
    * @param config - Client configuration options
    * @returns Promise resolving to array of cluster names
-   * @throws When cluster listing fails
+   * @throws {ServiceError} When cluster listing fails due to credentials, permissions, or API errors
+   *
+   * @example
+   * ```typescript
+   * const ecsService = new ECSService();
+   * const clusters = await ecsService.listClusters();
+   * console.log(clusters); // ['production', 'staging', 'development']
+   * ```
+   *
+   * @example With custom region
+   * ```typescript
+   * const clusters = await ecsService.listClusters(\{ region: 'us-west-2' \});
+   * ```
+   *
+   * @public
    */
   async listClusters(config: AwsClientConfig = {}): Promise<string[]> {
     const spinner = this.createSpinner("Listing ECS clusters...");
@@ -378,10 +395,25 @@ export class ECSService {
   /**
    * Describe ECS clusters
    *
+   * Retrieves detailed information about one or more ECS clusters including
+   * status, capacity, running tasks, and configuration settings.
+   *
    * @param clusterNames - Names of clusters to describe
    * @param config - Client configuration options
    * @returns Promise resolving to array of cluster descriptions
-   * @throws When cluster description fails
+   * @throws {ServiceError} When cluster description fails
+   *
+   * @example
+   * ```typescript
+   * const ecsService = new ECSService();
+   * const clusters = await ecsService.describeClusters(['production', 'staging']);
+   * clusters.forEach(cluster => \{
+   *   console.log(`$\{cluster.clusterName\}: $\{cluster.status\}`);
+   *   console.log(`Running tasks: $\{cluster.runningTasksCount\}`);
+   * \});
+   * ```
+   *
+   * @public
    */
   async describeClusters(
     clusterNames: string[],
@@ -539,10 +571,30 @@ export class ECSService {
   /**
    * List ECS services in a cluster
    *
+   * Retrieves a list of service ARNs, optionally filtered by cluster,
+   * launch type, or scheduling strategy.
+   *
    * @param options - List options including cluster, launchType, schedulingStrategy, and maxResults
    * @param config - Client configuration options
    * @returns Promise resolving to array of service ARNs
-   * @throws When service listing fails
+   * @throws {ServiceError} When service listing fails
+   *
+   * @example List all services in a cluster
+   * ```typescript
+   * const ecsService = new ECSService();
+   * const services = await ecsService.listServices(\{ cluster: 'production' \});
+   * console.log(services); // ['arn:aws:ecs:...']
+   * ```
+   *
+   * @example Filter by launch type
+   * ```typescript
+   * const fargateServices = await ecsService.listServices(\{
+   *   cluster: 'production',
+   *   launchType: 'FARGATE'
+   * \});
+   * ```
+   *
+   * @public
    */
   async listServices(
     options: {

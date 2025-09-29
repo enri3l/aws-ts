@@ -200,7 +200,7 @@ export default class ECSTaskKillCommand extends Command {
   ): void {
     if (alreadyStoppedTasks.length > 0) {
       this.log(
-        `⚠️  ${alreadyStoppedTasks.length} task${alreadyStoppedTasks.length === 1 ? " is" : "s are"} already stopped:`,
+        `${alreadyStoppedTasks.length} task${alreadyStoppedTasks.length === 1 ? " is" : "s are"} already stopped:`,
       );
       for (const task of alreadyStoppedTasks) {
         const taskId = task.taskArn.split("/").pop()?.slice(0, 8) || "unknown";
@@ -218,7 +218,7 @@ export default class ECSTaskKillCommand extends Command {
       this.log(`  • ${taskId} (${taskFamily}): ${task.lastStatus}`);
     }
 
-    this.log(`\n⚠️  WARNING: This will forcefully terminate tasks immediately!`);
+    this.log(`\nWARNING: This will forcefully terminate tasks immediately!`);
     this.log(`Unlike 'stop', this doesn't allow containers to shut down gracefully.`);
     this.log(`Use this only for emergency situations or unresponsive tasks.`);
   }
@@ -294,7 +294,7 @@ export default class ECSTaskKillCommand extends Command {
       } catch (error) {
         const taskId = task.taskArn.split("/").pop()?.slice(0, 8) || "unknown";
         this.log(
-          `❌ Failed to kill task ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to kill task ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
@@ -461,7 +461,7 @@ export default class ECSTaskKillCommand extends Command {
     totalRequested: number,
     reason: string,
   ): void {
-    this.log(`\n🔍 Kill operation details:`);
+    this.log(`\nKill operation details:`);
     this.log(`Successfully killed: ${killedTasks.length}/${totalRequested} tasks`);
     this.log(`Kill reason: ${reason}`);
     this.log(`\nTask ARNs killed:`);

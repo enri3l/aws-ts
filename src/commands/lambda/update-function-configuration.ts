@@ -567,10 +567,10 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
    * @internal
    */
   private displayTableFormat(functionConfig: FunctionConfiguration, functionName: string): void {
-    this.log(`✅ Configuration Updated: ${functionName}\n`);
+    this.log(`Configuration Updated: ${functionName}\n`);
 
     // Basic Configuration
-    this.log("📋 Function Configuration:");
+    this.log("Function Configuration:");
     const basicConfig = [
       ["Function Name", functionConfig.FunctionName ?? "N/A"],
       ["Function ARN", functionConfig.FunctionArn ?? "N/A"],
@@ -587,7 +587,7 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
     }
 
     // Resource Configuration
-    this.log("\n⚙️  Resource Configuration:");
+    this.log("\nResource Configuration:");
     const resourceConfig = [
       ["Memory Size", `${functionConfig.MemorySize ?? 0} MB`],
       ["Timeout", `${functionConfig.Timeout ?? 0} seconds`],
@@ -599,12 +599,12 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
     }
 
     // IAM Role
-    this.log("\n🔐 IAM Configuration:");
+    this.log("\n IAM Configuration:");
     this.log(`  Role: ${functionConfig.Role ?? "N/A"}`);
 
     // VPC Configuration
     if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
-      this.log("\n🌐 VPC Configuration:");
+      this.log("\n VPC Configuration:");
       this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
       this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") ?? "None"}`);
       this.log(
@@ -617,7 +617,7 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
       functionConfig?.Environment?.Variables &&
       Object.keys(functionConfig.Environment.Variables).length > 0
     ) {
-      this.log("\n🌍 Environment Variables:");
+      this.log("\n Environment Variables:");
       for (const [key, value] of Object.entries(functionConfig.Environment.Variables)) {
         this.log(`  ${key}: ${value}`);
       }
@@ -625,7 +625,7 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
 
     // Layers
     if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
-      this.log("\n📦 Layers:");
+      this.log("\n Layers:");
       for (const [index, layer] of functionConfig.Layers.entries()) {
         this.log(`  ${index + 1}. ${layer.Arn ?? "N/A"}`);
       }
@@ -633,7 +633,7 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
 
     // Dead Letter Configuration
     if (functionConfig?.DeadLetterConfig?.TargetArn) {
-      this.log("\n☠️  Dead Letter Configuration:");
+      this.log("\nDead Letter Configuration:");
       this.log(`  Target ARN: ${functionConfig.DeadLetterConfig.TargetArn}`);
     }
 

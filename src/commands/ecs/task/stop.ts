@@ -325,7 +325,7 @@ export default class ECSTaskStopCommand extends Command {
       this.log(`  Stopped At: ${stoppedTask.stoppedAt?.toISOString() ?? "N/A"}`);
     }
 
-    this.log(`\n⏹️  Task termination initiated - containers will be gracefully stopped`);
+    this.log(`\nTask termination initiated - containers will be gracefully stopped`);
   }
 
   /**

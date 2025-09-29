@@ -128,7 +128,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
         },
       });
 
-      this.log("🔍 CloudWatch Logs Interactive Query Builder\n");
+      this.log("CloudWatch Logs Interactive Query Builder\n");
 
       // Step 1: Select log groups
       await this.selectLogGroups(flags["log-groups"], flags.region, flags.profile);
@@ -193,7 +193,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       return;
     }
 
-    this.log("📋 Step 1: Select Log Groups");
+    this.log("Step 1: Select Log Groups");
 
     // Fetch available log groups
     try {
@@ -204,7 +204,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       );
       this.availableLogGroups = result.items.map((group) => group.logGroupName);
     } catch {
-      this.log("⚠️  Unable to fetch log groups. You can enter them manually.");
+      this.log("Unable to fetch log groups. You can enter them manually.");
       this.availableLogGroups = [];
     }
 
@@ -245,7 +245,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @internal
    */
   private async discoverFields(_region?: string, _profile?: string): Promise<void> {
-    this.log("🔍 Step 2: Field Discovery");
+    this.log("Step 2: Field Discovery");
 
     const { discoverFields } = await prompt<{ discoverFields: boolean }>({
       type: "confirm",
@@ -261,7 +261,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
 
     // Note: AWS SDK doesn't have GetLogGroupFields in the current implementation
     // This would be a future enhancement
-    this.log("⚠️  Field discovery is not yet implemented. Common fields include:");
+    this.log("Field discovery is not yet implemented. Common fields include:");
     this.log("  @timestamp, @message, @requestId, @duration, @billedDuration");
     this.log("  @type, @logStream, @log, @ptr\n");
 
@@ -286,7 +286,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       return "custom";
     }
 
-    this.log("🎯 Step 3: Query Approach");
+    this.log(" Step 3: Query Approach");
 
     const { approach } = await prompt<{ approach: "template" | "custom" }>({
       type: "select",
@@ -311,7 +311,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
     query: string;
     timeRange: { startTime: Date; endTime: Date };
   }> {
-    this.log("📝 Step 4: Select Query Template");
+    this.log("Step 4: Select Query Template");
 
     const templates = this.getQueryTemplates();
 
@@ -344,7 +344,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
   private async buildCustomQuery(
     queryLanguage: string,
   ): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
-    this.log(`📝 Step 4: Build Custom ${queryLanguage} Query`);
+    this.log(`Step 4: Build Custom ${queryLanguage} Query`);
 
     return queryLanguage === "CloudWatchLogsInsights"
       ? this.buildLogsInsightsQuery()
@@ -472,7 +472,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @internal
    */
   private async getTimeRange(): Promise<{ startTime: Date; endTime: Date }> {
-    this.log("⏰ Time Range Selection");
+    this.log(" Time Range Selection");
 
     const { timeRangeType } = await prompt<{ timeRangeType: "relative" | "absolute" }>({
       type: "select",
@@ -547,7 +547,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
     profile?: string,
     verbose?: boolean,
   ): Promise<void> {
-    this.log("🚀 Step 5: Execute Query");
+    this.log("Step 5: Execute Query");
 
     const { confirmExecution } = await prompt<{ confirmExecution: boolean }>({
       type: "confirm",
@@ -597,7 +597,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
     }
 
     const results = result.results || [];
-    this.log(`\n✅ Query completed successfully! Found ${results.length} results.\n`);
+    this.log(`\nQuery completed successfully! Found ${results.length} results.\n`);
 
     if (results.length === 0) {
       this.log("No results found for the specified query and time range.");

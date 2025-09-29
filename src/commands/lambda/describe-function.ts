@@ -277,7 +277,7 @@ export default class LambdaDescribeFunctionCommand extends Command {
    * @internal
    */
   private displayBasicConfiguration(config: GetFunctionResponse["Configuration"]): void {
-    this.log("📋 Basic Configuration:");
+    this.log("Basic Configuration:");
     const basicConfig = [
       ["Function Name", config?.FunctionName ?? "N/A"],
       ["Function ARN", config?.FunctionArn ?? "N/A"],
@@ -294,7 +294,7 @@ export default class LambdaDescribeFunctionCommand extends Command {
     }
 
     // IAM Role
-    this.log("\n🔐 IAM Configuration:");
+    this.log("\n IAM Configuration:");
     this.log(`  Role: ${config?.Role ?? "N/A"}`);
   }
 
@@ -305,7 +305,7 @@ export default class LambdaDescribeFunctionCommand extends Command {
    * @internal
    */
   private displayResourceConfiguration(config: GetFunctionResponse["Configuration"]): void {
-    this.log("\n⚙️  Resource Configuration:");
+    this.log("\nResource Configuration:");
     const resourceConfig = [
       ["Memory Size", `${config?.MemorySize ?? 0} MB`],
       ["Timeout", `${config?.Timeout ?? 0} seconds`],
@@ -329,7 +329,7 @@ export default class LambdaDescribeFunctionCommand extends Command {
   ): void {
     // VPC Configuration
     if (config?.VpcConfig && config.VpcConfig.VpcId) {
-      this.log("\n🌐 VPC Configuration:");
+      this.log("\n VPC Configuration:");
       this.log(`  VPC ID: ${config.VpcConfig.VpcId}`);
       this.log(`  Subnets: ${config.VpcConfig.SubnetIds?.join(", ") ?? "None"}`);
       this.log(`  Security Groups: ${config.VpcConfig.SecurityGroupIds?.join(", ") ?? "None"}`);
@@ -337,7 +337,7 @@ export default class LambdaDescribeFunctionCommand extends Command {
 
     // Environment Variables
     if (config?.Environment?.Variables && Object.keys(config.Environment.Variables).length > 0) {
-      this.log("\n🌍 Environment Variables:");
+      this.log("\n Environment Variables:");
       for (const [key, value] of Object.entries(config.Environment.Variables)) {
         this.log(`  ${key}: ${value}`);
       }
@@ -357,7 +357,7 @@ export default class LambdaDescribeFunctionCommand extends Command {
   ): void {
     // Code Information
     if (code) {
-      this.log("\n📦 Code Information:");
+      this.log("\n Code Information:");
       if (code.repositoryType) {
         this.log(`  Repository Type: ${code.repositoryType}`);
       }
@@ -368,7 +368,7 @@ export default class LambdaDescribeFunctionCommand extends Command {
 
     // Tags
     if (Object.keys(tags).length > 0) {
-      this.log("\n🏷️  Tags:");
+      this.log("\nTags:");
       for (const [key, value] of Object.entries(tags)) {
         this.log(`  ${key}: ${value}`);
       }

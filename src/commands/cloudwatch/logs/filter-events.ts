@@ -489,7 +489,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
    * @internal
    */
   private analyzeFilterPattern(filterPattern: string): void {
-    this.log("🔧 Filter Pattern Analysis:");
+    this.log("Filter Pattern Analysis:");
 
     // Detect pattern type
     if (filterPattern.startsWith("{") && filterPattern.endsWith("}")) {
@@ -625,7 +625,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
     _result: FilterEventsResult,
   ): string {
     const lines: string[] = [];
-    lines.push(`\n📋 Filtered Events (${events.length} found):\n`);
+    lines.push(`\nFiltered Events (${events.length} found):\n`);
 
     for (let index = 0; index < events.length; index++) {
       const event = events[index];
@@ -678,7 +678,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
     const eventsFound = result.events.length;
     const streamsSearched = result.searchedLogStreams?.length || 0;
 
-    this.log(`\n📊 Filtering Statistics:`);
+    this.log(`\n Filtering Statistics:`);
     this.log(`  Events Found: ${eventsFound}`);
     if (streamsSearched > 0) {
       this.log(`  Streams Searched: ${streamsSearched}`);
@@ -688,7 +688,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
     }
 
     if (verbose && result.searchedLogStreams && result.searchedLogStreams.length > 0) {
-      this.log(`\n📋 Searched Log Streams:`);
+      this.log(`\nSearched Log Streams:`);
       for (const stream of result.searchedLogStreams) {
         const completeness = stream.searchedCompletely ? "Complete" : "Partial";
         this.log(`  - ${stream.logStreamName}: ${completeness}`);
@@ -710,11 +710,11 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
       await fs.writeFile(filePath, content, "utf8");
 
       if (verbose) {
-        this.log(`\n💾 Results saved to: ${filePath}`);
+        this.log(`\n Results saved to: ${filePath}`);
       }
     } catch (error) {
       this.log(
-        `\n⚠️  Failed to save to file: ${error instanceof Error ? error.message : String(error)}`,
+        `\nFailed to save to file: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

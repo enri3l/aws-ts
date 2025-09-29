@@ -62,7 +62,7 @@ const MAX_CELL_LENGTH = 256;
 export function safeDisplayTable(data: unknown[]): void {
   // Validate input data
   if (!Array.isArray(data)) {
-    console.warn("⚠ Data format issue: Expected array for table display.");
+    console.warn("Data format issue: Expected array for table display.");
     return;
   }
 
@@ -84,10 +84,8 @@ export function safeDisplayTable(data: unknown[]): void {
 
       // Provide user guidance
       console.log(""); // Add spacing
-      console.warn(
-        `⚠ Table output truncated to ${MAX_TABLE_ROWS} rows out of ${data.length} total.`,
-      );
-      console.log(`💡 To view complete data, use: --output json`);
+      console.warn(`Table output truncated to ${MAX_TABLE_ROWS} rows out of ${data.length} total.`);
+      console.log(`To view complete data, use: --output json`);
       console.log(`   Showing ${data.length - MAX_TABLE_ROWS} additional rows available.`);
     } else {
       // Safe to display all data with cell truncation
@@ -96,7 +94,7 @@ export function safeDisplayTable(data: unknown[]): void {
     }
   } catch {
     // Fallback for any display errors
-    console.warn("⚠ Table display unavailable. Use --output json for raw data.");
+    console.warn("Table display unavailable. Use --output json for raw data.");
     console.error(`Data summary: ${data.length} items available`);
   }
 }
@@ -212,10 +210,10 @@ export function safeDisplaySummary(data: unknown[], itemType: string = "items"):
   }
 
   const count = data.length.toLocaleString();
-  console.log(`📊 Found ${count} ${itemType}.`);
+  console.log(` Found ${count} ${itemType}.`);
 
   if (data.length > MAX_TABLE_ROWS) {
-    console.log(`💡 Use --output json to view all ${itemType}.`);
+    console.log(`Use --output json to view all ${itemType}.`);
     console.log(`   Table view shows first ${MAX_TABLE_ROWS.toLocaleString()} ${itemType} only.`);
   }
 }

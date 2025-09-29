@@ -314,32 +314,28 @@ EXAMPLES:
    */
   private displayMetricsTable(result: LogMetricsResult, verbose: boolean): void {
     // Display metrics summary
-    this.log(`\n📊 ${result.metricType.toUpperCase()} Metrics for: ${result.logGroupName}`);
+    this.log(`\n ${result.metricType.toUpperCase()} Metrics for: ${result.logGroupName}`);
     this.log(
-      `📅 Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`,
+      ` Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`,
     );
-    this.log(`📈 Data Points: ${result.summary.totalDataPoints.toLocaleString()}`);
-    this.log(`⏱️  Time Span: ${result.summary.timeSpan}`);
-    this.log(`📊 Average Value: ${result.summary.averageValue.toFixed(2)}`);
-    this.log(`📉 Min Value: ${result.summary.minValue.toFixed(2)}`);
-    this.log(`📈 Max Value: ${result.summary.maxValue.toFixed(2)}`);
-    this.log(`📈 Trend: ${this.formatTrend(result.summary.trend)}`);
+    this.log(` Data Points: ${result.summary.totalDataPoints.toLocaleString()}`);
+    this.log(`Time Span: ${result.summary.timeSpan}`);
+    this.log(` Average Value: ${result.summary.averageValue.toFixed(2)}`);
+    this.log(` Min Value: ${result.summary.minValue.toFixed(2)}`);
+    this.log(` Max Value: ${result.summary.maxValue.toFixed(2)}`);
+    this.log(` Trend: ${this.formatTrend(result.summary.trend)}`);
 
     // Display query execution statistics
     if (result.statistics && verbose) {
-      this.log("\n📊 Query Execution Statistics:");
-      this.log(
-        `📊 Records Matched: ${result.statistics.recordsMatched?.toLocaleString() || "N/A"}`,
-      );
-      this.log(
-        `🔍 Records Scanned: ${result.statistics.recordsScanned?.toLocaleString() || "N/A"}`,
-      );
-      this.log(`💾 Bytes Scanned: ${this.formatBytes(result.statistics.bytesScanned || 0)}`);
+      this.log("\n Query Execution Statistics:");
+      this.log(` Records Matched: ${result.statistics.recordsMatched?.toLocaleString() || "N/A"}`);
+      this.log(`Records Scanned: ${result.statistics.recordsScanned?.toLocaleString() || "N/A"}`);
+      this.log(` Bytes Scanned: ${this.formatBytes(result.statistics.bytesScanned || 0)}`);
     }
 
     // Display data points table
     if (result.dataPoints.length > 0) {
-      this.log(`\n📊 ${result.metricType.toUpperCase()} Data Points:`);
+      this.log(`\n ${result.metricType.toUpperCase()} Data Points:`);
       const displayData = result.dataPoints
         .slice(0, 20)
         .map((point: MetricDataPoint, index: number) => {
@@ -394,7 +390,7 @@ EXAMPLES:
 
     // Display trend analysis
     if (result.trends.length > 0) {
-      this.log("\n📈 Trend Analysis:");
+      this.log("\n Trend Analysis:");
       console.table(
         result.trends.map((trend, index: number) => ({
           "#": index + 1,
@@ -410,7 +406,7 @@ EXAMPLES:
     // Display recommendations
     this.displayRecommendations(result);
 
-    this.log("\n✅ Metrics extraction complete");
+    this.log("\nMetrics extraction complete");
   }
 
   /**
@@ -421,13 +417,13 @@ EXAMPLES:
   private formatTrend(trend: string): string {
     switch (trend) {
       case "increasing": {
-        return "📈 INCREASING";
+        return " INCREASING";
       }
       case "decreasing": {
-        return "📉 DECREASING";
+        return " DECREASING";
       }
       case "stable": {
-        return "➡️  STABLE";
+        return "STABLE";
       }
       default: {
         return trend.toUpperCase();
@@ -463,7 +459,7 @@ EXAMPLES:
 
     // Display recommendations if any exist
     if (recommendations.length > 0) {
-      this.log("\n💡 Recommendations:");
+      this.log("\nRecommendations:");
       for (const [index, rec] of recommendations.entries()) {
         this.log(`${index + 1}. ${rec}`);
       }
@@ -497,11 +493,11 @@ EXAMPLES:
    */
   private addErrorRateRecommendations(result: LogMetricsResult, recommendations: string[]): void {
     if (result.summary.trend === "increasing") {
-      recommendations.push("⚠️  Error rate is increasing - investigate recent changes");
+      recommendations.push("Error rate is increasing - investigate recent changes");
     }
     if (result.summary.averageValue > 5) {
       recommendations.push(
-        "🔍 High error rate detected - consider implementing error monitoring alerts",
+        "High error rate detected - consider implementing error monitoring alerts",
       );
     }
   }
@@ -513,11 +509,11 @@ EXAMPLES:
   private addVolumeRecommendations(result: LogMetricsResult, recommendations: string[]): void {
     if (result.summary.trend === "increasing") {
       recommendations.push(
-        "📈 Log volume is increasing - monitor storage costs and retention policies",
+        " Log volume is increasing - monitor storage costs and retention policies",
       );
     }
     if (result.summary.maxValue > result.summary.averageValue * 3) {
-      recommendations.push("⚡ Volume spikes detected - consider implementing volume-based alerts");
+      recommendations.push("Volume spikes detected - consider implementing volume-based alerts");
     }
   }
 
@@ -527,10 +523,10 @@ EXAMPLES:
    */
   private addPerformanceRecommendations(result: LogMetricsResult, recommendations: string[]): void {
     if (result.summary.trend === "increasing") {
-      recommendations.push("🐌 Performance is degrading - investigate performance bottlenecks");
+      recommendations.push(" Performance is degrading - investigate performance bottlenecks");
     }
     if (result.summary.maxValue > result.summary.averageValue * 2) {
-      recommendations.push("🎯 Performance spikes detected - implement latency monitoring");
+      recommendations.push(" Performance spikes detected - implement latency monitoring");
     }
   }
 
@@ -547,7 +543,7 @@ EXAMPLES:
       if (bytesScanned > 1024 * 1024 * 1024) {
         // > 1GB
         recommendations.push(
-          "💰 Large amount of data scanned - consider using field indexes for better performance",
+          " Large amount of data scanned - consider using field indexes for better performance",
         );
       }
     }

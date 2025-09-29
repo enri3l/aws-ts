@@ -255,7 +255,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
    * @internal
    */
   private displayBasicConfiguration(functionConfig: FunctionConfiguration): void {
-    this.log("📋 Function Details:");
+    this.log("Function Details:");
     const basicConfig = [
       ["Function Name", functionConfig?.FunctionName ?? "N/A"],
       ["Function ARN", functionConfig?.FunctionArn ?? "N/A"],
@@ -272,7 +272,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
     }
 
     // IAM Role
-    this.log("\n🔐 IAM Configuration:");
+    this.log("\n IAM Configuration:");
     this.log(`  Role: ${functionConfig?.Role ?? "N/A"}`);
   }
 
@@ -283,7 +283,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
    * @internal
    */
   private displayResourceConfiguration(functionConfig: FunctionConfiguration): void {
-    this.log("\n⚙️  Resource Configuration:");
+    this.log("\nResource Configuration:");
     const resourceConfig = [
       ["Memory Size", `${functionConfig?.MemorySize ?? 0} MB`],
       ["Timeout", `${functionConfig?.Timeout ?? 0} seconds`],
@@ -307,7 +307,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
   private displayVpcAndEnvironmentConfiguration(functionConfig: FunctionConfiguration): void {
     // VPC Configuration
     if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
-      this.log("\n🌐 VPC Configuration:");
+      this.log("\n VPC Configuration:");
       this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
       this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") ?? "None"}`);
       this.log(
@@ -320,7 +320,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
       functionConfig?.Environment?.Variables &&
       Object.keys(functionConfig.Environment.Variables).length > 0
     ) {
-      this.log("\n🌍 Environment Variables:");
+      this.log("\n Environment Variables:");
       for (const [key, value] of Object.entries(functionConfig.Environment.Variables)) {
         this.log(`  ${key}: ${value}`);
       }
@@ -336,7 +336,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
   private displayAdvancedConfiguration(functionConfig: FunctionConfiguration): void {
     // Layers
     if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
-      this.log("\n📦 Layers:");
+      this.log("\n Layers:");
       for (const [index, layer] of functionConfig.Layers.entries()) {
         this.log(`  ${index + 1}. ${layer.Arn ?? "N/A"} (${layer.CodeSize ?? 0} bytes)`);
       }
@@ -344,7 +344,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
 
     // File System Configurations
     if (functionConfig?.FileSystemConfigs && functionConfig.FileSystemConfigs.length > 0) {
-      this.log("\n💾 File System Configurations:");
+      this.log("\n File System Configurations:");
       for (const [index, config] of functionConfig.FileSystemConfigs.entries()) {
         this.log(`  ${index + 1}. ${config.Arn ?? "N/A"} → ${config.LocalMountPath ?? "N/A"}`);
       }
@@ -352,7 +352,7 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
 
     // Dead Letter Configuration
     if (functionConfig?.DeadLetterConfig?.TargetArn) {
-      this.log("\n☠️  Dead Letter Configuration:");
+      this.log("\nDead Letter Configuration:");
       this.log(`  Target ARN: ${functionConfig.DeadLetterConfig.TargetArn}`);
     }
 

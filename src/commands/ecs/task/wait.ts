@@ -185,14 +185,12 @@ export default class ECSTaskWaitCommand extends Command {
       }
 
       if (initialTasks.length !== taskArns.length) {
-        this.log(
-          `⚠️  Warning: Found ${initialTasks.length} tasks out of ${taskArns.length} requested`,
-        );
+        this.log(`Warning: Found ${initialTasks.length} tasks out of ${taskArns.length} requested`);
       }
 
       // Display initial status
       this.log(
-        `⏳ Waiting for ${initialTasks.length} task${initialTasks.length === 1 ? "" : "s"} to reach state: ${flags.state}`,
+        `Waiting for ${initialTasks.length} task${initialTasks.length === 1 ? "" : "s"} to reach state: ${flags.state}`,
       );
       this.log(`Timeout: ${flags.timeout}s, Polling interval: ${flags.interval}s`);
 
@@ -295,9 +293,9 @@ export default class ECSTaskWaitCommand extends Command {
 
     // Log completion status
     if (timedOut) {
-      this.log(`\n⏰ Timeout reached after ${elapsed}s`);
+      this.log(`\n Timeout reached after ${elapsed}s`);
     } else {
-      this.log(`\n✅ Wait completed after ${elapsed}s (${attempts} attempts)`);
+      this.log(`\nWait completed after ${elapsed}s (${attempts} attempts)`);
     }
 
     return {
@@ -329,7 +327,7 @@ export default class ECSTaskWaitCommand extends Command {
     if (input.verbose || attempts % 4 === 1) {
       // Show progress every ~1 minute at 15s intervals
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      this.log(`\n📊 Progress (${elapsed}s elapsed, attempt ${attempts}):`);
+      this.log(`\n Progress (${elapsed}s elapsed, attempt ${attempts}):`);
 
       const statusBreakdown: Record<string, number> = {};
       for (const task of currentTasks) {
@@ -339,8 +337,7 @@ export default class ECSTaskWaitCommand extends Command {
       }
 
       for (const [status, count] of Object.entries(statusBreakdown)) {
-        const indicator = status === flags.state ? "✅" : "⏸️";
-        this.log(`  ${indicator} ${status}: ${count}`);
+        this.log(`  ${status}: ${count}`);
       }
     }
   }
@@ -422,7 +419,7 @@ export default class ECSTaskWaitCommand extends Command {
         "Task ID": taskId,
         Status: task.lastStatus,
         Desired: task.desiredStatus,
-        "Target Reached": reachedState ? "✅" : "❌",
+        "Target Reached": reachedState ? "" : "❌",
         "Launch Type": task.launchType || "N/A",
       };
     });
@@ -534,15 +531,15 @@ export default class ECSTaskWaitCommand extends Command {
 
     if (successCount === result.finalTasks.length) {
       this.log(
-        `\n🎉 All ${successCount} task${successCount === 1 ? "" : "s"} reached state: ${flags.state}`,
+        `\nAll ${successCount} task${successCount === 1 ? "" : "s"} reached state: ${flags.state}`,
       );
     } else if (flags["exit-on-first"] && successCount > 0) {
       this.log(
-        `\n🎯 First task reached state: ${flags.state} (${successCount}/${result.finalTasks.length} total)`,
+        `\n First task reached state: ${flags.state} (${successCount}/${result.finalTasks.length} total)`,
       );
     } else {
       this.log(
-        `\n⚠️  Only ${successCount}/${result.finalTasks.length} task${result.finalTasks.length === 1 ? "" : "s"} reached state: ${flags.state}`,
+        `\nOnly ${successCount}/${result.finalTasks.length} task${result.finalTasks.length === 1 ? "" : "s"} reached state: ${flags.state}`,
       );
       if (result.timedOut) {
         this.error("Wait operation timed out", { exit: 1 });

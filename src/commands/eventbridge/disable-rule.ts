@@ -186,10 +186,10 @@ export default class EventBridgeDisableRuleCommand extends Command {
   ): void {
     switch (format) {
       case "table": {
-        this.log(`⏸️  Rule Disabled: ${ruleName}\n`);
+        this.log(`  Rule Disabled: ${ruleName}\n`);
 
         // Disable Summary
-        this.log("⏸️  Disable Summary:");
+        this.log("  Disable Summary:");
         const disableInfo = [
           ["Rule Name", ruleName],
           ["Event Bus", eventBusName],
@@ -203,7 +203,7 @@ export default class EventBridgeDisableRuleCommand extends Command {
         }
 
         this.log(
-          "\n💡 Note: The rule is now inactive and will not process events. Use 'eventbridge:enable-rule' to reactivate.",
+          "\nNote: The rule is now inactive and will not process events. Use 'eventbridge:enable-rule' to reactivate.",
         );
         break;
       }

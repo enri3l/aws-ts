@@ -289,7 +289,7 @@ export default class ECSTaskExecCommand extends Command {
   ): void {
     const taskId = task.taskArn.split("/").pop()?.slice(0, 8) || "unknown";
 
-    this.log(`🚀 ECS Exec Connection Details`);
+    this.log(`ECS Exec Connection Details`);
     this.log(`Task: ${taskId}`);
     this.log(`Container: ${flags["container-name"]}`);
     this.log(`Status: ${targetContainer.lastStatus}`);
@@ -302,11 +302,11 @@ export default class ECSTaskExecCommand extends Command {
    * @internal
    */
   private displayDryRunInfo(): void {
-    this.log(`\n✅ Prerequisites Check:`);
-    this.log(`  • Task is running: ✅`);
-    this.log(`  • Container is running: ✅`);
-    this.log(`  • Container exists: ✅`);
-    this.log(`\n⚠️  Additional requirements (not verified):`);
+    this.log(`\nPrerequisites Check:`);
+    this.log(`  • Task is running: `);
+    this.log(`  • Container is running: `);
+    this.log(`  • Container exists: `);
+    this.log(`\nAdditional requirements (not verified):`);
     this.log(`  • Task definition has enableExecuteCommand: true`);
     this.log(`  • ECS service/task was created with execute command enabled`);
     this.log(`  • Task role has ssmmessages:* permissions`);
@@ -341,7 +341,7 @@ export default class ECSTaskExecCommand extends Command {
    * @internal
    */
   private displayRequirements(): void {
-    this.log(`\n💡 ECS Exec Requirements:`);
+    this.log(`\nECS Exec Requirements:`);
     this.log(`Before using ECS Exec, ensure:`);
     this.log(`  1. Task definition has "enableExecuteCommand": true`);
     this.log(`  2. Service/task was created with execute command enabled`);
@@ -364,7 +364,7 @@ export default class ECSTaskExecCommand extends Command {
     taskArn: string,
     flags: Interfaces.InferredFlags<typeof ECSTaskExecCommand.flags>,
   ): void {
-    this.log(`\n🔧 AWS CLI Command to Execute:`);
+    this.log(`\nAWS CLI Command to Execute:`);
 
     const command = flags.command || flags.shell;
     const awsCommand = [
@@ -392,10 +392,10 @@ export default class ECSTaskExecCommand extends Command {
     const command = flags.command || flags.shell;
 
     if (flags.command === undefined) {
-      this.log(`\n📝 This will start an interactive shell (${flags.shell}) in the container.`);
+      this.log(`\nThis will start an interactive shell (${flags.shell}) in the container.`);
       this.log(`Use Ctrl+C or 'exit' to terminate the session.`);
     } else {
-      this.log(`\n📝 This will execute: ${command}`);
+      this.log(`\nThis will execute: ${command}`);
     }
   }
 
@@ -411,7 +411,7 @@ export default class ECSTaskExecCommand extends Command {
   ): void {
     const taskId = task.taskArn.split("/").pop()?.slice(0, 8) || "unknown";
 
-    this.log(`\n🔗 Alternative Methods:`);
+    this.log(`\nAlternative Methods:`);
     this.log(
       `  • AWS Console: ECS → Clusters → Tasks → ${taskId} → Configuration → Execute command`,
     );
@@ -429,7 +429,7 @@ export default class ECSTaskExecCommand extends Command {
     task: TaskDescription,
     targetContainer: NonNullable<TaskDescription["containers"]>[number],
   ): void {
-    this.log(`\n🔍 Debug Information:`);
+    this.log(`\nDebug Information:`);
     this.log(`Task ARN: ${task.taskArn}`);
     this.log(`Container ARN: ${targetContainer.containerArn}`);
     this.log(`Task Definition: ${task.taskDefinitionArn}`);

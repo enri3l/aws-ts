@@ -160,7 +160,7 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
       if (!input.force) {
         const confirmed = await this.handleConfirmationPrompt(input);
         if (!confirmed) {
-          this.log("❌ Removal cancelled");
+          this.log("Removal cancelled");
           return;
         }
       }
@@ -264,7 +264,7 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
     input: EventBridgeRemoveTargets,
     eventBridgeService: EventBridgeService,
   ): Promise<void> {
-    this.log(`🔍 Dry Run: Would remove ${input.ids.length} target(s) from rule '${input.rule}'`);
+    this.log(`Dry Run: Would remove ${input.ids.length} target(s) from rule '${input.rule}'`);
     this.log(`   Target IDs: ${input.ids.join(", ")}`);
     this.log(`   Event Bus: ${input.eventBusName}`);
 
@@ -297,12 +297,12 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
       const missingTargets = input.ids.filter((id) => !existingTargetIds.includes(id));
 
       if (missingTargets.length > 0) {
-        this.log(`❌ Missing targets: ${missingTargets.join(", ")}`);
+        this.log(`Missing targets: ${missingTargets.join(", ")}`);
       } else {
-        this.log(`✅ All targets exist and can be removed`);
+        this.log(`All targets exist and can be removed`);
       }
     } catch (error) {
-      this.log(`❌ Validation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      this.log(`Validation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 
@@ -337,7 +337,7 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
    * @internal
    */
   private displayRemovalWarning(input: EventBridgeRemoveTargets): void {
-    this.log(`⚠️  You are about to remove ${input.ids.length} target(s) from rule: ${input.rule}`);
+    this.log(`You are about to remove ${input.ids.length} target(s) from rule: ${input.rule}`);
     this.log(`   Target IDs: ${input.ids.join(", ")}`);
     this.log(`   Event Bus: ${input.eventBusName}`);
     this.log(`   Region: ${input.region ?? "default"}`);
@@ -455,7 +455,7 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
     eventBusName: string,
     targetIds: string[],
   ): void {
-    this.log(`✅ Targets Removed from rule: ${ruleName}\n`);
+    this.log(`Targets Removed from rule: ${ruleName}\n`);
 
     this.displayRemovalSummary(removeTargetsResult, ruleName, eventBusName, targetIds);
     this.displaySuccessDetails(removeTargetsResult, targetIds);
@@ -477,7 +477,7 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
     eventBusName: string,
     targetIds: string[],
   ): void {
-    this.log("🗑️  Removal Summary:");
+    this.log("Removal Summary:");
     const removalInfo = [
       ["Rule Name", ruleName],
       ["Event Bus", eventBusName],
@@ -505,7 +505,7 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
     targetIds: string[],
   ): void {
     if ((removeTargetsResult.successCount ?? 0) > 0) {
-      this.log("\n✅ Successfully Removed:");
+      this.log("\nSuccessfully Removed:");
       const successfulTargets = targetIds.filter(
         (id) => !removeTargetsResult.failedEntries?.some((entry) => entry.TargetId === id),
       );
@@ -523,7 +523,7 @@ export default class EventBridgeRemoveTargetsCommand extends Command {
    */
   private displayFailureDetails(removeTargetsResult: RemoveTargetsResult): void {
     if (removeTargetsResult.failedEntries && removeTargetsResult.failedEntries.length > 0) {
-      this.log("\n❌ Failed to Remove:");
+      this.log("\nFailed to Remove:");
       for (const [index, failure] of removeTargetsResult.failedEntries.entries()) {
         this.log(`  ${index + 1}. Target ID: ${failure.TargetId ?? "N/A"}`);
         this.log(`     Error Code: ${failure.ErrorCode ?? "N/A"}`);

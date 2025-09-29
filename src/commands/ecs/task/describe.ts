@@ -416,6 +416,6 @@ export default class ECSTaskDescribeCommand extends Command {
   private displayVerboseInfo(input: ECSDescribeTasks, tasks: TaskDescription[]): void {
     const taskCount = tasks.length;
     const taskWord = taskCount === 1 ? "" : "s";
-    this.log(`\n🔍 Described ${taskCount} task${taskWord}`);
+    this.log(`\nDescribed ${taskCount} task${taskWord}`);
   }
 }

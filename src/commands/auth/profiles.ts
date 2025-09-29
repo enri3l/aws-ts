@@ -276,14 +276,14 @@ export default class AuthProfilesCommand extends Command {
     if (expiredProfiles.length > 0) {
       this.log("");
       this.warn(
-        `⚠ Profiles with expired tokens: ${expiredProfiles.map((p: DisplayProfileInfo) => p.name).join(", ")}`,
+        `Profiles with expired tokens: ${expiredProfiles.map((p: DisplayProfileInfo) => p.name).join(", ")}`,
       );
     }
 
     if (nearExpiryProfiles.length > 0) {
       this.log("");
       this.warn(
-        `⚠ Profiles with tokens expiring soon: ${nearExpiryProfiles.map((p: DisplayProfileInfo) => p.name).join(", ")},`,
+        `Profiles with tokens expiring soon: ${nearExpiryProfiles.map((p: DisplayProfileInfo) => p.name).join(", ")},`,
       );
     }
   }

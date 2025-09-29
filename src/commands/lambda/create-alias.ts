@@ -206,10 +206,10 @@ export default class LambdaCreateAliasCommand extends Command {
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Alias Created: ${aliasName} for ${functionName}\n`);
+        this.log(`Alias Created: ${aliasName} for ${functionName}\n`);
 
         // Alias Information
-        this.log("📋 Alias Details:");
+        this.log("Alias Details:");
         const aliasInfo = [
           ["Alias Name", aliasConfig.Name ?? "N/A"],
           ["Alias ARN", aliasConfig.AliasArn ?? "N/A"],
@@ -247,7 +247,7 @@ export default class LambdaCreateAliasCommand extends Command {
         }
 
         this.log(
-          "\n💡 Note: You can now invoke the function using this alias name instead of the version number.",
+          "\nNote: You can now invoke the function using this alias name instead of the version number.",
         );
         break;
       }

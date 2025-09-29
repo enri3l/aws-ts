@@ -245,10 +245,10 @@ export default class LambdaPublishVersionCommand extends Command {
    * @internal
    */
   private displayTableFormat(versionConfig: FunctionConfiguration, functionName: string): void {
-    this.log(`✅ Version Published: ${functionName}\n`);
+    this.log(`Version Published: ${functionName}\n`);
 
     // Version Information
-    this.log("📋 Version Details:");
+    this.log("Version Details:");
     const versionInfo = [
       ["Function Name", versionConfig?.FunctionName ?? "N/A"],
       ["Function ARN", versionConfig?.FunctionArn ?? "N/A"],
@@ -263,7 +263,7 @@ export default class LambdaPublishVersionCommand extends Command {
     }
 
     // Code Information
-    this.log("\n📦 Code Details:");
+    this.log("\n Code Details:");
     const codeInfo = [
       ["Code Size", `${versionConfig?.CodeSize ?? 0} bytes`],
       ["Code SHA256", versionConfig?.CodeSha256 ?? "N/A"],
@@ -275,7 +275,7 @@ export default class LambdaPublishVersionCommand extends Command {
     }
 
     // Runtime Configuration
-    this.log("\n⚙️  Runtime Configuration:");
+    this.log("\nRuntime Configuration:");
     const runtimeInfo = [
       ["Runtime", versionConfig?.Runtime ?? "N/A"],
       ["Handler", versionConfig?.Handler ?? "N/A"],
@@ -288,7 +288,7 @@ export default class LambdaPublishVersionCommand extends Command {
     }
 
     // IAM Role
-    this.log("\n🔐 IAM Configuration:");
+    this.log("\n IAM Configuration:");
     this.log(`  Role: ${versionConfig?.Role ?? "N/A"}`);
 
     // Environment Variables
@@ -296,7 +296,7 @@ export default class LambdaPublishVersionCommand extends Command {
       versionConfig?.Environment?.Variables &&
       Object.keys(versionConfig.Environment.Variables).length > 0
     ) {
-      this.log("\n🌍 Environment Variables:");
+      this.log("\n Environment Variables:");
       for (const [key, value] of Object.entries(versionConfig.Environment.Variables)) {
         this.log(`  ${key}: ${String(value)}`);
       }
@@ -304,14 +304,14 @@ export default class LambdaPublishVersionCommand extends Command {
 
     // Layers
     if (versionConfig?.Layers && versionConfig.Layers.length > 0) {
-      this.log("\n📦 Layers:");
+      this.log("\n Layers:");
       for (const [index, layer] of versionConfig.Layers.entries()) {
         this.log(`  ${index + 1}. ${layer.Arn ?? "N/A"}`);
       }
     }
 
     this.log(
-      "\n💡 Note: This version is now immutable and can be referenced by version number or alias.",
+      "\nNote: This version is now immutable and can be referenced by version number or alias.",
     );
   }
 

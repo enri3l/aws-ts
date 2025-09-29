@@ -144,7 +144,7 @@ export default class LambdaDeleteFunctionCommand extends Command {
       if (!flags.force) {
         const confirmed = await this.confirmDeletion(input);
         if (!confirmed) {
-          this.log("❌ Deletion cancelled");
+          this.log("Deletion cancelled");
           return;
         }
       }
@@ -179,7 +179,7 @@ export default class LambdaDeleteFunctionCommand extends Command {
     lambdaService: LambdaService,
   ): Promise<void> {
     const qualifierText = input.qualifier ? ` (${input.qualifier})` : "";
-    this.log(`🔍 Dry Run: Would delete function '${input.functionName}'${qualifierText}`);
+    this.log(`Dry Run: Would delete function '${input.functionName}'${qualifierText}`);
 
     // Validate that the function exists
     try {
@@ -191,10 +191,10 @@ export default class LambdaDeleteFunctionCommand extends Command {
         },
         input.qualifier,
       );
-      this.log(`✅ Function exists and can be deleted`);
+      this.log(`Function exists and can be deleted`);
     } catch (error) {
       this.log(
-        `❌ Function validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Function validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }
@@ -210,7 +210,7 @@ export default class LambdaDeleteFunctionCommand extends Command {
     const qualifierSuffix = input.qualifier ? ` (${input.qualifier})` : "";
     const functionDisplayName = `${input.functionName}${qualifierSuffix}`;
 
-    this.log(`⚠️  You are about to delete function: ${functionDisplayName}`);
+    this.log(`You are about to delete function: ${functionDisplayName}`);
     this.log(`   Region: ${input.region || "default"}`);
     this.log(`   Profile: ${input.profile || "default"}`);
     this.log("");
@@ -247,10 +247,10 @@ export default class LambdaDeleteFunctionCommand extends Command {
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Function Deleted: ${functionName}\n`);
+        this.log(`Function Deleted: ${functionName}\n`);
 
         // Deletion Summary
-        this.log("🗑️  Deletion Summary:");
+        this.log("Deletion Summary:");
         const deletionInfo = [
           ["Function Name", functionName],
           ["Status", "Successfully Deleted"],
@@ -263,7 +263,7 @@ export default class LambdaDeleteFunctionCommand extends Command {
         }
 
         this.log(
-          "\n💡 Note: Function deletion is irreversible. All versions and aliases have been removed.",
+          "\nNote: Function deletion is irreversible. All versions and aliases have been removed.",
         );
         break;
       }

@@ -648,7 +648,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
         validQueries.push(SavedQuerySchema.parse(query));
       } catch (error) {
         this.log(
-          `⚠️  Skipping invalid query '${(query as { name?: string }).name || "unknown"}': ${error instanceof Error ? error.message : String(error)}`,
+          `Skipping invalid query '${(query as { name?: string }).name || "unknown"}': ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
@@ -781,7 +781,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
     }
 
     const results = result.results || [];
-    this.log(`\n✅ Query executed successfully! Found ${results.length} results.\n`);
+    this.log(`\nQuery executed successfully! Found ${results.length} results.\n`);
 
     if (results.length === 0) {
       this.log("No results found for the specified query and time range.");

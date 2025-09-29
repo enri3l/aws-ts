@@ -669,7 +669,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
     _showStatistics: boolean,
     _verbose: boolean,
   ): void {
-    this.log(`\n🔍 Search Results (${results.length} matches):\n`);
+    this.log(`\nSearch Results (${results.length} matches):\n`);
 
     for (let index = 0; index < results.length; index++) {
       const result = results[index];
@@ -792,7 +792,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
     const eventsScanned = originalResult.events.length;
     const streamsSearched = originalResult.searchedLogStreams?.length || 0;
 
-    this.log(`\n📊 Search Statistics:`);
+    this.log(`\n Search Statistics:`);
     this.log(`  Events Found: ${results.length}`);
     this.log(`  Total Matches: ${totalMatches}`);
     this.log(`  Events Scanned: ${eventsScanned}`);
@@ -801,7 +801,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
     }
 
     if (verbose && originalResult.searchedLogStreams) {
-      this.log(`\n📋 Searched Log Streams:`);
+      this.log(`\nSearched Log Streams:`);
       for (const stream of originalResult.searchedLogStreams) {
         const completeness = stream.searchedCompletely ? "Complete" : "Partial";
         this.log(`  - ${stream.logStreamName}: ${completeness}`);

@@ -186,10 +186,10 @@ export default class EventBridgeEnableRuleCommand extends Command {
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Rule Enabled: ${ruleName}\n`);
+        this.log(`Rule Enabled: ${ruleName}\n`);
 
         // Enable Summary
-        this.log("⚡ Enable Summary:");
+        this.log("Enable Summary:");
         const enableInfo = [
           ["Rule Name", ruleName],
           ["Event Bus", eventBusName],
@@ -202,7 +202,7 @@ export default class EventBridgeEnableRuleCommand extends Command {
           this.log(`  ${key}: ${value}`);
         }
 
-        this.log("\n💡 Note: The rule is now active and will process matching events.");
+        this.log("\nNote: The rule is now active and will process matching events.");
         break;
       }
       case "json": {

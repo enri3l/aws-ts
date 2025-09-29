@@ -228,7 +228,7 @@ export default class EventBridgeDescribeRuleCommand extends Command {
    * @internal
    */
   private displayBasicInformation(ruleDetails: RuleDetailsWithTargets): void {
-    this.log("📋 Basic Information:");
+    this.log("Basic Information:");
     const basicInfo = [
       ["Rule Name", ruleDetails.Name ?? "N/A"],
       ["Rule ARN", ruleDetails.Arn ?? "N/A"],
@@ -252,7 +252,7 @@ export default class EventBridgeDescribeRuleCommand extends Command {
    */
   private displayEventPattern(ruleDetails: RuleDetailsWithTargets): void {
     if (ruleDetails.EventPattern) {
-      this.log("\n🎯 Event Pattern:");
+      this.log("\n Event Pattern:");
       try {
         const eventPattern: unknown = JSON.parse(ruleDetails.EventPattern);
         this.log(`  ${JSON.stringify(eventPattern, undefined, 2)}`);
@@ -270,7 +270,7 @@ export default class EventBridgeDescribeRuleCommand extends Command {
    */
   private displayScheduleExpression(ruleDetails: RuleDetailsWithTargets): void {
     if (ruleDetails.ScheduleExpression) {
-      this.log("\n⏰ Schedule Expression:");
+      this.log("\n Schedule Expression:");
       this.log(`  ${ruleDetails.ScheduleExpression}`);
 
       // Parse and explain common schedule expressions
@@ -291,7 +291,7 @@ export default class EventBridgeDescribeRuleCommand extends Command {
    */
   private displayRoleConfiguration(ruleDetails: RuleDetailsWithTargets): void {
     if (ruleDetails.RoleArn) {
-      this.log("\n🔐 IAM Configuration:");
+      this.log("\n IAM Configuration:");
       this.log(`  Role ARN: ${ruleDetails.RoleArn}`);
     }
   }
@@ -304,12 +304,12 @@ export default class EventBridgeDescribeRuleCommand extends Command {
    */
   private displayTargetsInformation(ruleDetails: RuleDetailsWithTargets): void {
     if (ruleDetails.targets && ruleDetails.targets.length > 0) {
-      this.log("\n🎯 Targets:");
+      this.log("\n Targets:");
       for (const [index, target] of ruleDetails.targets.entries()) {
         this.displaySingleTarget(target, index + 1);
       }
     } else {
-      this.log("\n🎯 Targets: No targets configured");
+      this.log("\n Targets: No targets configured");
     }
   }
 

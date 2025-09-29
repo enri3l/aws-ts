@@ -215,14 +215,14 @@ export default class AuthStatusCommand extends Command {
 
     if (expiredProfiles.length > 0) {
       this.log("");
-      this.warn(`⚠ Expired tokens: ${expiredProfiles.map((p: ProfileInfo) => p.name).join(", ")}`);
+      this.warn(`Expired tokens: ${expiredProfiles.map((p: ProfileInfo) => p.name).join(", ")}`);
       this.log("Run 'aws-ts auth login --profile <profile>' to refresh expired tokens");
     }
 
     if (nearExpiryProfiles.length > 0) {
       this.log("");
       this.warn(
-        `⚠ Tokens expiring soon: ${nearExpiryProfiles.map((p: ProfileInfo) => p.name).join(", ")},`,
+        `Tokens expiring soon: ${nearExpiryProfiles.map((p: ProfileInfo) => p.name).join(", ")},`,
       );
       this.log("Consider refreshing these tokens soon");
     }

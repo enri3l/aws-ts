@@ -220,9 +220,9 @@ export default class ECSServiceStopCommand extends Command {
         this.log(`  Status: ${service.status}`);
 
         this.log(
-          `\n⏹️  Service stopped - all ${currentDesiredCount} tasks will be gracefully terminated`,
+          `\nService stopped - all ${currentDesiredCount} tasks will be gracefully terminated`,
         );
-        this.log(`\n💡 To restart the service later, use:`);
+        this.log(`\nTo restart the service later, use:`);
         const clusterArgument = input.clusterName ? ` --cluster ${input.clusterName}` : "";
         this.log(
           `   aws-ts ecs service scale ${service.serviceName} ${currentDesiredCount}${clusterArgument}`,

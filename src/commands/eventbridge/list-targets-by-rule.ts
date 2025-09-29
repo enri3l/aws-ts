@@ -293,7 +293,7 @@ export default class EventBridgeListTargetsByRuleCommand extends Command {
    * @internal
    */
   private displayTargetDetails(targets: Target[]): void {
-    this.log("\n📋 Target Details:");
+    this.log("\nTarget Details:");
     for (const [index, target] of targets.entries()) {
       this.displaySingleTargetDetails(target, index + 1);
     }
