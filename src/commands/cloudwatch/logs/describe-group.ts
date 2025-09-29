@@ -17,7 +17,7 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
 /**
  * CloudWatch Logs describe group command for detailed log group information
  *
- * Provides comprehensive information about a CloudWatch log group including
+ * Provides information about a CloudWatch log group including
  * metadata, configuration, log streams, and operational details.
  *
  * @public

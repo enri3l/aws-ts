@@ -1,7 +1,7 @@
 /**
  * CloudWatch Logs-specific Zod schemas for input validation
  *
- * Provides comprehensive validation schemas for CloudWatch Logs commands
+ * Provides validation schemas for CloudWatch Logs commands
  * and operations with automatic TypeScript type generation.
  *
  */

@@ -1,7 +1,7 @@
 /**
  * ECS service create command
  *
- * Creates a new ECS service with comprehensive configuration options
+ * Creates a new ECS service with configuration options
  * including networking, load balancing, and service discovery.
  *
  */

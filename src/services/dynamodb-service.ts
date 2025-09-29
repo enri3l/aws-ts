@@ -3,7 +3,7 @@
  *
  * Orchestrates DynamoDB operations by providing a unified interface for
  * table management, queries, scans, and item operations. Integrates with
- * existing credential management for seamless AWS SDK client creation.
+ * existing credential management for AWS SDK client creation.
  *
  */
 
@@ -201,7 +201,7 @@ export interface PaginatedResult<T = Record<string, unknown>> {
  * DynamoDB service for high-level table operations
  *
  * Provides a unified interface for all DynamoDB operations,
- * coordinating with credential management and providing comprehensive error handling.
+ * coordinating with credential management and providing error handling.
  *
  * @public
  */

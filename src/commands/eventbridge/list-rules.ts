@@ -2,7 +2,7 @@
  * EventBridge list rules command
  *
  * Lists all EventBridge rules in the specified event bus with support for
- * filtering, pagination, and comprehensive rule information display.
+ * filtering, pagination, and rule information display.
  *
  */
 
@@ -61,7 +61,7 @@ interface RulesListResult {
 /**
  * EventBridge list rules command for rule discovery
  *
- * Lists all EventBridge rules with comprehensive filtering and pagination
+ * Lists all EventBridge rules with filtering and pagination
  * support across default and custom event buses.
  *
  * @public

@@ -52,7 +52,7 @@ sso_role_name = DeveloperAccess
 **Measurable Benefits:**
 
 - **Zero long-lived credentials** in configuration files
-- **Comprehensive token management** with expiry warnings
+- **Token management** with expiry warnings
 - **Graceful degradation** when SSO is unavailable
 
 ---
@@ -166,7 +166,7 @@ class AuthCliWrapper {
 - **No custom browser integration** reduces complexity
 - **AWS CLI updates** automatically improve authentication flows
 - **Established token formats** ensure compatibility
-- **Comprehensive error handling** for authentication edge cases
+- **Error handling** for authentication edge cases
 
 **Integration Benefits:**
 
@@ -193,7 +193,7 @@ development effort and risk introducing authentication vulnerabilities.
 **Context:** CLI tools often fail with cryptic error messages that don't
 help users resolve issues.
 
-**Decision:** Implement comprehensive error handling with structured error types,
+**Decision:** Implement structured error handling with structured error types,
 user-friendly messages, and actionable resolution guidance.
 
 **Error Architecture:**
@@ -286,12 +286,12 @@ experience and increase support overhead.
 
 ## Testing Strategy Design
 
-### Decision: Comprehensive Testing with Service Layer Focus
+### Decision: Testing with Service Layer Focus
 
 **Context:** CLI tools require testing at multiple levels including unit,
 integration, and end-to-end scenarios.
 
-**Decision:** Implement comprehensive testing strategy prioritizing service
+**Decision:** Implement multi-level testing strategy prioritizing service
 layer testing with TestContainers for integration scenarios.
 
 **Testing Hierarchy:**
@@ -334,7 +334,7 @@ describe("ProfileManager Integration", () => {
 
 // E2E Tests - CLI Commands
 describe("CLI Authentication E2E", () => {
-  it("should complete full authentication workflow", async () => {
+  it("should run full authentication workflow", async () => {
     // Full command execution with captured output
     const result = await oclif.test(["auth:status", "--verbose"]);
     expect(result.stdout).toContain("AWS CLI Status");
@@ -353,9 +353,9 @@ describe("CLI Authentication E2E", () => {
 
 **Development Quality:**
 
-- **Fast feedback loops** through comprehensive unit testing
+- **Fast feedback loops** through unit testing
 - **Realistic integration testing** with actual AWS configurations
-- **Regression prevention** through comprehensive coverage
+- **Regression prevention** through coverage
 - **Refactoring confidence** through extensive test suites
 
 **Architecture Validation:**
@@ -372,13 +372,13 @@ complexity of authentication workflows and error scenarios.
 
 ## Type Safety Implementation
 
-### Decision: Strict TypeScript with Comprehensive Schemas
+### Decision: Strict TypeScript with Schemas
 
 **Context:** CLI tools involve complex configuration parsing, user input
 validation, and service coordination.
 
 **Decision:** Implement strict TypeScript v5.9 with Zod schemas for runtime
-validation and comprehensive type coverage.
+validation and type coverage.
 
 **Type Safety Pattern:**
 
@@ -400,7 +400,7 @@ const AuthLoginSchema = z.object({
 
 type AuthLogin = z.infer<typeof AuthLoginSchema>;
 
-// Service interfaces with complete type coverage
+// Service interfaces with type coverage
 interface AuthService {
   login(input: AuthLogin): Promise<void>;
   getStatus(input: AuthStatus): Promise<AuthStatusResponse>;
@@ -428,13 +428,13 @@ interface AuthService {
 **Development Benefits:**
 
 - **Compile-time error detection** prevents runtime failures
-- **IDE integration** provides comprehensive autocomplete and refactoring
+- **IDE integration** provides autocomplete and refactoring
 - **Runtime validation** catches configuration errors early
 - **Type inference** reduces boilerplate while maintaining safety
 
 **Maintenance Benefits:**
 
-- **Refactoring confidence** through comprehensive type checking
+- **Refactoring confidence** through type checking
 - **API contract enforcement** between service layers
 - **Configuration validation** prevents deployment issues
 - **Error reduction** through strict type requirements
@@ -442,7 +442,7 @@ interface AuthService {
 **Quality Benefits:**
 
 - **Zero ESLint violations** achieved through strict typing
-- **Comprehensive documentation** through TSDoc integration
+- **Documentation** through TSDoc integration
 - **Test safety** through typed mock interfaces
 - **Build-time validation** prevents invalid configurations
 
@@ -458,7 +458,7 @@ maintainability benefits essential for production CLI tools.
 **Context:** Modern AWS SSO configuration uses session-based inheritance to
 reduce duplication across multiple profiles.
 
-**Decision:** Implement comprehensive property inheritance from SSO sessions
+**Decision:** Implement property inheritance from SSO sessions
 to profiles with clear precedence rules.
 
 **Inheritance Logic:**
@@ -519,7 +519,7 @@ private resolveSsoSessionProperties(profile: AwsProfileConfig): {
 - **Modern AWS CLI compatibility** with standard patterns
 - **Intuitive configuration structure** following AWS conventions
 - **Clear error messages** for inheritance issues
-- **Comprehensive validation** of inheritance chains
+- **Validation** of inheritance chains
 
 **Alternative Rejected:** Requiring SSO properties in every profile would
 violate DRY principles and increase configuration maintenance burden.

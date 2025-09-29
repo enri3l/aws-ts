@@ -1,10 +1,10 @@
 /**
- * EventBridge service for comprehensive rule and target management
+ * EventBridge service for rule and target management
  *
  * Orchestrates Amazon EventBridge operations by providing a unified interface for
  * rule lifecycle management, target configuration, event bus operations,
  * and event routing. Integrates with existing credential management for
- * seamless AWS SDK client creation.
+ * AWS SDK client creation.
  *
  */
 
@@ -235,10 +235,10 @@ export interface EventBridgePaginatedResult<T> {
 }
 
 /**
- * EventBridge service for comprehensive rule and target management
+ * EventBridge service for rule and target management
  *
  * Provides a unified interface for all EventBridge operations,
- * coordinating with credential management and providing comprehensive error handling.
+ * coordinating with credential management and providing error handling.
  *
  * @public
  */

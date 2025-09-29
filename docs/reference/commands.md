@@ -308,7 +308,7 @@ All commands follow consistent exit code patterns:
 
 ## Error Handling
 
-All commands implement **comprehensive error handling** with:
+All commands implement **structured error handling** with:
 
 - **Structured error types**: `AUTHENTICATION_ERROR`, `PROFILE_ERROR`, `TOKEN_ERROR`
 - **User-friendly messages**: Clear descriptions with resolution guidance
@@ -337,7 +337,7 @@ then 'aws sso login --profile <profile>'
 ### JSON Format
 
 - Machine-readable structured output
-- Complete data preservation
+- Data preservation
 - Suitable for scripting and automation
 - Consistent schema across commands
 

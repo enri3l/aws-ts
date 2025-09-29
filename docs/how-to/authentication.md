@@ -226,7 +226,7 @@ aws sso logout --profile problematic-profile
 aws-ts auth:status --profile problematic-profile
 ```
 
-1. **Complete Cache Reset:**
+1. **Cache Reset:**
 
 ```bash
 # Clear all SSO token cache
@@ -364,7 +364,7 @@ You need reliable patterns for recovering from various authentication failure sc
 1. **Diagnostic Information Gathering:**
 
 ```bash
-# Comprehensive diagnostic check
+# Diagnostic check
 echo "=== System Information ==="
 aws --version
 node --version
@@ -412,10 +412,10 @@ recovery_steps() {
 ```
 
 **Architecture Benefits:** This systematic approach leverages the CLI's
-**graceful error handling** and **comprehensive logging** to provide clear
+**graceful error handling** and **logging** to provide clear
 failure points and recovery paths.
 
-## Advanced Authentication Scenarios
+## Authentication Scenarios
 
 ### Cross-Account Role Assumption
 

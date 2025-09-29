@@ -18,7 +18,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
 /**
  * DynamoDB scan command for full table/index scanning
  *
- * Provides comprehensive table scanning capabilities with filtering,
+ * Provides table scanning capabilities with filtering,
  * projection, and pagination support for large datasets.
  *
  * @public

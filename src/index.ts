@@ -4,8 +4,8 @@
  * AWS TypeScript CLI - Main entry point
  *
  * Oclif-based command-line interface for AWS operations with TypeScript.
- * Provides modular command structure with CQRS pattern, comprehensive
- * error handling, and structured logging.
+ * Provides modular command structure with CQRS pattern, structured
+ * error types, and contextual logging.
  *
  */
 

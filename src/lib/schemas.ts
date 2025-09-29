@@ -1,7 +1,7 @@
 /**
  * Zod schemas for input validation with TypeScript type inference
  *
- * Provides comprehensive input validation schemas for CLI commands, configuration,
+ * Provides input validation schemas for CLI commands, configuration,
  * and AWS service parameters with automatic TypeScript type generation.
  *
  */

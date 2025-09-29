@@ -2,7 +2,7 @@
  * EventBridge put rule command
  *
  * Creates or updates an EventBridge rule with event patterns, schedule expressions,
- * and comprehensive configuration options for event routing and processing.
+ * and configuration options for event routing and processing.
  *
  */
 
@@ -79,7 +79,7 @@ interface RuleCreationResult {
  * EventBridge put rule command for rule creation and updates
  *
  * Creates or updates EventBridge rules with support for event patterns,
- * schedule expressions, and comprehensive configuration options.
+ * schedule expressions, and configuration options.
  *
  * @public
  */

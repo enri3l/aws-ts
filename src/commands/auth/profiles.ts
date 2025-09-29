@@ -34,7 +34,7 @@ interface DisplayProfileInfo extends ProfileInfo {
 /**
  * Auth profiles command for listing AWS profiles
  *
- * Provides comprehensive profile listing with authentication status,
+ * Provides profile listing with authentication status,
  * configuration details, and token expiry information.
  *
  * @public

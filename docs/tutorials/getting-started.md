@@ -138,7 +138,7 @@ Active Profile: default
 
 ## Error Handling Design
 
-The CLI implements **comprehensive error handling** with user-friendly messages:
+The CLI implements **structured error handling** with user-friendly messages:
 
 ```bash
 # Run with verbose flag for detailed debugging

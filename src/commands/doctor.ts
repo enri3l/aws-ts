@@ -1,7 +1,7 @@
 /**
  * AWS CLI doctor command for health checks and diagnostics
  *
- * Performs comprehensive system validation including environment checks,
+ * Performs system validation including environment checks,
  * configuration validation, authentication status, and AWS service connectivity.
  * Provides auto-repair capabilities and interactive troubleshooting guidance.
  *
@@ -37,16 +37,16 @@ import { DoctorService, type DiagnosticSummary } from "../services/doctor/doctor
 import type { CheckStage, DoctorContext } from "../services/doctor/types.js";
 
 /**
- * Doctor command for comprehensive system health checks
+ * Doctor command for system health checks
  *
  * Provides progressive validation across environment, configuration, authentication,
  * and connectivity stages with detailed diagnostics and auto-repair capabilities.
- * Integrates with existing authentication infrastructure for comprehensive validation.
+ * Integrates with existing authentication infrastructure for validation.
  *
  * @public
  */
 export default class DoctorCommand extends Command {
-  static override readonly description = "Run comprehensive health checks and diagnostics";
+  static override readonly description = "Run health checks and diagnostics";
 
   static override readonly summary =
     "Validate environment, configuration, authentication, and connectivity";
@@ -145,7 +145,7 @@ export default class DoctorCommand extends Command {
   /**
    * Execute the doctor command
    *
-   * Performs comprehensive diagnostic checks across all validation stages
+   * Performs diagnostic checks across all validation stages
    * with optional auto-repair capabilities and multiple output formats.
    *
    * @returns Promise resolving when command execution is complete

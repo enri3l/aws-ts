@@ -2,7 +2,7 @@
  * Lambda list functions command
  *
  * Lists all Lambda functions in the specified region with support for
- * multiple output formats and comprehensive error handling.
+ * multiple output formats and error handling.
  *
  */
 

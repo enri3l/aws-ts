@@ -1,7 +1,7 @@
 /**
  * SSO token manager for token lifecycle management
  *
- * Provides comprehensive SSO token management including expiry detection,
+ * Provides SSO token management including expiry detection,
  * automatic refresh capabilities, and SSO cache integration for AWS CLI
  * compatibility.
  *

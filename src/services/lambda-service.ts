@@ -1,10 +1,10 @@
 /**
- * Lambda service for comprehensive function management and invocation
+ * Lambda service for function management and invocation
  *
  * Orchestrates AWS Lambda operations by providing a unified interface for
  * function lifecycle management, code deployment, configuration updates,
  * and invocation. Integrates with existing credential management for
- * seamless AWS SDK client creation.
+ * AWS SDK client creation.
  *
  */
 
@@ -187,10 +187,10 @@ export interface LambdaUpdateConfigurationParameters {
 }
 
 /**
- * Lambda service for comprehensive function management
+ * Lambda service for function management
  *
  * Provides a unified interface for all Lambda operations,
- * coordinating with credential management and providing comprehensive error handling.
+ * coordinating with credential management and providing error handling.
  *
  * @public
  */

@@ -2,7 +2,7 @@
  * API Gateway describe API command
  *
  * Retrieves detailed information about a specific API Gateway API
- * with automatic type detection and comprehensive metadata display.
+ * with automatic type detection and metadata display.
  *
  */
 
@@ -22,7 +22,7 @@ import {
 /**
  * API Gateway describe API command for detailed API information
  *
- * Provides comprehensive information about a specific API including
+ * Provides information about a specific API including
  * metadata, configuration, and deployment details with automatic type detection.
  *
  * @public

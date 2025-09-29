@@ -16,7 +16,7 @@ import { TokenManager } from "../../services/token-manager.js";
 /**
  * Auth status command for checking authentication state
  *
- * Provides comprehensive authentication status including profile information,
+ * Provides authentication status including profile information,
  * credential validity, token expiry, and AWS CLI installation status.
  *
  * @public

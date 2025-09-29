@@ -41,7 +41,7 @@ The solutions in these guides reflect the project's **quality standards**:
   clear error messages
 - **Graceful degradation** - Partial functionality when some profiles are
   misconfigured
-- **Comprehensive error handling** - User-friendly messages with actionable
+- **Error handling** - User-friendly messages with actionable
   resolution steps
 - **SOLID principles** - Each service has single responsibility with clear boundaries
 
@@ -79,8 +79,8 @@ The solutions in these guides reflect the project's **quality standards**:
 
 - **Start with [Tutorials](/tutorials/)** for foundational understanding
 - **Use How-To Guides** for specific problem-solving
-- **Reference [Commands](/reference/commands)** for complete flag and option details
+- **Reference [Commands](/reference/commands)** for flag and option details
 - **Explore [Architecture](/explanation/architecture)** for deeper system understanding
 
 Each how-to guide includes links to relevant reference documentation and
-architectural explanations for complete context.
+architectural explanations for context.

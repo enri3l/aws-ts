@@ -21,9 +21,9 @@ import { parseJsonInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
- * DynamoDB batch get item command for efficient multi-item retrieval
+ * DynamoDB batch get item command for multi-item retrieval
  *
- * Provides efficient batch retrieval capabilities for multiple items
+ * Provides batch retrieval capabilities for multiple items
  * across one or more tables with automatic retry handling.
  *
  * @public

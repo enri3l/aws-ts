@@ -6,7 +6,7 @@
  * clear separation between different error categories.
  *
  * @file
- * This module implements a comprehensive error hierarchy for the AWS CLI:
+ * This module implements a error hierarchy for the AWS CLI:
  *
  * **Core Error Types:**
  * - BaseError: Abstract base class for all CLI errors
@@ -206,7 +206,7 @@ export class UserConfigurationError extends BaseError {
  * API error for external service failures with cause tracking
  *
  * Used when external API calls (AWS services, third-party APIs) fail
- * or return unexpected responses. Includes comprehensive cause tracking
+ * or return unexpected responses. Includes cause tracking
  * and service-specific context for debugging and user guidance.
  *
  * @public

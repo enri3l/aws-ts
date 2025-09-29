@@ -3,7 +3,7 @@
  *
  * Orchestrates CloudWatch Logs operations by providing a unified interface for
  * log group management, real-time streaming, queries, and analytics. Integrates with
- * existing credential management for seamless AWS SDK client creation.
+ * existing credential management for AWS SDK client creation.
  *
  */
 
@@ -242,7 +242,7 @@ export interface PaginatedResult<T> {
  * CloudWatch Logs service for high-level log operations
  *
  * Provides a unified interface for all CloudWatch Logs operations,
- * coordinating with credential management and providing comprehensive error handling.
+ * coordinating with credential management and providing error handling.
  *
  * @public
  */

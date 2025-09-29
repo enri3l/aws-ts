@@ -367,7 +367,7 @@ export class DataProcessor {
     if (records.length === 0) return "";
 
     /**
-     * Extract comprehensive column schema from heterogeneous data records.
+     * Extract column schema from heterogeneous data records.
      * This approach handles varying record structures by collecting all possible
      * field names, ensuring CSV output includes all data points even when
      * individual records have different schemas. Critical for maintaining

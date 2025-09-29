@@ -4,7 +4,7 @@
  * Orchestrates API Gateway operations by providing a unified interface for
  * API discovery, description, and configuration retrieval across REST, HTTP,
  * and WebSocket APIs. Integrates with existing credential management for
- * seamless AWS SDK dual-client creation.
+ * AWS SDK dual-client creation.
  *
  */
 
@@ -255,7 +255,7 @@ export interface PaginatedApiResult {
  * API Gateway service for high-level API operations
  *
  * Provides a unified interface for all API Gateway operations,
- * coordinating with credential management and providing comprehensive error handling.
+ * coordinating with credential management and providing error handling.
  *
  * @public
  */
@@ -765,7 +765,7 @@ export class ApiGwService {
   }
 
   /**
-   * Get comprehensive API configuration
+   * Get API configuration
    *
    * @param apiId - API ID to get configuration for
    * @param config - Client configuration options

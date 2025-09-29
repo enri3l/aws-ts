@@ -4,7 +4,7 @@ Information-oriented technical reference for commands and configuration options.
 
 ## Technical Reference Overview
 
-This section provides comprehensive reference material for the AWS TypeScript
+This section provides reference material for the AWS TypeScript
 CLI, to serve as authoritative specification for commands, configuration, and
 system behavior.
 
@@ -12,7 +12,7 @@ system behavior.
 
 ### [Commands](./commands)
 
-Complete CLI command reference with all authentication commands, flags, options,
+CLI command reference with all authentication commands, flags, options,
 and examples.
 
 **Coverage:**
@@ -25,7 +25,7 @@ and examples.
 
 ### [Configuration](./configuration)
 
-Comprehensive configuration reference for AWS files, environment variables,
+Configuration reference for AWS files, environment variables,
 and CLI settings.
 
 **Coverage:**
@@ -44,7 +44,7 @@ clear boundaries:
 - **Command Layer** (`src/commands/auth/`) - OCLIF command implementations
   with flag parsing and output formatting
 - **Service Layer** (`src/services/`) - Business logic coordination with
-  comprehensive error handling
+  structured error handling
 - **Library Layer** (`src/lib/`) - Schemas, error types, and utilities with
   strict TypeScript typing
 
@@ -53,9 +53,9 @@ clear boundaries:
 Reference documentation follows the project's **quality standards**:
 
 - **Type Safety**: All command signatures and configuration options strictly typed
-- **Comprehensive Coverage**: Every flag, option, and configuration parameter
+- **Coverage**: Every flag, option, and configuration parameter
   documented
-- **Error Documentation**: Complete error codes and resolution guidance
+- **Error Documentation**: Error codes and resolution guidance
 - **Architectural Context**: Each command fits into the broader CQRS pattern
 
 ## Command Reference Patterns

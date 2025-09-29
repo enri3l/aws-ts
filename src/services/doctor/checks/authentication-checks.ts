@@ -1,7 +1,7 @@
 /**
  * Authentication validation checks for AWS credentials and tokens
  *
- * Provides comprehensive authentication validation leveraging existing
+ * Provides authentication validation leveraging existing
  * authentication infrastructure including credential validation, SSO token
  * status checking, and profile switching capabilities. These checks depend
  * on configuration stage completion and validate authentication readiness.
@@ -21,7 +21,7 @@ import { BaseCheck } from "./base-check.js";
  * Credential validation check using existing AuthService
  *
  * Leverages AuthService.getStatus() to validate current credential configuration
- * and authentication state. Provides comprehensive validation through the
+ * and authentication state. Provides validation through the
  * existing authentication infrastructure without duplicating validation logic.
  *
  * @public
@@ -68,7 +68,7 @@ export class CredentialValidationCheck extends BaseCheck {
   /**
    * Run the credential validation check
    *
-   * Uses AuthService.getStatus() to perform comprehensive credential validation
+   * Uses AuthService.getStatus() to perform credential validation
    * including profile verification, token status, and authentication readiness.
    * Provides detailed validation results and specific guidance for issues.
    *
@@ -76,7 +76,7 @@ export class CredentialValidationCheck extends BaseCheck {
    * @returns Promise resolving to check result with credential validation details
    */
   protected async run(context: DoctorContext): Promise<CheckResult> {
-    // Use AuthService.getStatus() for comprehensive validation
+    // Use AuthService.getStatus() for validation
     const authStatusInput = {
       profile: context.profile,
       detailed: context.detailed ?? false,

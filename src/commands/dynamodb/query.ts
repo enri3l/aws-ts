@@ -16,9 +16,9 @@ import { parseOptionalJson, parseRequiredJson } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
- * DynamoDB query command for efficient table querying
+ * DynamoDB query command for table querying
  *
- * Provides efficient querying capabilities using key condition expressions
+ * Provides querying capabilities using key condition expressions
  * with filtering, projection, and pagination support.
  *
  * @public

@@ -369,5 +369,5 @@ sso_region = us-east-1
 ```
 
 This pattern ensures **maintainability** and **clarity** across team members
-while leveraging the CLI's comprehensive profile discovery and management
+while leveraging the CLI's profile discovery and management
 capabilities.

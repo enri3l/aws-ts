@@ -12,7 +12,7 @@ the AWS TypeScript CLI, with concrete examples and step-by-step instructions.
 
 ### [Getting Started](./getting-started)
 
-Complete setup and first-time configuration of the CLI with authentication
+Setup and first-time configuration of the CLI with authentication
 system introduction.
 
 **Learning Objectives:**

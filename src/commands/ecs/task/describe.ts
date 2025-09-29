@@ -15,7 +15,7 @@ import { ECSService, type TaskDescription } from "../../../services/ecs-service.
 /**
  * ECS task describe command for detailed task information
  *
- * Describes ECS tasks with comprehensive information including
+ * Describes ECS tasks with information including
  * container details, network configuration, and execution status.
  *
  * @public

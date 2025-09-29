@@ -213,7 +213,7 @@ export AWS_SHARED_CREDENTIALS_FILE=/custom/path/credentials
 
 ### Syntax Validation
 
-The CLI performs comprehensive validation:
+The CLI performs input validation:
 
 **INI Format Rules:**
 

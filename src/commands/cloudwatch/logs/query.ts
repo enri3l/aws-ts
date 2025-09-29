@@ -19,13 +19,12 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
  * CloudWatch Logs query command for executing Logs Insights queries
  *
  * Provides execution of CloudWatch Logs Insights queries with support for
- * multiple query languages, smart time parsing, and comprehensive result formatting.
+ * multiple query languages, smart time parsing, and result formatting.
  *
  * @public
  */
 export default class CloudWatchLogsQueryCommand extends Command {
-  static override readonly description =
-    "Execute CloudWatch Logs Insights queries with advanced filtering";
+  static override readonly description = "Execute CloudWatch Logs Insights queries with filtering";
 
   static override readonly examples = [
     {

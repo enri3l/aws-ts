@@ -94,7 +94,7 @@ export default class AuthSwitchCommand extends Command {
 
       if (flags.verbose) {
         this.log("");
-        this.log("Profile switch complete. Environment variables updated:");
+        this.log("Profile switch succeeded. Environment variables updated:");
         this.log(`  AWS_PROFILE=${args.profile}`);
 
         if (flags["set-default"]) {

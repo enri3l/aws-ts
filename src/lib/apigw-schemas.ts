@@ -1,7 +1,7 @@
 /**
  * API Gateway-specific Zod schemas for input validation
  *
- * Provides comprehensive validation schemas for API Gateway commands
+ * Provides validation schemas for API Gateway commands
  * and operations with automatic TypeScript type generation.
  *
  */

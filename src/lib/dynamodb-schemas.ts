@@ -1,7 +1,7 @@
 /**
  * DynamoDB-specific Zod schemas for input validation
  *
- * Provides comprehensive validation schemas for DynamoDB commands
+ * Provides validation schemas for DynamoDB commands
  * and operations with automatic TypeScript type generation.
  *
  */

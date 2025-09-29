@@ -16,9 +16,9 @@ import { parseOptionalJson, parseRequiredJson } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
 
 /**
- * DynamoDB query index command for efficient index querying
+ * DynamoDB query index command for index querying
  *
- * Provides efficient querying capabilities on Global and Local Secondary Indexes
+ * Provides querying capabilities on Global and Local Secondary Indexes
  * using key condition expressions with filtering, projection, and pagination support.
  *
  * @public

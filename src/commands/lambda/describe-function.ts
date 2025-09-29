@@ -47,7 +47,7 @@ interface ExtendedFunctionDetails {
 /**
  * Lambda describe function command for detailed function information
  *
- * Provides comprehensive information about a Lambda function including
+ * Provides information about a Lambda function including
  * configuration, code details, and associated tags.
  *
  * @public

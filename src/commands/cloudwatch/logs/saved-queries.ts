@@ -143,7 +143,7 @@ class SavedQueriesStorage {
 /**
  * CloudWatch Logs saved queries command for managing query definitions
  *
- * Provides comprehensive management of saved CloudWatch Logs queries
+ * Provides management of saved CloudWatch Logs queries
  * with local storage, execution, and team collaboration features.
  *
  * @public

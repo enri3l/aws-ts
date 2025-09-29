@@ -30,7 +30,7 @@ interface ExtendedClusterDescription extends ClusterDescription {
  * ECS cluster describe command for detailed cluster inspection
  *
  * Provides detailed configuration and status information for specified ECS clusters
- * with support for multiple output formats and comprehensive metadata inclusion.
+ * with support for multiple output formats and metadata inclusion.
  *
  * @public
  */

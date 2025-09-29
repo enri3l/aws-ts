@@ -29,7 +29,7 @@ interface ExtendedFunctionConfiguration extends FunctionConfiguration {
 /**
  * Lambda create function command for function creation
  *
- * Creates a new Lambda function with comprehensive configuration options
+ * Creates a new Lambda function with configuration options
  * including code deployment, runtime settings, and advanced configurations.
  *
  * @public

@@ -15,7 +15,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
 /**
  * ECS service describe command for detailed service information
  *
- * Describes ECS services with comprehensive information including
+ * Describes ECS services with information including
  * configuration, deployments, events, and status details.
  *
  * @public

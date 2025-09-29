@@ -17,7 +17,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
 /**
  * DynamoDB describe table command for detailed table information
  *
- * Provides comprehensive information about a DynamoDB table including
+ * Provides information about a DynamoDB table including
  * schema, indexes, billing configuration, and operational status.
  *
  * @public

@@ -145,7 +145,7 @@ interface PutTargetsResult {
  * EventBridge put targets command for target management
  *
  * Adds or updates targets for an EventBridge rule with support for
- * various AWS services and comprehensive target configuration options.
+ * various AWS services and target configuration options.
  *
  * @public
  */

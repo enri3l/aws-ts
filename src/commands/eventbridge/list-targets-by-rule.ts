@@ -52,7 +52,7 @@ interface TargetsListResult {
  * EventBridge list targets by rule command for target discovery
  *
  * Lists all targets configured for a specific EventBridge rule with
- * comprehensive target information and configuration details.
+ * target information and configuration details.
  *
  * @public
  */

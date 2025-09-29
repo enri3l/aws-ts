@@ -2,7 +2,7 @@
  * DynamoDB batch write item command
  *
  * Performs bulk write operations (put/delete) to a DynamoDB table with
- * support for CSV import, automatic batching, and comprehensive retry logic.
+ * support for CSV import, automatic batching, and retry logic.
  *
  */
 
@@ -72,7 +72,7 @@ function extractItemsFromUnprocessedRequests(
  * DynamoDB batch write item command for bulk operations
  *
  * Provides efficient bulk write capabilities with CSV import support,
- * automatic batching, and comprehensive retry handling for large datasets.
+ * automatic batching, and retry handling for large datasets.
  *
  * @public
  */

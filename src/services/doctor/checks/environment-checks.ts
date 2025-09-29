@@ -127,7 +127,7 @@ export class NodeVersionCheck implements ICheck {
  * AWS CLI installation verification check
  *
  * Validates that AWS CLI version 2 is properly installed and accessible
- * in the system PATH. Uses execa for robust cross-platform command execution
+ * in the system PATH. Uses execa for cross-platform command execution
  * with timeout protection and proper error handling.
  *
  * @public

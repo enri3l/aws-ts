@@ -19,7 +19,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  * DynamoDB update item command for item updates
  *
  * Provides item update capabilities using update expressions with condition
- * expressions and comprehensive return value support.
+ * expressions and return value support.
  *
  * @public
  */

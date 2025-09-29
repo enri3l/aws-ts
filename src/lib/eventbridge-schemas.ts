@@ -1,7 +1,7 @@
 /**
  * EventBridge-specific Zod schemas for input validation
  *
- * Provides comprehensive validation schemas for EventBridge commands
+ * Provides validation schemas for EventBridge commands
  * and operations with automatic TypeScript type generation.
  *
  */

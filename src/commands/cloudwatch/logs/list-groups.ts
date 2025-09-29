@@ -2,7 +2,7 @@
  * CloudWatch Logs list groups command
  *
  * Lists all CloudWatch log groups in the specified region with support for
- * multiple output formats and comprehensive error handling.
+ * multiple output formats and error handling.
  *
  */
 

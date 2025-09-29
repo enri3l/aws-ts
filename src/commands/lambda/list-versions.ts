@@ -2,7 +2,7 @@
  * Lambda list versions command
  *
  * Lists all versions of a Lambda function including $LATEST with support
- * for pagination and comprehensive version information display.
+ * for pagination and version information display.
  *
  */
 
@@ -32,7 +32,7 @@ interface ExtendedFunctionConfiguration extends FunctionConfiguration {
 /**
  * Lambda list versions command for version discovery
  *
- * Lists all versions of a Lambda function with comprehensive version information
+ * Lists all versions of a Lambda function with version information
  * and support for pagination and multiple output formats.
  *
  * @public

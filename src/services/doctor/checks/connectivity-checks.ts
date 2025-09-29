@@ -1,7 +1,7 @@
 /**
  * Connectivity validation checks for AWS services and endpoints
  *
- * Provides comprehensive AWS service connectivity validation including STS
+ * Provides AWS service connectivity validation including STS
  * credential verification, service endpoint testing, and region accessibility
  * validation. These checks depend on authentication stage completion and
  * validate actual AWS service connectivity.

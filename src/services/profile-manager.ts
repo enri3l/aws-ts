@@ -1,7 +1,7 @@
 /**
  * AWS profile manager for multi-profile management
  *
- * Provides comprehensive AWS profile discovery, validation, and management
+ * Provides AWS profile discovery, validation, and management
  * capabilities. Reads from standard AWS configuration files and manages
  * profile switching with credential validation.
  *
@@ -158,7 +158,7 @@ interface CachedProfile {
  * AWS profile manager for multi-profile management
  *
  * Handles AWS profile discovery from configuration files, profile validation,
- * and profile switching operations with comprehensive error handling.
+ * and profile switching operations with error handling.
  *
  * @public
  */

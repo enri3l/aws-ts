@@ -1,7 +1,7 @@
 /**
  * Authentication-specific Zod schemas for input validation
  *
- * Provides comprehensive validation schemas for authentication commands
+ * Provides validation schemas for authentication commands
  * and operations with automatic TypeScript type generation.
  *
  */

@@ -1,5 +1,5 @@
 /**
- * Doctor service for comprehensive system health checks and diagnostics
+ * Doctor service for system health checks and diagnostics
  *
  * Orchestrates progressive validation stages by coordinating existing services
  * for environment, configuration, authentication, and connectivity checks.
@@ -76,7 +76,7 @@ export interface DiagnosticSummary {
 /**
  * Doctor service for system health validation and auto-repair
  *
- * Provides comprehensive diagnostic capabilities through progressive validation
+ * Provides diagnostic capabilities through progressive validation
  * stages with integration to existing authentication infrastructure. Supports
  * both automated and interactive repair modes with backup-first safety patterns.
  *
@@ -135,7 +135,7 @@ export class DoctorService {
   }
 
   /**
-   * Execute comprehensive diagnostic checks across all stages
+   * Execute diagnostic checks across all stages
    *
    * Runs progressive validation from environment through connectivity stages,
    * providing detailed results and optional auto-repair capabilities.

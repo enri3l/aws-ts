@@ -136,7 +136,7 @@ aws-ts auth:login --profile profile-test --verbose
 The login command triggers AWS CLI's SSO flow:
 
 1. Browser opens to your organization's SSO portal
-2. Complete authentication in browser
+2. Authentication in browser
 3. CLI receives and validates SSO tokens
 4. Credentials cached locally for subsequent use
 
@@ -281,7 +281,7 @@ This tutorial demonstrates the **service layer architecture**:
 After mastering basic authentication commands:
 
 1. **Configuration Management** - [Configuration How-To](/how-to/configuration)
-2. **Advanced Authentication** - [Authentication How-To](/how-to/authentication)
+2. **Authentication** - [Authentication How-To](/how-to/authentication)
 3. **Command Reference** - [Commands Reference](/reference/commands)
 4. **Architecture Deep Dive** - [Architecture Explanation](/explanation/architecture)
 

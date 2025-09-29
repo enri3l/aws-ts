@@ -3,7 +3,7 @@
  *
  * Orchestrates authentication workflows by coordinating AWS CLI wrapper,
  * credential service, profile manager, and token manager. Provides
- * comprehensive authentication operations for CLI commands.
+ * authentication operations for CLI commands.
  *
  */
 
@@ -234,7 +234,7 @@ export class AuthService {
         };
       }
 
-      spinner.succeed("Status check complete");
+      spinner.succeed("Status check succeeded");
       return result;
     } catch (error) {
       spinner.fail("Status check failed");

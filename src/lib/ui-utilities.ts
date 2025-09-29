@@ -43,11 +43,11 @@ const MAX_CELL_LENGTH = 256;
  * memory exhaustion and terminal crashes. It implements:
  * - Row count limits to prevent overwhelming large datasets
  * - Cell content truncation for readability
- * - User guidance for accessing complete data
+ * - User guidance for accessing full data
  * - Graceful handling of malformed data structures
  *
  * When data exceeds the display limits, users are provided with clear guidance
- * on how to access the complete dataset using alternative output formats.
+ * on how to access the full dataset using alternative output formats.
  *
  * @example
  * ```typescript
@@ -85,7 +85,7 @@ export function safeDisplayTable(data: unknown[]): void {
       // Provide user guidance
       console.log(""); // Add spacing
       console.warn(`Table output truncated to ${MAX_TABLE_ROWS} rows out of ${data.length} total.`);
-      console.log(`To view complete data, use: --output json`);
+      console.log(`To view full data, use: --output json`);
       console.log(`   Showing ${data.length - MAX_TABLE_ROWS} additional rows available.`);
     } else {
       // Safe to display all data with cell truncation

@@ -20,7 +20,7 @@ The codebase follows a layered CQRS architecture with clear separation of concer
 
 ### Authentication System
 
-Complete AWS authentication workflow with multi-profile SSO support:
+AWS authentication workflow with multi-profile SSO support:
 
 - `AuthService` - High-level authentication orchestration
 - `CredentialService` - AWS credential validation and management
@@ -33,7 +33,7 @@ Unified data processing for CLI input/output:
 
 - `DataProcessor` - Multi-format processing (JSON, CSV, JSONL, TSV)
 - Support for streaming large datasets with memory efficiency
-- Type inference and validation with comprehensive error handling
+- Type inference and validation with structured error handling
 
 ### Error Management
 
@@ -55,7 +55,7 @@ Start with the main entry point in `src/index.ts` and explore:
 
 All public APIs follow Microsoft's TSDoc standard with:
 
-- Comprehensive parameter and return type documentation
+- Parameter and return type documentation
 - Usage examples for complex operations
 - Error condition documentation
 - Architectural context and design decisions

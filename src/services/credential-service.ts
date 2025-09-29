@@ -3,7 +3,7 @@
  *
  * Provides AWS SDK client factory methods with proper credential management
  * using the AWS credential provider chain. Integrates with AWS CLI authentication
- * for seamless credential resolution.
+ * for credential resolution.
  *
  */
 

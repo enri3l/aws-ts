@@ -56,6 +56,12 @@ export default {
           "revolutionary",
           "cutting-edge",
           "state-of-the-art",
+          "seamless",
+          "robust",
+          "powerful",
+          "advanced",
+          "sophisticated",
+          "elegant",
         ];
         const subject = parsed.subject || "";
         const foundWords = forbiddenWords.filter((word) =>

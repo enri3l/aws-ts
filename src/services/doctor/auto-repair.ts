@@ -86,7 +86,7 @@ export interface AutoRepairOptions {
 /**
  * Auto-repair service for diagnostic issue resolution
  *
- * Provides comprehensive auto-repair capabilities using backup-first patterns
+ * Provides auto-repair capabilities using backup-first patterns
  * and integration with existing authentication infrastructure. Supports both
  * automated safe operations and interactive user-guided repairs.
  *

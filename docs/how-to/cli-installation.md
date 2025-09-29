@@ -1,6 +1,6 @@
 # CLI Installation and Setup
 
-Complete guide for installing and configuring the AWS TypeScript CLI to use the
+Guide for installing and configuring the AWS TypeScript CLI to use the
 `aws-ts` command instead of `node dist/index.js`.
 
 ## Installation Methods
@@ -254,7 +254,7 @@ aws-ts auth:logout --all-profiles
 aws-ts auth:switch production
 ```
 
-This provides a seamless experience matching the documented command patterns throughout the project documentation.
+This provides a experience matching the documented command patterns throughout the project documentation.
 
 ## Production Deployment
 
@@ -263,7 +263,7 @@ For production environments or team distribution:
 **1. Package for distribution:**
 
 ```bash
-# Create production-ready package
+# Create package
 pnpm build
 pnpm pack
 ```

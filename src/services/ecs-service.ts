@@ -1,9 +1,9 @@
 /**
- * ECS service for comprehensive container orchestration and management
+ * ECS service for container orchestration and management
  *
  * Orchestrates AWS ECS operations by providing a unified interface for
  * cluster management, service orchestration, and task lifecycle operations.
- * Integrates with existing credential management for seamless AWS SDK client creation.
+ * Integrates with existing credential management for AWS SDK client creation.
  *
  */
 
@@ -271,10 +271,10 @@ export interface RunTaskResult {
 }
 
 /**
- * ECS service for comprehensive container orchestration and management
+ * ECS service for container orchestration and management
  *
  * Provides a unified interface for all ECS operations,
- * coordinating with credential management and providing comprehensive error handling.
+ * coordinating with credential management and providing error handling.
  *
  * @public
  */
@@ -351,7 +351,7 @@ export class ECSService {
    *
    * @param config - Client configuration options
    * @returns Promise resolving to array of cluster names
-   * @throws {ServiceError} When cluster listing fails due to credentials, permissions, or API errors
+   * @throws ServiceError - When cluster listing fails due to credentials, permissions, or API errors
    *
    * @example
    * ```typescript
@@ -401,7 +401,7 @@ export class ECSService {
    * @param clusterNames - Names of clusters to describe
    * @param config - Client configuration options
    * @returns Promise resolving to array of cluster descriptions
-   * @throws {ServiceError} When cluster description fails
+   * @throws ServiceError - When cluster description fails
    *
    * @example
    * ```typescript
@@ -577,7 +577,7 @@ export class ECSService {
    * @param options - List options including cluster, launchType, schedulingStrategy, and maxResults
    * @param config - Client configuration options
    * @returns Promise resolving to array of service ARNs
-   * @throws {ServiceError} When service listing fails
+   * @throws ServiceError - When service listing fails
    *
    * @example List all services in a cluster
    * ```typescript

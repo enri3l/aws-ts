@@ -6,8 +6,8 @@ component interactions.
 ## Architectural Overview
 
 The AWS TypeScript CLI implements a **modular CQRS architecture** with
-comprehensive service layer coordination, following the project's commitment to
-**type safety**, **maintainability**, and **comprehensive error handling**.
+service layer coordination, following the project's commitment to
+**type safety**, **maintainability**, and **structured error handling**.
 
 ## CQRS Pattern Implementation
 
@@ -160,7 +160,7 @@ class AuthService {
   // Coordinates between services
   // Provides user-facing API
   // Handles progress indicators
-  // Implements comprehensive error handling
+  // Implements structured error handling
 }
 ```
 
@@ -171,7 +171,7 @@ class AuthService {
  * AWS profile manager for multi-profile management
  *
  * Handles AWS profile discovery from configuration files, profile validation,
- * and profile switching operations with comprehensive error handling.
+ * and profile switching operations with structured error handling.
  */
 class ProfileManager {
   // Parses AWS config files
@@ -280,7 +280,7 @@ class ProfileManager {
 
 ### Structured Error Types
 
-The architecture provides **comprehensive error handling** with structured types:
+The architecture provides **structured error handling** with structured types:
 
 ```typescript
 // Base error with architectural context
@@ -311,9 +311,9 @@ function getAuthErrorGuidance(error: AuthenticationError): string {
 
 ## Type Safety Implementation
 
-### Comprehensive TypeScript Usage
+### TypeScript Usage
 
-The architecture leverages **TypeScript v5.9** for complete type safety:
+The architecture leverages **TypeScript v5.9** for type safety:
 
 ```typescript
 // Strict input validation with Zod schemas
@@ -333,7 +333,7 @@ const AuthLoginSchema = z.object({
 
 type AuthLogin = z.infer<typeof AuthLoginSchema>;
 
-// Service interfaces with complete type coverage
+// Service interfaces with type coverage
 interface AuthService {
   login(input: AuthLogin): Promise<void>;
   getStatus(input: AuthStatus): Promise<AuthStatusResponse>;
@@ -372,7 +372,7 @@ interface CredentialValidation {
 
 ### SSO Authentication Flow
 
-The architecture implements a comprehensive SSO workflow:
+The architecture implements a SSO workflow:
 
 ```typescript
 async login(input: AuthLogin): Promise<void> {
@@ -463,7 +463,7 @@ async getProfileStatus(profileName: string): Promise<ProfileInfo> {
 
 ### Service Layer Testing Strategy
 
-The architecture enables comprehensive testing through **dependency injection**:
+The architecture enables multi-level testing through **dependency injection**:
 
 ```typescript
 // Service testing with mocked dependencies

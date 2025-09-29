@@ -1,7 +1,7 @@
 /**
  * CloudWatch Logs analytics and insights schemas and interfaces
  *
- * Provides comprehensive validation schemas and TypeScript interfaces for
+ * Provides validation schemas and TypeScript interfaces for
  * CloudWatch Logs pattern analysis and metrics extraction operations.
  *
  */

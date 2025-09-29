@@ -2,7 +2,7 @@
  * API Gateway list APIs command
  *
  * Lists all API Gateway APIs across REST, HTTP, and WebSocket types
- * with support for multiple output formats and comprehensive error handling.
+ * with support for multiple output formats and error handling.
  *
  */
 

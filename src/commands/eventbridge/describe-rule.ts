@@ -21,7 +21,7 @@ import { EventBridgeService } from "../../services/eventbridge-service.js";
  */
 interface RuleDetailsWithTargets extends Rule {
   /**
-   * Rule targets for comprehensive display
+   * Rule targets for display
    */
   readonly targets?: Target[];
 
@@ -39,7 +39,7 @@ interface RuleDetailsWithTargets extends Rule {
 /**
  * EventBridge describe rule command for detailed rule inspection
  *
- * Provides comprehensive information about an EventBridge rule including
+ * Provides information about an EventBridge rule including
  * event patterns, schedule expressions, targets, and configuration details.
  *
  * @public

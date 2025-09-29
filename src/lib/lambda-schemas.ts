@@ -1,7 +1,7 @@
 /**
  * Lambda-specific Zod schemas for input validation
  *
- * Provides comprehensive validation schemas for Lambda commands
+ * Provides validation schemas for Lambda commands
  * and operations with automatic TypeScript type generation.
  *
  */

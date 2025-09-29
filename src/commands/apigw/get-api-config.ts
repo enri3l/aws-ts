@@ -1,7 +1,7 @@
 /**
  * API Gateway get API configuration command
  *
- * Retrieves comprehensive configuration details for a specific API Gateway API
+ * Retrieves configuration details for a specific API Gateway API
  * including stages, resources/routes, integrations, and authorizers.
  *
  */
@@ -31,7 +31,7 @@ interface SummaryInfo {
 }
 
 /**
- * API Gateway get API configuration command for comprehensive configuration export
+ * API Gateway get API configuration command for configuration export
  *
  * Provides detailed configuration information including stages, resources/routes,
  * integrations, authorizers, and CORS settings with format options for export.
@@ -39,8 +39,7 @@ interface SummaryInfo {
  * @public
  */
 export default class ApigwGetApiConfigCommand extends Command {
-  static override readonly description =
-    "Get comprehensive configuration details for an API Gateway API";
+  static override readonly description = "Get configuration details for an API Gateway API";
 
   static override readonly examples = [
     {
