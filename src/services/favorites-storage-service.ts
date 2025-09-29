@@ -213,7 +213,7 @@ export class FavoritesStorageService {
         await this.createBackup();
       }
 
-      // Update metadata
+      // Update metadata timestamps and counts to reflect current state before persisting to disk.
       collection.metadata.lastModifiedAt = new Date().toISOString();
       collection.metadata.totalFavorites = collection.favorites.length;
       collection.metadata.totalQueries = collection.savedQueries.length;

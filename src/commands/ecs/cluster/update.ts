@@ -154,7 +154,7 @@ export default class ECSClusterUpdateCommand extends Command {
         ...(input.configuration && { configuration: input.configuration }),
       };
 
-      // Update cluster
+      // Execute cluster update via ECS service with validated parameters and credential context.
       const cluster = await ecsService.updateCluster(updateParameters, {
         ...(input.region && { region: input.region }),
         ...(input.profile && { profile: input.profile }),

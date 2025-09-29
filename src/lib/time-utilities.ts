@@ -54,23 +54,23 @@ export function parseTimeRange(startTimeString?: string, endTimeString?: string)
     result.startTime = startTime;
   }
 
-  // Apply defaults
+  // Apply default values when only one boundary is specified or neither is provided.
+  // Empty range: no start/end specified - return as-is for caller to handle.
   if (!result.endTime && !result.startTime) {
-    // No times provided - return empty range
     return result;
   }
 
+  // When only start time provided, default end time to current moment for open-ended queries.
   if (!result.endTime) {
-    // Only start time provided - default end to now
     result.endTime = new Date();
   }
 
+  // When only end time provided, default start to 24 hours before end for standard query window.
   if (!result.startTime) {
-    // Only end time provided - default start to 24 hours before end
     result.startTime = new Date(result.endTime.getTime() - 24 * 60 * 60 * 1000);
   }
 
-  // Validate range
+  // Validate that start time precedes end time to prevent invalid time range queries.
   if (result.startTime && result.endTime && result.startTime >= result.endTime) {
     throw new Error(
       `Start time (${result.startTime.toISOString()}) must be before end time (${result.endTime.toISOString()})`,

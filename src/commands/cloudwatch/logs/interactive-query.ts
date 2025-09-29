@@ -118,7 +118,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
     const { flags } = await this.parse(CloudWatchLogsInteractiveQueryCommand);
 
     try {
-      // Initialize service
+      // Initialize CloudWatch Logs service with configuration from CLI flags and credential context.
       this.logsService = new CloudWatchLogsService({
         enableDebugLogging: flags.verbose,
         enableProgressIndicators: true,

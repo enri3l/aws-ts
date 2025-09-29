@@ -157,7 +157,7 @@ export default class ECSClusterDeleteCommand extends Command {
         }
       }
 
-      // Delete cluster
+      // Execute cluster deletion via ECS service after confirmation and validation checks.
       await ecsService.deleteCluster(input.clusterName, {
         ...(input.region && { region: input.region }),
         ...(input.profile && { profile: input.profile }),

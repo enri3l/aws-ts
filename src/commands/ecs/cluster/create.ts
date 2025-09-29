@@ -104,7 +104,7 @@ export default class ECSClusterCreateCommand extends Command {
         ? flags["capacity-providers"].split(",").map((provider) => provider.trim())
         : undefined;
 
-      // Parse tags
+      // Parse tags from CLI flags into ECS tag format (key-value pairs).
       const tags = flags.tags ? this.parseTags(flags.tags.flat()) : undefined;
 
       // Validate input using Zod schema
@@ -135,7 +135,7 @@ export default class ECSClusterCreateCommand extends Command {
         ...(input.tags && { tags: input.tags }),
       };
 
-      // Create cluster
+      // Execute cluster creation via ECS service with validated parameters and credential context.
       const cluster = await ecsService.createCluster(createParameters, {
         ...(input.region && { region: input.region }),
         ...(input.profile && { profile: input.profile }),

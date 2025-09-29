@@ -663,7 +663,7 @@ export class RegionAccessibilityCheck implements ICheck {
       issues.push("Region does not match typical AWS format (e.g., us-east-1, eu-west-2)");
     }
 
-    // Check length
+    // Validate region length against AWS region naming constraints (typical range: 5-20 chars).
     if (region.length < 5 || region.length > 20) {
       issues.push("Region length is outside typical range (5-20 characters)");
     }

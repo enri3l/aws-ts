@@ -60,7 +60,7 @@ export function toSafeString(value: unknown): string {
     return String(value);
   }
 
-  // Handle objects
+  // Stringify objects using custom handler to prevent circular references and handle complex types.
   // eslint-disable-next-line sonarjs/different-types-comparison -- typeof null === 'object' in JavaScript, null check required
   if (typeof value === "object" && value !== null) {
     return stringifyObject(value);
