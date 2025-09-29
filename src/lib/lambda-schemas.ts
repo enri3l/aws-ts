@@ -56,7 +56,7 @@ export const LambdaMemorySizeSchema = z
   .number()
   .int()
   .min(128, "Memory size must be at least 128 MB")
-  .max(10240, "Memory size cannot exceed 10,240 MB")
+  .max(10_240, "Memory size cannot exceed 10,240 MB")
   .refine((value) => value % 1 === 0, "Memory size must be in 1 MB increments");
 
 /**
@@ -93,7 +93,7 @@ export const LambdaHandlerSchema = z
   .min(1, "Handler is required")
   .max(128, "Handler must be 128 characters or less")
   .regex(
-    /^[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+$/,
+    /^[a-zA-Z0-9._-]{1,64}\.[a-zA-Z0-9._-]{1,64}$/,
     "Handler must be in the format filename.method",
   );
 
@@ -125,15 +125,12 @@ export const LambdaLogTypeSchema = z.enum(["None", "Tail"]);
  */
 export const LambdaEnvironmentVariablesSchema = z
   .record(z.string(), z.string())
-  .refine(
-    (env) => {
-      const totalSize = Object.entries(env)
-        .map(([key, value]) => key.length + value.length)
-        .reduce((sum, size) => sum + size, 0);
-      return totalSize <= 4096;
-    },
-    "Total size of environment variables must not exceed 4 KB",
-  )
+  .refine((environment) => {
+    const totalSize = Object.entries(environment)
+      .map(([key, value]) => key.length + value.length)
+      .reduce((sum, size) => sum + size, 0);
+    return totalSize <= 4096;
+  }, "Total size of environment variables must not exceed 4 KB")
   .optional();
 
 /**
@@ -205,10 +202,7 @@ export const LambdaCodeSchema = z
  */
 export const LambdaTagsSchema = z
   .record(z.string(), z.string())
-  .refine(
-    (tags) => Object.keys(tags).length <= 50,
-    "Maximum 50 tags allowed per Lambda function",
-  )
+  .refine((tags) => Object.keys(tags).length <= 50, "Maximum 50 tags allowed per Lambda function")
   .optional();
 
 /**
@@ -257,7 +251,7 @@ export const LambdaListFunctionsSchema = LambdaConfigSchema.extend({
   /**
    * Maximum number of functions to return
    */
-  maxItems: z.number().int().min(1).max(10000).optional(),
+  maxItems: z.number().int().min(1).max(10_000).optional(),
 
   /**
    * Master region for global functions
@@ -501,17 +495,21 @@ export const LambdaUpdateFunctionConfigurationSchema = LambdaConfigSchema.extend
   /**
    * Function handler
    */
-  handler: LambdaHandlerSchema.optional(),
+  handler: LambdaHandlerSchema.optional().or(z.undefined()),
 
   /**
    * Function description
    */
-  description: z.string().max(256, "Description must be 256 characters or less").optional(),
+  description: z
+    .string()
+    .max(256, "Description must be 256 characters or less")
+    .optional()
+    .or(z.undefined()),
 
   /**
    * Function timeout in seconds
    */
-  timeout: LambdaTimeoutSchema.optional(),
+  timeout: LambdaTimeoutSchema.optional().or(z.undefined()),
 
   /**
    * Memory size in MB
@@ -621,7 +619,7 @@ export const LambdaListVersionsSchema = LambdaConfigSchema.extend({
   /**
    * Maximum number of versions to return
    */
-  maxItems: z.number().int().min(1).max(10000).optional(),
+  maxItems: z.number().int().min(1).max(10_000).optional(),
 });
 
 /**
@@ -642,7 +640,10 @@ export const LambdaCreateAliasSchema = LambdaConfigSchema.extend({
     .string()
     .min(1, "Alias name is required")
     .max(128, "Alias name must be 128 characters or less")
-    .regex(/^[a-zA-Z0-9-_]+$/, "Alias name can only contain letters, numbers, hyphens, and underscores"),
+    .regex(
+      /^[a-zA-Z0-9-_]+$/,
+      "Alias name can only contain letters, numbers, hyphens, and underscores",
+    ),
 
   /**
    * Function version to point to
@@ -671,7 +672,9 @@ export type LambdaGetFunctionConfiguration = z.infer<typeof LambdaGetFunctionCon
 export type LambdaInvoke = z.infer<typeof LambdaInvokeSchema>;
 export type LambdaCreateFunction = z.infer<typeof LambdaCreateFunctionSchema>;
 export type LambdaUpdateFunctionCode = z.infer<typeof LambdaUpdateFunctionCodeSchema>;
-export type LambdaUpdateFunctionConfiguration = z.infer<typeof LambdaUpdateFunctionConfigurationSchema>;
+export type LambdaUpdateFunctionConfiguration = z.infer<
+  typeof LambdaUpdateFunctionConfigurationSchema
+>;
 export type LambdaDeleteFunction = z.infer<typeof LambdaDeleteFunctionSchema>;
 export type LambdaPublishVersion = z.infer<typeof LambdaPublishVersionSchema>;
 export type LambdaListVersions = z.infer<typeof LambdaListVersionsSchema>;

@@ -7,10 +7,10 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsDescribeGroup } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsDescribeGroupSchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { LogGroupDescription } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 
@@ -48,15 +48,18 @@ export default class CloudWatchLogsDescribeGroupCommand extends Command {
     },
     {
       description: "Include metric filters in the description",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --include-metric-filters",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --include-metric-filters",
     },
     {
       description: "Include subscription filters in the description",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --include-subscription-filters",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --include-subscription-filters",
     },
     {
       description: "Include field indexes information",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --include-field-indexes",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --include-field-indexes",
     },
     {
       description: "Describe log group with CSV output for analysis",
@@ -195,7 +198,7 @@ export default class CloudWatchLogsDescribeGroupCommand extends Command {
         const output = {
           ...logGroupDescription,
           creationTime: logGroupDescription.creationTime?.toISOString(),
-          logStreams: logGroupDescription.logStreams?.map(stream => ({
+          logStreams: logGroupDescription.logStreams?.map((stream) => ({
             ...stream,
             creationTime: stream.creationTime?.toISOString(),
             firstEventTime: stream.firstEventTime?.toISOString(),
@@ -211,7 +214,7 @@ export default class CloudWatchLogsDescribeGroupCommand extends Command {
         const output = {
           ...logGroupDescription,
           creationTime: logGroupDescription.creationTime?.toISOString(),
-          logStreams: logGroupDescription.logStreams?.map(stream => ({
+          logStreams: logGroupDescription.logStreams?.map((stream) => ({
             ...stream,
             creationTime: stream.creationTime?.toISOString(),
             firstEventTime: stream.firstEventTime?.toISOString(),
@@ -248,9 +251,15 @@ export default class CloudWatchLogsDescribeGroupCommand extends Command {
       { Property: "Log Group Name", Value: logGroup.logGroupName },
       { Property: "Log Group ARN", Value: logGroup.logGroupArn || "N/A" },
       { Property: "Creation Time", Value: logGroup.creationTime?.toISOString() || "N/A" },
-      { Property: "Retention (days)", Value: logGroup.retentionInDays?.toString() || "Never expires" },
+      {
+        Property: "Retention (days)",
+        Value: logGroup.retentionInDays?.toString() || "Never expires",
+      },
       { Property: "Metric Filter Count", Value: logGroup.metricFilterCount?.toString() || "0" },
-      { Property: "Stored Bytes", Value: logGroup.storedBytes ? this.formatBytes(logGroup.storedBytes) : "N/A" },
+      {
+        Property: "Stored Bytes",
+        Value: logGroup.storedBytes ? this.formatBytes(logGroup.storedBytes) : "N/A",
+      },
       { Property: "KMS Key ID", Value: logGroup.kmsKeyId || "None" },
       { Property: "Data Protection Status", Value: logGroup.dataProtectionStatus || "N/A" },
     ];
@@ -315,7 +324,9 @@ export default class CloudWatchLogsDescribeGroupCommand extends Command {
         UploadSequenceToken: stream.uploadSequenceToken || "",
         Arn: stream.arn || "",
       }));
-      const streamOutput = processor.formatOutput(streamCsvData.map((item, index) => ({ data: item, index })));
+      const streamOutput = processor.formatOutput(
+        streamCsvData.map((item, index) => ({ data: item, index })),
+      );
       this.log(streamOutput);
     }
   }
@@ -332,8 +343,8 @@ export default class CloudWatchLogsDescribeGroupCommand extends Command {
 
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }

@@ -231,14 +231,13 @@ export class EventBridgePermissionError extends BaseError {
  */
 export function isEventBridgeError(
   error: unknown,
-): error is (
+): error is
   | RuleError
   | TargetError
   | EventPatternError
   | ScheduleError
   | EventBusError
-  | EventBridgePermissionError
-) {
+  | EventBridgePermissionError {
   return (
     error instanceof RuleError ||
     error instanceof TargetError ||
@@ -273,7 +272,8 @@ function getRuleErrorGuidance(error: ErrorLike): string {
   const eventBusName = error.metadata.eventBusName as string;
 
   const ruleInfo = ruleName ? ` '${ruleName}'` : "";
-  const busInfo = eventBusName && eventBusName !== "default" ? ` on event bus '${eventBusName}'` : "";
+  const busInfo =
+    eventBusName && eventBusName !== "default" ? ` on event bus '${eventBusName}'` : "";
 
   switch (operation) {
     case "list-rules": {
@@ -423,10 +423,11 @@ function getEventPatternErrorGuidance(error: ErrorLike): string {
 
   return [
     "❌ Invalid event pattern format:",
+    pattern ? `📋 Pattern: ${pattern}` : "",
     "1. Event patterns must be valid JSON objects",
-    "2. Use arrays for multiple values: {\"source\": [\"app1\", \"app2\"]}",
-    "3. Use exists filters: {\"detail\": {\"state\": [{\"exists\": true}]}}",
-    "4. Use numeric filters: {\"detail\": {\"price\": [{\"numeric\": [\">\", 100]}]}}",
+    '2. Use arrays for multiple values: {"source": ["app1", "app2"]}',
+    '3. Use exists filters: {"detail": {"state": [{"exists": true}]}}',
+    '4. Use numeric filters: {"detail": {"price": [{"numeric": [">", 100]}]}}',
     "5. Avoid null values and empty objects",
     "",
     validationError ? `🔍 Validation error: ${validationError}` : "",

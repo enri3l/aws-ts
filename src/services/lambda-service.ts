@@ -9,6 +9,7 @@
  */
 
 import {
+  CreateAliasCommand,
   CreateFunctionCommand,
   DeleteFunctionCommand,
   GetFunctionCommand,
@@ -20,12 +21,14 @@ import {
   PublishVersionCommand,
   UpdateFunctionCodeCommand,
   UpdateFunctionConfigurationCommand,
+  type AliasConfiguration,
   type CreateFunctionRequest,
+  type DeleteFunctionCommandOutput,
   type FunctionConfiguration,
   type GetFunctionRequest,
-  type InvocationRequest,
-  type InvocationResponse,
+  type InvokeCommandOutput,
   type ListFunctionsRequest,
+  type ListVersionsByFunctionCommandOutput,
   type UpdateFunctionCodeRequest,
   type UpdateFunctionConfigurationRequest,
 } from "@aws-sdk/client-lambda";
@@ -151,27 +154,36 @@ export interface LambdaUpdateCodeParameters {
  */
 export interface LambdaUpdateConfigurationParameters {
   functionName: string;
-  role?: string;
-  handler?: string;
-  description?: string;
-  timeout?: number;
-  memorySize?: number;
-  vpcConfig?: {
-    subnetIds: string[];
-    securityGroupIds: string[];
-  };
-  environment?: {
-    variables?: Record<string, string>;
-  };
-  runtime?: string;
-  deadLetterConfig?: {
-    targetArn?: string;
-  };
-  kmsKeyArn?: string;
-  tracingConfig?: {
-    mode: "Active" | "PassThrough";
-  };
-  revisionId?: string;
+  role?: string | undefined;
+  handler?: string | undefined;
+  description?: string | undefined;
+  timeout?: number | undefined;
+  memorySize?: number | undefined;
+  vpcConfig?:
+    | {
+        subnetIds: string[];
+        securityGroupIds: string[];
+      }
+    | undefined;
+  environment?:
+    | {
+        variables?: Record<string, string>;
+      }
+    | undefined;
+  runtime?: string | undefined;
+  deadLetterConfig?:
+    | {
+        targetArn?: string;
+      }
+    | undefined;
+  layers?: string[] | undefined;
+  kmsKeyArn?: string | undefined;
+  tracingConfig?:
+    | {
+        mode: "Active" | "PassThrough";
+      }
+    | undefined;
+  revisionId?: string | undefined;
 }
 
 /**
@@ -257,13 +269,13 @@ export class LambdaService {
    */
   async listFunctions(
     config: AwsClientConfig = {},
-    params: Partial<ListFunctionsRequest> = {},
+    parameters: Partial<ListFunctionsRequest> = {},
   ): Promise<FunctionConfiguration[]> {
     const spinner = this.createSpinner("Listing Lambda functions...");
 
     try {
       const client = await this.getLambdaClient(config);
-      const command = new ListFunctionsCommand(params);
+      const command = new ListFunctionsCommand(parameters);
 
       const response = await client.send(command);
       const functions = response.Functions || [];
@@ -293,7 +305,7 @@ export class LambdaService {
   async getFunction(
     functionName: string,
     config: AwsClientConfig = {},
-    params: Partial<GetFunctionRequest> = {},
+    parameters: Partial<GetFunctionRequest> = {},
   ): Promise<{
     configuration?: FunctionConfiguration;
     code?: { repositoryType?: string; location?: string };
@@ -305,16 +317,21 @@ export class LambdaService {
       const client = await this.getLambdaClient(config);
       const command = new GetFunctionCommand({
         FunctionName: functionName,
-        ...params,
+        ...parameters,
       });
 
       const response = await client.send(command);
 
       spinner.succeed(`Retrieved function '${functionName}'`);
       return {
-        configuration: response.Configuration,
-        code: response.Code,
-        tags: response.Tags,
+        ...(response.Configuration && { configuration: response.Configuration }),
+        ...(response.Code && {
+          code: {
+            ...(response.Code.RepositoryType && { repositoryType: response.Code.RepositoryType }),
+            ...(response.Code.Location && { location: response.Code.Location }),
+          },
+        }),
+        ...(response.Tags && { tags: response.Tags }),
       };
     } catch (error) {
       spinner.fail(`Failed to get function '${functionName}'`);
@@ -378,7 +395,7 @@ export class LambdaService {
   async invoke(
     parameters: LambdaInvokeParameters,
     config: AwsClientConfig = {},
-  ): Promise<InvocationResponse> {
+  ): Promise<InvokeCommandOutput> {
     const spinner = this.createSpinner(`Invoking function '${parameters.functionName}'...`);
 
     try {
@@ -390,7 +407,7 @@ export class LambdaService {
         ...(parameters.payload && { Payload: new TextEncoder().encode(parameters.payload) }),
         ...(parameters.qualifier && { Qualifier: parameters.qualifier }),
         ...(parameters.clientContext && { ClientContext: parameters.clientContext }),
-      } as InvocationRequest);
+      });
 
       const response = await client.send(command);
 
@@ -474,7 +491,9 @@ export class LambdaService {
     parameters: LambdaUpdateCodeParameters,
     config: AwsClientConfig = {},
   ): Promise<FunctionConfiguration> {
-    const spinner = this.createSpinner(`Updating code for function '${parameters.functionName}'...`);
+    const spinner = this.createSpinner(
+      `Updating code for function '${parameters.functionName}'...`,
+    );
 
     try {
       const client = await this.getLambdaClient(config);
@@ -517,7 +536,9 @@ export class LambdaService {
     parameters: LambdaUpdateConfigurationParameters,
     config: AwsClientConfig = {},
   ): Promise<FunctionConfiguration> {
-    const spinner = this.createSpinner(`Updating configuration for function '${parameters.functionName}'...`);
+    const spinner = this.createSpinner(
+      `Updating configuration for function '${parameters.functionName}'...`,
+    );
 
     try {
       const client = await this.getLambdaClient(config);
@@ -532,6 +553,7 @@ export class LambdaService {
         Environment: parameters.environment,
         Runtime: parameters.runtime,
         DeadLetterConfig: parameters.deadLetterConfig,
+        Layers: parameters.layers,
         KMSKeyArn: parameters.kmsKeyArn,
         TracingConfig: parameters.tracingConfig,
         RevisionId: parameters.revisionId,
@@ -566,7 +588,7 @@ export class LambdaService {
     functionName: string,
     config: AwsClientConfig = {},
     qualifier?: string,
-  ): Promise<void> {
+  ): Promise<DeleteFunctionCommandOutput> {
     const spinner = this.createSpinner(`Deleting function '${functionName}'...`);
 
     try {
@@ -576,9 +598,10 @@ export class LambdaService {
         ...(qualifier && { Qualifier: qualifier }),
       });
 
-      await client.send(command);
+      const response = await client.send(command);
 
       spinner.succeed(`Function '${functionName}' deleted successfully`);
+      return response;
     } catch (error) {
       spinner.fail(`Failed to delete function '${functionName}'`);
       throw new ServiceError(
@@ -648,7 +671,7 @@ export class LambdaService {
     config: AwsClientConfig = {},
     marker?: string,
     maxItems?: number,
-  ): Promise<FunctionConfiguration[]> {
+  ): Promise<ListVersionsByFunctionCommandOutput> {
     const spinner = this.createSpinner(`Listing versions for function '${functionName}'...`);
 
     try {
@@ -663,7 +686,7 @@ export class LambdaService {
       const versions = response.Versions || [];
 
       spinner.succeed(`Found ${versions.length} versions for function '${functionName}'`);
-      return versions;
+      return response;
     } catch (error) {
       spinner.fail(`Failed to list versions for function '${functionName}'`);
       throw new ServiceError(
@@ -672,6 +695,58 @@ export class LambdaService {
         "list-versions-by-function",
         error,
         { functionName },
+      );
+    }
+  }
+
+  /**
+   * Create an alias for a Lambda function version
+   *
+   * @param parameters - Alias creation parameters
+   * @param config - Client configuration options
+   * @returns Promise resolving to alias configuration
+   * @throws When alias creation fails
+   */
+  async createAlias(
+    parameters: {
+      functionName: string;
+      name: string;
+      functionVersion: string;
+      description?: string;
+      routingConfig?: Record<string, unknown>;
+    },
+    config: AwsClientConfig = {},
+  ): Promise<AliasConfiguration> {
+    const spinner = this.createSpinner(
+      `Creating alias '${parameters.name}' for function '${parameters.functionName}'...`,
+    );
+
+    try {
+      const client = await this.getLambdaClient(config);
+      const command = new CreateAliasCommand({
+        FunctionName: parameters.functionName,
+        Name: parameters.name,
+        FunctionVersion: parameters.functionVersion,
+        ...(parameters.description && { Description: parameters.description }),
+        ...(parameters.routingConfig && { RoutingConfig: parameters.routingConfig }),
+      });
+
+      const response = await client.send(command);
+
+      spinner.succeed(
+        `Alias '${parameters.name}' created for function '${parameters.functionName}'`,
+      );
+      return response;
+    } catch (error) {
+      spinner.fail(
+        `Failed to create alias '${parameters.name}' for function '${parameters.functionName}'`,
+      );
+      throw new ServiceError(
+        `Failed to create alias: ${error instanceof Error ? error.message : String(error)}`,
+        "Lambda",
+        "create-alias",
+        error,
+        { functionName: parameters.functionName, aliasName: parameters.name },
       );
     }
   }

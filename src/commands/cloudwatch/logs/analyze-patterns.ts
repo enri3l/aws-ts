@@ -6,15 +6,18 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
-import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
-import { DataProcessor } from "../../../lib/data-processing.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { Args, Command, Flags } from "@oclif/core";
 import {
   CloudWatchLogsAnalyzePatternsSchema,
   type CloudWatchLogsAnalyzePatterns,
+  type PatternAnalysisResult,
+  type PatternAnomaly,
+  type PatternWithStats,
 } from "../../../lib/cloudwatch-logs-analytics-schemas.js";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { parseTimeRange } from "../../../lib/time-utilities.js";
+import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 
 /**
  * CloudWatch Logs analyze patterns command implementation
@@ -67,7 +70,8 @@ EXAMPLES:
     },
     {
       description: "Custom time range and export",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --start-time '2025-01-01' --export-file analysis.json",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --start-time '2025-01-01' --export-file analysis.json",
     },
   ];
 
@@ -98,7 +102,8 @@ EXAMPLES:
     }),
 
     "start-time": Flags.string({
-      description: "Start time for pattern analysis (ISO 8601, Unix timestamp, or relative like 'last 2 hours')",
+      description:
+        "Start time for pattern analysis (ISO 8601, Unix timestamp, or relative like 'last 2 hours')",
       helpValue: "2025-01-01T00:00:00Z",
     }),
 
@@ -125,7 +130,7 @@ EXAMPLES:
       description: "Number of log events to sample for analysis",
       default: 1000,
       min: 100,
-      max: 10000,
+      max: 10_000,
     }),
 
     "detect-anomalies": Flags.boolean({
@@ -140,14 +145,16 @@ EXAMPLES:
     }),
   };
 
-  static override readonly args = [
-    {
-      name: "logGroupName",
+  static override readonly args = {
+    logGroupName: Args.string({
       description: "CloudWatch log group name to analyze",
       required: true,
-    },
-  ];
+    }),
+  };
 
+  /**
+   *
+   */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CloudWatchLogsAnalyzePatternsCommand);
 
@@ -173,8 +180,8 @@ EXAMPLES:
       const logsService = new CloudWatchLogsService({
         enableDebugLogging: input.verbose,
         credentialService: {
-          defaultRegion: input.region,
-          defaultProfile: input.profile,
+          ...(input.region && { defaultRegion: input.region }),
+          ...(input.profile && { defaultProfile: input.profile }),
         },
       });
 
@@ -182,41 +189,36 @@ EXAMPLES:
       const analysisResult = await logsService.analyzeLogPatterns(
         input.logGroupName,
         {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
         {
-          startTime: input.timeRange.startTime ? new Date(input.timeRange.startTime) : undefined,
-          endTime: input.timeRange.endTime ? new Date(input.timeRange.endTime) : undefined,
-          maxPatterns: input.maxPatterns,
-          minOccurrences: input.minOccurrences,
-          sampleSize: input.sampleSize,
-        }
+          ...(input.timeRange.startTime && { startTime: new Date(input.timeRange.startTime) }),
+          ...(input.timeRange.endTime && { endTime: new Date(input.timeRange.endTime) }),
+          ...(input.maxPatterns && { maxPatterns: input.maxPatterns }),
+          ...(input.minOccurrences && { minOccurrences: input.minOccurrences }),
+          ...(input.sampleSize && { sampleSize: input.sampleSize }),
+        },
       );
 
       // Process and display results
       if (input.format === "table") {
         this.displayPatternAnalysisTable(analysisResult, input.verbose);
       } else {
-        const processor = new DataProcessor();
-        const output = await processor.processData(
-          [analysisResult],
-          input.format as "json" | "jsonl" | "csv"
-        );
+        const processor = new DataProcessor({
+          format: DataFormat[input.format.toUpperCase() as keyof typeof DataFormat],
+        });
+        const records = [{ data: analysisResult as unknown as Record<string, unknown>, index: 0 }];
+        const output = processor.formatOutput(records);
         this.log(output);
       }
 
       // Export results if requested
       if (input.exportFile) {
         const fs = await import("node:fs/promises");
-        await fs.writeFile(
-          input.exportFile,
-          JSON.stringify(analysisResult, null, 2),
-          "utf8"
-        );
+        await fs.writeFile(input.exportFile, JSON.stringify(analysisResult, undefined, 2), "utf8");
         this.log(`\nAnalysis results exported to: ${input.exportFile}`);
       }
-
     } catch (error) {
       const formattedError = handleCloudWatchLogsCommandError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -227,10 +229,12 @@ EXAMPLES:
    * Display pattern analysis results in table format
    * @internal
    */
-  private displayPatternAnalysisTable(result: any, verbose: boolean): void {
+  private displayPatternAnalysisTable(result: PatternAnalysisResult, verbose: boolean): void {
     // Display analysis summary
     this.log(`\n📊 Pattern Analysis Results for: ${result.logGroupName}`);
-    this.log(`📅 Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`);
+    this.log(
+      `📅 Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`,
+    );
     this.log(`📈 Total Events Analyzed: ${result.totalEvents.toLocaleString()}`);
     this.log(`🔍 Sample Size: ${result.sampleSize.toLocaleString()}`);
     this.log(`🎯 Unique Patterns Found: ${result.summary.uniquePatterns}`);
@@ -244,20 +248,19 @@ EXAMPLES:
     if (result.patterns.length > 0) {
       this.log("\n🔍 Top Log Patterns:");
       console.table(
-        result.patterns.slice(0, 10).map((pattern: any, index: number) => ({
+        result.patterns.slice(0, 10).map((pattern: PatternWithStats, index: number) => ({
           "#": index + 1,
-          "Pattern": pattern.pattern.length > 80 ?
-            pattern.pattern.substring(0, 77) + "..." :
-            pattern.pattern,
-          "Count": pattern.count.toLocaleString(),
-          "Percentage": `${pattern.percentage.toFixed(1)}%`,
-          "First Seen": pattern.firstSeen ?
-            new Date(pattern.firstSeen).toISOString().split('T')[0] :
-            "N/A",
-          "Last Seen": pattern.lastSeen ?
-            new Date(pattern.lastSeen).toISOString().split('T')[0] :
-            "N/A",
-        }))
+          Pattern:
+            pattern.pattern.length > 80 ? pattern.pattern.slice(0, 77) + "..." : pattern.pattern,
+          Count: pattern.count.toLocaleString(),
+          Percentage: `${pattern.percentage.toFixed(1)}%`,
+          "First Seen": pattern.firstSeen
+            ? new Date(pattern.firstSeen).toISOString().split("T")[0]
+            : "N/A",
+          "Last Seen": pattern.lastSeen
+            ? new Date(pattern.lastSeen).toISOString().split("T")[0]
+            : "N/A",
+        })),
       );
     }
 
@@ -265,30 +268,29 @@ EXAMPLES:
     if (result.anomalies.length > 0) {
       this.log("\n⚠️  Pattern Anomalies Detected:");
       console.table(
-        result.anomalies.map((anomaly: any, index: number) => ({
+        result.anomalies.map((anomaly: PatternAnomaly, index: number) => ({
           "#": index + 1,
-          "Pattern": anomaly.pattern.length > 60 ?
-            anomaly.pattern.substring(0, 57) + "..." :
-            anomaly.pattern,
-          "Type": anomaly.anomalyType,
-          "Severity": anomaly.severity.toUpperCase(),
-          "Percentage": `${anomaly.percentage.toFixed(1)}%`,
-          "Description": anomaly.description,
-        }))
+          Pattern:
+            anomaly.pattern.length > 60 ? anomaly.pattern.slice(0, 57) + "..." : anomaly.pattern,
+          Type: anomaly.anomalyType,
+          Severity: anomaly.severity.toUpperCase(),
+          Percentage: `${anomaly.percentage.toFixed(1)}%`,
+          Description: anomaly.description,
+        })),
       );
     }
 
     // Display examples in verbose mode
     if (verbose && result.patterns.length > 0) {
       this.log("\n📝 Pattern Examples (Top 3 patterns):");
-      result.patterns.slice(0, 3).forEach((pattern: any, index: number) => {
+      for (const [index, pattern] of result.patterns.slice(0, 3).entries()) {
         this.log(`\n${index + 1}. Pattern: ${pattern.pattern}`);
         this.log(`   Count: ${pattern.count} (${pattern.percentage.toFixed(1)}%)`);
         this.log("   Examples:");
-        pattern.examples.forEach((example: string, exIndex: number) => {
+        for (const [exIndex, example] of pattern.examples.entries()) {
           this.log(`   ${exIndex + 1}. ${example}`);
-        });
-      });
+        }
+      }
     }
 
     this.log("\n✅ Pattern analysis complete");

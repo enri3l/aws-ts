@@ -7,10 +7,10 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsSearch } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsSearchSchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { FilterEventsResult, LogEvent } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 
@@ -34,7 +34,8 @@ interface SearchResult extends LogEvent {
  * @public
  */
 export default class CloudWatchLogsSearchCommand extends Command {
-  static override readonly description = "Fast text search across CloudWatch log events with regex and highlighting";
+  static override readonly description =
+    "Fast text search across CloudWatch log events with regex and highlighting";
 
   static override readonly examples = [
     {
@@ -43,19 +44,23 @@ export default class CloudWatchLogsSearchCommand extends Command {
     },
     {
       description: "Regex pattern search for request IDs",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' --regex",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' --regex",
     },
     {
       description: "Case-sensitive search with time range",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'Exception' --case-sensitive --start-time '1h ago' --end-time 'now'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'Exception' --case-sensitive --start-time '1h ago' --end-time 'now'",
     },
     {
       description: "Search with context lines before and after matches",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'timeout' --context-before 2 --context-after 2",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'timeout' --context-before 2 --context-after 2",
     },
     {
       description: "Field-specific search in message field",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function '@message:\"database connection\"'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function '@message:\"database connection\"'",
     },
     {
       description: "Search with JSON output format",
@@ -67,7 +72,8 @@ export default class CloudWatchLogsSearchCommand extends Command {
     },
     {
       description: "Search with custom limit and specific region",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'ERROR' --limit 500 --region us-west-2",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'ERROR' --limit 500 --region us-west-2",
     },
   ];
 
@@ -79,7 +85,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
     }),
     searchPattern: Args.string({
       name: "searchPattern",
-      description: "Text pattern to search for (supports field-specific syntax: @field:\"value\")",
+      description: 'Text pattern to search for (supports field-specific syntax: @field:"value")',
       required: true,
     }),
   };
@@ -153,7 +159,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
       char: "l",
       description: "Maximum number of matching events to return",
       min: 1,
-      max: 10000,
+      max: 10_000,
       default: 100,
     }),
 
@@ -188,7 +194,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
 
       // Parse log stream names if provided
       const logStreamNames = flags["log-stream-names"]
-        ? flags["log-stream-names"].split(",").map(s => s.trim())
+        ? flags["log-stream-names"].split(",").map((s) => s.trim())
         : undefined;
 
       // Validate input using Zod schema
@@ -221,52 +227,24 @@ export default class CloudWatchLogsSearchCommand extends Command {
       if (input.verbose) {
         this.log(`Searching log group '${input.logGroupName}' for pattern: ${input.searchPattern}`);
         this.log(`Time range: ${startTime.toISOString()} to ${endTime.toISOString()}`);
-        this.log(`Search mode: ${input.regex ? "regex" : "text"} (${input.caseSensitive ? "case-sensitive" : "case-insensitive"})`);
+        this.log(
+          `Search mode: ${input.regex ? "regex" : "text"} (${input.caseSensitive ? "case-sensitive" : "case-insensitive"})`,
+        );
         if (logStreamNames) {
           this.log(`Log streams: ${logStreamNames.join(", ")}`);
         }
         this.log("");
       }
 
-      // Determine search approach (field-specific vs general)
-      const { filterPattern, searchRegex } = this.buildSearchStrategy(input.searchPattern, input.regex, input.caseSensitive);
-
-      // Execute search using FilterLogEvents
-      const result = await logsService.filterLogEvents(
-        {
-          logGroupName: input.logGroupName,
-          logStreamNames,
-          filterPattern,
-          startTime,
-          endTime,
-          limit: input.limit,
-          interleaved: true, // Get results in chronological order
-        },
-        {
-          ...(input.region && { region: input.region }),
-          ...(input.profile && { profile: input.profile }),
-        },
+      // Perform search and display results
+      await this.performSearchAndProcessResults(
+        logsService,
+        input,
+        logStreamNames,
+        startTime,
+        endTime,
+        flags,
       );
-
-      // Process search results
-      const searchResults = this.processSearchResults(
-        result,
-        searchRegex,
-        input.contextBefore,
-        input.contextAfter,
-        input.highlight,
-        input.verbose,
-      );
-
-      // Display results
-      this.formatAndDisplayOutput(
-        searchResults,
-        input.format,
-        flags["show-statistics"],
-        input.verbose,
-        result,
-      );
-
     } catch (error) {
       const formattedError = handleCloudWatchLogsCommandError(
         error,
@@ -278,16 +256,84 @@ export default class CloudWatchLogsSearchCommand extends Command {
   }
 
   /**
+   * Perform search operation and process results
+   *
+   * @param logsService - CloudWatch Logs service instance
+   * @param input - Validated input parameters
+   * @param logStreamNames - Optional log stream names
+   * @param startTime - Start time for search
+   * @param endTime - End time for search
+   * @param flags - Command flags
+   * @returns Promise resolving when search and processing is complete
+   * @internal
+   */
+  private async performSearchAndProcessResults(
+    logsService: CloudWatchLogsService,
+    input: CloudWatchLogsSearch,
+    logStreamNames: string[] | undefined,
+    startTime: Date,
+    endTime: Date,
+    flags: Record<string, unknown>,
+  ): Promise<void> {
+    // Determine search approach (field-specific vs general)
+    const { filterPattern, searchRegex } = this.buildSearchStrategy(
+      input.searchPattern,
+      input.regex,
+      input.caseSensitive,
+    );
+
+    // Execute search using FilterLogEvents
+    const result = await logsService.filterLogEvents(
+      {
+        logGroupName: input.logGroupName,
+        ...(logStreamNames && { logStreamNames }),
+        ...(filterPattern && { filterPattern }),
+        startTime,
+        endTime,
+        ...(input.limit && { limit: input.limit }),
+        interleaved: true, // Get results in chronological order
+      },
+      {
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
+      },
+    );
+
+    // Process search results
+    const searchResults = this.processSearchResults(
+      result,
+      searchRegex,
+      input.contextBefore,
+      input.contextAfter,
+      input.highlight,
+      input.verbose,
+    );
+
+    // Display results
+    this.formatAndDisplayOutput(
+      searchResults,
+      input.format,
+      flags["show-statistics"] as boolean,
+      input.verbose,
+      result,
+    );
+  }
+
+  /**
    * Parse time range from start and end time strings
    *
    * @param startTimeStr - Start time string
    * @param endTimeStr - End time string
    * @returns Parsed time range
+   * @throws When time string format is invalid
    * @internal
    */
-  private parseTimeRange(startTimeStr: string, endTimeStr: string): { startTime: Date; endTime: Date } {
-    const endTime = this.parseTimeString(endTimeStr);
-    const startTime = this.parseTimeString(startTimeStr, endTime);
+  private parseTimeRange(
+    startTimeString: string,
+    endTimeString: string,
+  ): { startTime: Date; endTime: Date } {
+    const endTime = this.parseTimeString(endTimeString);
+    const startTime = this.parseTimeString(startTimeString, endTime);
 
     if (startTime >= endTime) {
       throw new Error("Start time must be before end time");
@@ -302,6 +348,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
    * @param timeString - Time string
    * @param referenceTime - Reference time
    * @returns Parsed Date
+   * @throws When time string format is invalid or unsupported
    * @internal
    */
   private parseTimeString(timeString: string, referenceTime = new Date()): Date {
@@ -310,24 +357,32 @@ export default class CloudWatchLogsSearchCommand extends Command {
     }
 
     const relativeTimeRegex = /^(\d+)\s*(m|min|minutes?|h|hour|hours?|d|day|days?)\s*ago$/i;
-    const match = timeString.match(relativeTimeRegex);
+    const match = relativeTimeRegex.exec(timeString);
 
     if (match) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
+      const value = Number.parseInt(match[1]!, 10);
+      const unit = match[2]!.toLowerCase();
       const now = referenceTime;
 
       switch (unit.charAt(0)) {
-        case "m": return new Date(now.getTime() - value * 60 * 1000);
-        case "h": return new Date(now.getTime() - value * 60 * 60 * 1000);
-        case "d": return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
-        default: throw new Error(`Unsupported time unit: ${unit}`);
+        case "m": {
+          return new Date(now.getTime() - value * 60 * 1000);
+        }
+        case "h": {
+          return new Date(now.getTime() - value * 60 * 60 * 1000);
+        }
+        case "d": {
+          return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
+        }
+        default: {
+          throw new Error(`Unsupported time unit: ${unit}`);
+        }
       }
     }
 
     const absoluteTime = new Date(timeString);
-    if (isNaN(absoluteTime.getTime())) {
-      throw new Error(`Invalid time format: ${timeString}`);
+    if (Number.isNaN(absoluteTime.getTime())) {
+      throw new TypeError(`Invalid time format: ${timeString}`);
     }
 
     return absoluteTime;
@@ -348,13 +403,17 @@ export default class CloudWatchLogsSearchCommand extends Command {
     caseSensitive: boolean,
   ): { filterPattern?: string; searchRegex: RegExp } {
     // Check if it's a field-specific search (@field:"value")
-    const fieldSpecificMatch = searchPattern.match(/^@(\w+):\s*"([^"]+)"$/);
+    const fieldSpecificRegex = /^@(\w+):\s*"([^"]+)"$/;
+    const fieldSpecificMatch = fieldSpecificRegex.exec(searchPattern);
 
     if (fieldSpecificMatch) {
       const [, field, value] = fieldSpecificMatch;
       // Use CloudWatch Logs filter syntax for field-specific searches
       const filterPattern = `{ $.${field} = "${value}" }`;
-      const searchRegex = new RegExp(isRegex ? value : this.escapeRegExp(value), caseSensitive ? "g" : "gi");
+      const searchRegex = new RegExp(
+        isRegex ? value! : this.escapeRegExp(value!),
+        caseSensitive ? "g" : "gi",
+      );
       return { filterPattern, searchRegex };
     }
 
@@ -384,7 +443,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
    * @internal
    */
   private escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return string.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   }
 
   /**
@@ -410,50 +469,119 @@ export default class CloudWatchLogsSearchCommand extends Command {
     const events = result.events;
     const searchResults: SearchResult[] = [];
 
-    for (let i = 0; i < events.length; i++) {
-      const event = events[i];
-      const message = event.message || "";
+    for (let index = 0; index < events.length; index++) {
+      const event = events[index];
+      if (!event) continue;
 
-      // Count matches in the message
-      const matches = message.match(searchRegex);
-      const matchCount = matches ? matches.length : 0;
+      const processedEvent = this.processSearchEvent(
+        event,
+        searchRegex,
+        highlight,
+        events,
+        index,
+        contextBefore,
+        contextAfter,
+      );
 
-      if (matchCount === 0) continue;
-
-      // Create highlighted message if highlighting enabled
-      let highlightedMessage: string | undefined;
-      if (highlight) {
-        highlightedMessage = message.replace(searchRegex, (match) => `\x1b[93m${match}\x1b[0m`); // Yellow highlight
+      if (processedEvent) {
+        searchResults.push(processedEvent);
       }
-
-      // Get context lines if requested
-      let contextBeforeEvents: LogEvent[] | undefined;
-      let contextAfterEvents: LogEvent[] | undefined;
-
-      if (contextBefore > 0) {
-        const startIndex = Math.max(0, i - contextBefore);
-        contextBeforeEvents = events.slice(startIndex, i);
-      }
-
-      if (contextAfter > 0) {
-        const endIndex = Math.min(events.length, i + contextAfter + 1);
-        contextAfterEvents = events.slice(i + 1, endIndex);
-      }
-
-      searchResults.push({
-        ...event,
-        matchCount,
-        highlightedMessage,
-        contextBefore: contextBeforeEvents,
-        contextAfter: contextAfterEvents,
-      });
     }
 
     if (verbose) {
-      this.log(`Found ${searchResults.length} matching events out of ${events.length} total events.`);
+      this.log(
+        `Found ${searchResults.length} matching events out of ${events.length} total events.`,
+      );
     }
 
     return searchResults;
+  }
+
+  /**
+   * Process a single search event with highlighting and context
+   *
+   * @param event - Log event to process
+   * @param searchRegex - Search regex for highlighting
+   * @param highlight - Enable highlighting
+   * @param events - All events for context
+   * @param index - Current event index
+   * @param contextBefore - Context lines before
+   * @param contextAfter - Context lines after
+   * @returns Processed search result or undefined if no matches
+   * @internal
+   */
+  private processSearchEvent(
+    event: LogEvent,
+    searchRegex: RegExp,
+    highlight: boolean,
+    events: LogEvent[],
+    index: number,
+    contextBefore: number,
+    contextAfter: number,
+  ): SearchResult | undefined {
+    const message = event.message || "";
+
+    // Count matches in the message
+    const matches = message.match(searchRegex);
+    const matchCount = matches ? matches.length : 0;
+
+    if (matchCount === 0) return undefined;
+
+    // Create highlighted message if highlighting enabled
+    let highlightedMessage: string | undefined;
+    if (highlight) {
+      highlightedMessage = message.replace(searchRegex, (match) => `\u001B[93m${match}\u001B[0m`);
+    }
+
+    // Get context lines if requested
+    const contextBeforeEvents = this.getContextBefore(events, index, contextBefore);
+    const contextAfterEvents = this.getContextAfter(events, index, contextAfter);
+
+    return {
+      ...event,
+      matchCount,
+      ...(highlightedMessage && { highlightedMessage }),
+      ...(contextBeforeEvents && { contextBefore: contextBeforeEvents }),
+      ...(contextAfterEvents && { contextAfter: contextAfterEvents }),
+    };
+  }
+
+  /**
+   * Get context events before the current index
+   *
+   * @param events - All events
+   * @param index - Current event index
+   * @param contextBefore - Number of context lines before
+   * @returns Context events or undefined
+   * @internal
+   */
+  private getContextBefore(
+    events: LogEvent[],
+    index: number,
+    contextBefore: number,
+  ): LogEvent[] | undefined {
+    if (contextBefore <= 0) return undefined;
+    const startIndex = Math.max(0, index - contextBefore);
+    return events.slice(startIndex, index);
+  }
+
+  /**
+   * Get context events after the current index
+   *
+   * @param events - All events
+   * @param index - Current event index
+   * @param contextAfter - Number of context lines after
+   * @returns Context events or undefined
+   * @internal
+   */
+  private getContextAfter(
+    events: LogEvent[],
+    index: number,
+    contextAfter: number,
+  ): LogEvent[] | undefined {
+    if (contextAfter <= 0) return undefined;
+    const endIndex = Math.min(events.length, index + contextAfter + 1);
+    return events.slice(index + 1, endIndex);
   }
 
   /**
@@ -464,6 +592,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
    * @param showStatistics - Show statistics
    * @param verbose - Verbose output
    * @param originalResult - Original filter result for statistics
+   * @throws When unsupported output format is provided
    * @internal
    */
   private formatAndDisplayOutput(
@@ -485,7 +614,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
       }
       case "json": {
         const output = {
-          searchResults: results.map(result => ({
+          searchResults: results.map((result) => ({
             timestamp: result.timestamp,
             message: result.message,
             logStreamName: result.logStreamName,
@@ -501,13 +630,15 @@ export default class CloudWatchLogsSearchCommand extends Command {
       }
       case "jsonl": {
         for (const result of results) {
-          this.log(JSON.stringify({
-            timestamp: result.timestamp,
-            message: result.message,
-            logStreamName: result.logStreamName,
-            eventId: result.eventId,
-            matchCount: result.matchCount,
-          }));
+          this.log(
+            JSON.stringify({
+              timestamp: result.timestamp,
+              message: result.message,
+              logStreamName: result.logStreamName,
+              eventId: result.eventId,
+              matchCount: result.matchCount,
+            }),
+          );
         }
         break;
       }
@@ -533,40 +664,89 @@ export default class CloudWatchLogsSearchCommand extends Command {
    * @param verbose - Verbose output
    * @internal
    */
-  private displayTableFormat(results: SearchResult[], showStatistics: boolean, verbose: boolean): void {
+  private displayTableFormat(
+    results: SearchResult[],
+    _showStatistics: boolean,
+    _verbose: boolean,
+  ): void {
     this.log(`\n🔍 Search Results (${results.length} matches):\n`);
 
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      const timestamp = new Date(result.timestamp).toISOString();
+    for (let index = 0; index < results.length; index++) {
+      const result = results[index];
+      if (!result) continue;
 
-      // Show context before if available
-      if (result.contextBefore && result.contextBefore.length > 0) {
-        this.log(`\x1b[90m--- Context Before ---\x1b[0m`);
-        for (const contextEvent of result.contextBefore) {
-          const contextTime = new Date(contextEvent.timestamp).toISOString();
-          this.log(`\x1b[90m[${contextTime}] ${contextEvent.message}\x1b[0m`);
-        }
+      this.displaySearchResult(result, index, results.length);
+    }
+  }
+
+  /**
+   * Display a single search result with context
+   *
+   * @param result - Search result to display
+   * @param index - Current result index
+   * @param totalResults - Total number of results
+   * @internal
+   */
+  private displaySearchResult(result: SearchResult, index: number, totalResults: number): void {
+    const timestamp = new Date(result.timestamp).toISOString();
+
+    // Show context before if available
+    this.displayContextBefore(result.contextBefore);
+
+    // Show the matching event
+    this.displayMatchingEvent(result, timestamp);
+
+    // Show context after if available
+    this.displayContextAfter(result.contextAfter);
+
+    if (index < totalResults - 1) {
+      this.log(""); // Add spacing between results
+    }
+  }
+
+  /**
+   * Display context events before the match
+   *
+   * @param contextBefore - Context events before
+   * @internal
+   */
+  private displayContextBefore(contextBefore?: LogEvent[]): void {
+    if (contextBefore && contextBefore.length > 0) {
+      this.log(`\u001B[90m--- Context Before ---\u001B[0m`);
+      for (const contextEvent of contextBefore) {
+        const contextTime = new Date(contextEvent.timestamp).toISOString();
+        this.log(`\u001B[90m[${contextTime}] ${contextEvent.message}\u001B[0m`);
       }
+    }
+  }
 
-      // Show the matching event
-      const streamInfo = result.logStreamName ? ` (${result.logStreamName})` : "";
-      const matchInfo = result.matchCount > 1 ? ` [${result.matchCount} matches]` : "";
+  /**
+   * Display the matching event with metadata
+   *
+   * @param result - Search result
+   * @param timestamp - Formatted timestamp
+   * @internal
+   */
+  private displayMatchingEvent(result: SearchResult, timestamp: string): void {
+    const streamInfo = result.logStreamName ? ` (${result.logStreamName})` : "";
+    const matchInfo = result.matchCount > 1 ? ` [${result.matchCount} matches]` : "";
 
-      this.log(`[${timestamp}]${streamInfo}${matchInfo}`);
-      this.log(`${result.highlightedMessage || result.message}`);
+    this.log(`[${timestamp}]${streamInfo}${matchInfo}`);
+    this.log(`${result.highlightedMessage || result.message}`);
+  }
 
-      // Show context after if available
-      if (result.contextAfter && result.contextAfter.length > 0) {
-        this.log(`\x1b[90m--- Context After ---\x1b[0m`);
-        for (const contextEvent of result.contextAfter) {
-          const contextTime = new Date(contextEvent.timestamp).toISOString();
-          this.log(`\x1b[90m[${contextTime}] ${contextEvent.message}\x1b[0m`);
-        }
-      }
-
-      if (i < results.length - 1) {
-        this.log(""); // Add spacing between results
+  /**
+   * Display context events after the match
+   *
+   * @param contextAfter - Context events after
+   * @internal
+   */
+  private displayContextAfter(contextAfter?: LogEvent[]): void {
+    if (contextAfter && contextAfter.length > 0) {
+      this.log(`\u001B[90m--- Context After ---\u001B[0m`);
+      for (const contextEvent of contextAfter) {
+        const contextTime = new Date(contextEvent.timestamp).toISOString();
+        this.log(`\u001B[90m[${contextTime}] ${contextEvent.message}\u001B[0m`);
       }
     }
   }
@@ -578,7 +758,7 @@ export default class CloudWatchLogsSearchCommand extends Command {
    * @internal
    */
   private displayCsvFormat(results: SearchResult[]): void {
-    const csvData = results.map(result => ({
+    const csvData = results.map((result) => ({
       Timestamp: new Date(result.timestamp).toISOString(),
       LogStreamName: result.logStreamName || "",
       Message: result.message || "",
@@ -588,12 +768,10 @@ export default class CloudWatchLogsSearchCommand extends Command {
 
     const processor = new DataProcessor({
       format: DataFormat.CSV,
-      includeHeaders: true
+      includeHeaders: true,
     });
 
-    const output = processor.formatOutput(
-      csvData.map((item, index) => ({ data: item, index })),
-    );
+    const output = processor.formatOutput(csvData.map((item, index) => ({ data: item, index })));
     this.log(output);
   }
 
@@ -605,7 +783,11 @@ export default class CloudWatchLogsSearchCommand extends Command {
    * @param verbose - Verbose output
    * @internal
    */
-  private displayStatistics(results: SearchResult[], originalResult: FilterEventsResult, verbose: boolean): void {
+  private displayStatistics(
+    results: SearchResult[],
+    originalResult: FilterEventsResult,
+    verbose: boolean,
+  ): void {
     const totalMatches = results.reduce((sum, result) => sum + result.matchCount, 0);
     const eventsScanned = originalResult.events.length;
     const streamsSearched = originalResult.searchedLogStreams?.length || 0;

@@ -6,12 +6,25 @@
  *
  */
 
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaUpdateFunctionCode } from "../../lib/lambda-schemas.js";
 import { LambdaUpdateFunctionCodeSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended function configuration with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedFunctionConfiguration extends FunctionConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda update function code command for code deployment
@@ -27,31 +40,38 @@ export default class LambdaUpdateFunctionCodeCommand extends Command {
   static override readonly examples = [
     {
       description: "Update function code from ZIP file",
-      command: "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://new-function.zip",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://new-function.zip",
     },
     {
       description: "Update function code from S3 bucket",
-      command: "<%= config.bin %> <%= command.id %> my-function --s3-bucket my-bucket --s3-key updated-function.zip",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --s3-bucket my-bucket --s3-key updated-function.zip",
     },
     {
       description: "Update function code with specific S3 version",
-      command: "<%= config.bin %> <%= command.id %> my-function --s3-bucket my-bucket --s3-key function.zip --s3-object-version version123",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --s3-bucket my-bucket --s3-key function.zip --s3-object-version version123",
     },
     {
       description: "Update container image function",
-      command: "<%= config.bin %> <%= command.id %> my-function --image-uri 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-func:latest",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --image-uri 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-func:latest",
     },
     {
       description: "Update code and publish new version",
-      command: "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://function.zip --publish",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://function.zip --publish",
     },
     {
       description: "Update code with dry run validation",
-      command: "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://function.zip --dry-run",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://function.zip --dry-run",
     },
     {
       description: "Update code with revision ID check",
-      command: "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://function.zip --revision-id abc123",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --zip-file fileb://function.zip --revision-id abc123",
     },
   ];
 
@@ -186,19 +206,23 @@ export default class LambdaUpdateFunctionCodeCommand extends Command {
         },
       });
 
+      // Prepare zipFile as Uint8Array if provided
+      let zipFileData: Uint8Array | undefined;
+      if (input.zipFile) {
+        const fs = await import("node:fs");
+        const fileContent = await fs.promises.readFile(input.zipFile);
+        zipFileData = new Uint8Array(fileContent);
+      }
+
       // Update function code
       const functionConfig = await lambdaService.updateFunctionCode(
         {
           functionName: input.functionName,
-          zipFile: input.zipFile,
-          s3Bucket: input.s3Bucket,
-          s3Key: input.s3Key,
-          s3ObjectVersion: input.s3ObjectVersion,
-          imageUri: input.imageUri,
-          imageCommand: input.imageCommand,
-          imageEntryPoint: input.imageEntryPoint,
-          imageWorkingDirectory: input.imageWorkingDirectory,
-          revisionId: input.revisionId,
+          ...(zipFileData && { zipFile: zipFileData }),
+          ...(input.s3Bucket && { s3Bucket: input.s3Bucket }),
+          ...(input.s3Key && { s3Key: input.s3Key }),
+          ...(input.s3ObjectVersion && { s3ObjectVersion: input.s3ObjectVersion }),
+          ...(input.revisionId && { revisionId: input.revisionId }),
           publish: input.publish,
           dryRun: input.dryRun,
         },
@@ -226,7 +250,7 @@ export default class LambdaUpdateFunctionCodeCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    functionConfig: any,
+    functionConfig: FunctionConfiguration,
     format: string,
     functionName: string,
   ): void {
@@ -237,73 +261,77 @@ export default class LambdaUpdateFunctionCodeCommand extends Command {
         // Basic Information
         this.log("📋 Update Details:");
         const updateInfo = [
-          ["Function Name", functionConfig?.FunctionName || "N/A"],
-          ["Function ARN", functionConfig?.FunctionArn || "N/A"],
-          ["Version", functionConfig?.Version || "N/A"],
-          ["Last Modified", functionConfig?.LastModified || "N/A"],
-          ["State", functionConfig?.State || "N/A"],
-          ["Last Update Status", functionConfig?.LastUpdateStatus || "N/A"],
+          ["Function Name", functionConfig?.FunctionName ?? "N/A"],
+          ["Function ARN", functionConfig?.FunctionArn ?? "N/A"],
+          ["Version", functionConfig?.Version ?? "N/A"],
+          ["Last Modified", functionConfig?.LastModified ?? "N/A"],
+          ["State", functionConfig?.State ?? "N/A"],
+          ["Last Update Status", functionConfig?.LastUpdateStatus ?? "N/A"],
         ];
 
-        updateInfo.forEach(([key, value]) => {
+        for (const [key, value] of updateInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
         // Code Information
         this.log("\n📦 Code Details:");
         const codeInfo = [
-          ["Code Size", `${functionConfig?.CodeSize || 0} bytes`],
-          ["Code SHA256", functionConfig?.CodeSha256 || "N/A"],
-          ["Package Type", functionConfig?.PackageType || "Zip"],
+          ["Code Size", `${functionConfig?.CodeSize ?? 0} bytes`],
+          ["Code SHA256", functionConfig?.CodeSha256 ?? "N/A"],
+          ["Package Type", functionConfig?.PackageType ?? "Zip"],
         ];
 
-        codeInfo.forEach(([key, value]) => {
+        for (const [key, value] of codeInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
         // Runtime Configuration
         this.log("\n⚙️  Runtime Configuration:");
         const runtimeInfo = [
-          ["Runtime", functionConfig?.Runtime || "N/A"],
-          ["Handler", functionConfig?.Handler || "N/A"],
-          ["Memory Size", `${functionConfig?.MemorySize || 0} MB`],
-          ["Timeout", `${functionConfig?.Timeout || 0} seconds`],
+          ["Runtime", functionConfig?.Runtime ?? "N/A"],
+          ["Handler", functionConfig?.Handler ?? "N/A"],
+          ["Memory Size", `${functionConfig?.MemorySize ?? 0} MB`],
+          ["Timeout", `${functionConfig?.Timeout ?? 0} seconds`],
         ];
 
-        runtimeInfo.forEach(([key, value]) => {
+        for (const [key, value] of runtimeInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
         break;
       }
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten function configuration for CSV output
         const flattenedData = {
-          FunctionName: functionConfig?.FunctionName || "",
-          FunctionArn: functionConfig?.FunctionArn || "",
-          Version: functionConfig?.Version || "",
-          LastModified: functionConfig?.LastModified || "",
-          State: functionConfig?.State || "",
-          LastUpdateStatus: functionConfig?.LastUpdateStatus || "",
-          CodeSize: functionConfig?.CodeSize || 0,
-          CodeSha256: functionConfig?.CodeSha256 || "",
-          PackageType: functionConfig?.PackageType || "",
-          Runtime: functionConfig?.Runtime || "",
-          Handler: functionConfig?.Handler || "",
-          MemorySize: functionConfig?.MemorySize || 0,
-          Timeout: functionConfig?.Timeout || 0,
+          FunctionName: functionConfig?.FunctionName ?? "",
+          FunctionArn: functionConfig?.FunctionArn ?? "",
+          Version: functionConfig?.Version ?? "",
+          LastModified: functionConfig?.LastModified ?? "",
+          State: functionConfig?.State ?? "",
+          LastUpdateStatus: functionConfig?.LastUpdateStatus ?? "",
+          CodeSize: functionConfig?.CodeSize ?? 0,
+          CodeSha256: functionConfig?.CodeSha256 ?? "",
+          PackageType: functionConfig?.PackageType ?? "",
+          Runtime: functionConfig?.Runtime ?? "",
+          Handler: functionConfig?.Handler ?? "",
+          MemorySize: functionConfig?.MemorySize ?? 0,
+          Timeout: functionConfig?.Timeout ?? 0,
         };
 
         const processor = new DataProcessor({ format: DataFormat.CSV });

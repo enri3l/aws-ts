@@ -6,15 +6,68 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
-import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
-import { DataProcessor } from "../../../lib/data-processing.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { Args, Command, Flags } from "@oclif/core";
 import {
   CloudWatchLogsMetricsSchema,
   type CloudWatchLogsMetrics,
+  type LogMetricsResult,
 } from "../../../lib/cloudwatch-logs-analytics-schemas.js";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { parseTimeRange } from "../../../lib/time-utilities.js";
+import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+
+/**
+ * Base data point interface
+ * @internal
+ */
+interface BaseDataPoint {
+  time_bucket?: string;
+}
+
+/**
+ * Error rate data point
+ * @internal
+ */
+interface ErrorRateDataPoint extends BaseDataPoint {
+  errors?: number;
+}
+
+/**
+ * Volume data point
+ * @internal
+ */
+interface VolumeDataPoint extends BaseDataPoint {
+  log_volume?: number;
+}
+
+/**
+ * Performance data point
+ * @internal
+ */
+interface PerformanceDataPoint extends BaseDataPoint {
+  avg_performance?: number;
+  min_performance?: number;
+  max_performance?: number;
+}
+
+/**
+ * Custom data point (allows any additional fields)
+ * @internal
+ */
+interface CustomDataPoint extends BaseDataPoint {
+  [key: string]: unknown;
+}
+
+/**
+ * Union type for all data point types
+ * @internal
+ */
+type MetricDataPoint =
+  | ErrorRateDataPoint
+  | VolumeDataPoint
+  | PerformanceDataPoint
+  | CustomDataPoint;
 
 /**
  * CloudWatch Logs metrics command implementation
@@ -76,11 +129,13 @@ EXAMPLES:
   static override readonly examples = [
     {
       description: "Extract error rate metrics",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --metric-type error-rate",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --metric-type error-rate",
     },
     {
       description: "Volume analysis with custom time range",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --metric-type volume --start-time 'last 7 days'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --metric-type volume --start-time 'last 7 days'",
     },
   ];
 
@@ -111,7 +166,8 @@ EXAMPLES:
     }),
 
     "start-time": Flags.string({
-      description: "Start time for metrics extraction (ISO 8601, Unix timestamp, or relative like 'last 24 hours')",
+      description:
+        "Start time for metrics extraction (ISO 8601, Unix timestamp, or relative like 'last 24 hours')",
       helpValue: "2025-01-01T00:00:00Z",
     }),
 
@@ -159,14 +215,16 @@ EXAMPLES:
     }),
   };
 
-  static override readonly args = [
-    {
-      name: "logGroupName",
+  static override readonly args = {
+    logGroupName: Args.string({
       description: "CloudWatch log group name to analyze",
       required: true,
-    },
-  ];
+    }),
+  };
 
+  /**
+   *
+   */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CloudWatchLogsMetricsCommand);
 
@@ -184,23 +242,26 @@ EXAMPLES:
         metricType: flags["metric-type"],
         customQuery: flags["custom-query"],
         groupBy: flags["group-by"],
-        errorPatterns: flags["error-patterns"]?.split(",").map(p => p.trim()),
-        performanceFields: flags["performance-fields"]?.split(",").map(f => f.trim()),
+        errorPatterns: flags["error-patterns"]?.split(",").map((p) => p.trim()),
+        performanceFields: flags["performance-fields"]?.split(",").map((f) => f.trim()),
         includeTrends: flags["include-trends"],
         exportFile: flags["export-file"],
       });
 
       // Validate custom query if needed
       if (input.metricType === "custom" && !input.customQuery) {
-        this.error("Custom query is required when metric-type is 'custom'. Use --custom-query flag.", { exit: 1 });
+        this.error(
+          "Custom query is required when metric-type is 'custom'. Use --custom-query flag.",
+          { exit: 1 },
+        );
       }
 
       // Initialize CloudWatch Logs service
       const logsService = new CloudWatchLogsService({
         enableDebugLogging: input.verbose,
         credentialService: {
-          defaultRegion: input.region,
-          defaultProfile: input.profile,
+          ...(input.region && { defaultRegion: input.region }),
+          ...(input.profile && { defaultProfile: input.profile }),
         },
       });
 
@@ -208,43 +269,39 @@ EXAMPLES:
       const metricsResult = await logsService.extractLogMetrics(
         input.logGroupName,
         {
-          region: input.region,
-          profile: input.profile,
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
         },
         {
-          startTime: input.timeRange.startTime ? new Date(input.timeRange.startTime) : undefined,
-          endTime: input.timeRange.endTime ? new Date(input.timeRange.endTime) : undefined,
-          metricType: input.metricType as "error-rate" | "performance" | "volume" | "custom",
-          customQuery: input.customQuery,
-          groupBy: input.groupBy as "hour" | "day" | "minute",
-          errorPatterns: input.errorPatterns,
-          performanceFields: input.performanceFields,
-        }
+          ...(input.timeRange.startTime && { startTime: new Date(input.timeRange.startTime) }),
+          ...(input.timeRange.endTime && { endTime: new Date(input.timeRange.endTime) }),
+          metricType: input.metricType,
+          ...(input.customQuery && { customQuery: input.customQuery }),
+          groupBy: input.groupBy,
+          ...(input.errorPatterns && { errorPatterns: input.errorPatterns }),
+          ...(input.performanceFields && { performanceFields: input.performanceFields }),
+        },
       );
 
       // Process and display results
       if (input.format === "table") {
         this.displayMetricsTable(metricsResult, input.verbose);
       } else {
-        const processor = new DataProcessor();
-        const output = await processor.processData(
-          [metricsResult],
-          input.format as "json" | "jsonl" | "csv"
-        );
+        const processor = new DataProcessor({
+          format: DataFormat[input.format.toUpperCase() as keyof typeof DataFormat],
+        });
+        const output = processor.formatOutput([
+          { data: metricsResult as unknown as Record<string, unknown>, index: 0 },
+        ]);
         this.log(output);
       }
 
       // Export results if requested
       if (input.exportFile) {
         const fs = await import("node:fs/promises");
-        await fs.writeFile(
-          input.exportFile,
-          JSON.stringify(metricsResult, null, 2),
-          "utf8"
-        );
+        await fs.writeFile(input.exportFile, JSON.stringify(metricsResult, undefined, 2), "utf8");
         this.log(`\nMetrics data exported to: ${input.exportFile}`);
       }
-
     } catch (error) {
       const formattedError = handleCloudWatchLogsCommandError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -255,10 +312,12 @@ EXAMPLES:
    * Display metrics results in table format
    * @internal
    */
-  private displayMetricsTable(result: any, verbose: boolean): void {
+  private displayMetricsTable(result: LogMetricsResult, verbose: boolean): void {
     // Display metrics summary
     this.log(`\n📊 ${result.metricType.toUpperCase()} Metrics for: ${result.logGroupName}`);
-    this.log(`📅 Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`);
+    this.log(
+      `📅 Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`,
+    );
     this.log(`📈 Data Points: ${result.summary.totalDataPoints.toLocaleString()}`);
     this.log(`⏱️  Time Span: ${result.summary.timeSpan}`);
     this.log(`📊 Average Value: ${result.summary.averageValue.toFixed(2)}`);
@@ -269,48 +328,62 @@ EXAMPLES:
     // Display query execution statistics
     if (result.statistics && verbose) {
       this.log("\n📊 Query Execution Statistics:");
-      this.log(`📊 Records Matched: ${result.statistics.recordsMatched?.toLocaleString() || "N/A"}`);
-      this.log(`🔍 Records Scanned: ${result.statistics.recordsScanned?.toLocaleString() || "N/A"}`);
+      this.log(
+        `📊 Records Matched: ${result.statistics.recordsMatched?.toLocaleString() || "N/A"}`,
+      );
+      this.log(
+        `🔍 Records Scanned: ${result.statistics.recordsScanned?.toLocaleString() || "N/A"}`,
+      );
       this.log(`💾 Bytes Scanned: ${this.formatBytes(result.statistics.bytesScanned || 0)}`);
     }
 
     // Display data points table
     if (result.dataPoints.length > 0) {
       this.log(`\n📊 ${result.metricType.toUpperCase()} Data Points:`);
-      const displayData = result.dataPoints.slice(0, 20).map((point: any, index: number) => {
-        const row: any = { "#": index + 1 };
+      const displayData = result.dataPoints
+        .slice(0, 20)
+        .map((point: MetricDataPoint, index: number) => {
+          const row: Record<string, unknown> = { "#": index + 1 };
 
-        // Add time bucket if available
-        if (point.time_bucket) {
-          row["Time"] = new Date(point.time_bucket).toISOString().replace('T', ' ').substring(0, 16);
-        }
+          // Add time bucket if available
+          if (point.time_bucket) {
+            row["Time"] = new Date(point.time_bucket).toISOString().replace("T", " ").slice(0, 16);
+          }
 
-        // Add metric-specific columns
-        switch (result.metricType) {
-          case "error-rate":
-            row["Errors"] = point.errors || 0;
-            break;
-          case "volume":
-            row["Log Volume"] = (point.log_volume || 0).toLocaleString();
-            break;
-          case "performance":
-            row["Avg Performance"] = (point.avg_performance || 0).toFixed(2);
-            if (verbose) {
-              row["Min"] = (point.min_performance || 0).toFixed(2);
-              row["Max"] = (point.max_performance || 0).toFixed(2);
+          // Add metric-specific columns
+          switch (result.metricType) {
+            case "error-rate": {
+              const errorPoint = point as ErrorRateDataPoint;
+              row["Errors"] = errorPoint.errors || 0;
+              break;
             }
-            break;
-          default:
-            // Custom metrics - add all available fields
-            Object.keys(point).forEach(key => {
-              if (key !== "time_bucket") {
-                row[key] = point[key];
+            case "volume": {
+              const volumePoint = point as VolumeDataPoint;
+              row["Log Volume"] = (volumePoint.log_volume || 0).toLocaleString();
+              break;
+            }
+            case "performance": {
+              const perfPoint = point as PerformanceDataPoint;
+              row["Avg Performance"] = (perfPoint.avg_performance || 0).toFixed(2);
+              if (verbose) {
+                row["Min"] = (perfPoint.min_performance || 0).toFixed(2);
+                row["Max"] = (perfPoint.max_performance || 0).toFixed(2);
               }
-            });
-        }
+              break;
+            }
+            default: {
+              // Custom metrics - add all available fields
+              const customPoint = point as CustomDataPoint;
+              for (const key of Object.keys(customPoint)) {
+                if (key !== "time_bucket") {
+                  row[key] = customPoint[key];
+                }
+              }
+            }
+          }
 
-        return row;
-      });
+          return row;
+        });
 
       console.table(displayData);
 
@@ -323,14 +396,14 @@ EXAMPLES:
     if (result.trends.length > 0) {
       this.log("\n📈 Trend Analysis:");
       console.table(
-        result.trends.map((trend: any, index: number) => ({
+        result.trends.map((trend, index: number) => ({
           "#": index + 1,
-          "Metric": trend.metric,
-          "Direction": this.formatTrend(trend.direction),
-          "Magnitude": `${trend.magnitude.toFixed(1)}%`,
-          "Confidence": trend.confidence.toUpperCase(),
-          "Description": trend.description,
-        }))
+          Metric: trend.metric,
+          Direction: this.formatTrend(trend.direction),
+          Magnitude: `${trend.magnitude.toFixed(1)}%`,
+          Confidence: trend.confidence.toUpperCase(),
+          Description: trend.description,
+        })),
       );
     }
 
@@ -342,83 +415,141 @@ EXAMPLES:
 
   /**
    * Format trend direction with emojis
+   * @returns Formatted trend string with emoji
    * @internal
    */
   private formatTrend(trend: string): string {
     switch (trend) {
-      case "increasing":
+      case "increasing": {
         return "📈 INCREASING";
-      case "decreasing":
+      }
+      case "decreasing": {
         return "📉 DECREASING";
-      case "stable":
+      }
+      case "stable": {
         return "➡️  STABLE";
-      default:
+      }
+      default: {
         return trend.toUpperCase();
+      }
     }
   }
 
   /**
    * Format bytes with appropriate units
+   * @returns Formatted bytes string with units
    * @internal
    */
   private formatBytes(bytes: number): string {
     if (bytes === 0) return "0 B";
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+    const index = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, index)).toFixed(1)} ${sizes[index]}`;
   }
 
   /**
    * Display recommendations based on metrics
    * @internal
    */
-  private displayRecommendations(result: any): void {
+  private displayRecommendations(result: LogMetricsResult): void {
     const recommendations: string[] = [];
 
-    // General recommendations based on metric type
-    switch (result.metricType) {
-      case "error-rate":
-        if (result.summary.trend === "increasing") {
-          recommendations.push("⚠️  Error rate is increasing - investigate recent changes");
-        }
-        if (result.summary.averageValue > 5) {
-          recommendations.push("🔍 High error rate detected - consider implementing error monitoring alerts");
-        }
-        break;
+    // Add metric-specific recommendations
+    this.addMetricTypeRecommendations(result, recommendations);
 
-      case "volume":
-        if (result.summary.trend === "increasing") {
-          recommendations.push("📈 Log volume is increasing - monitor storage costs and retention policies");
-        }
-        if (result.summary.maxValue > result.summary.averageValue * 3) {
-          recommendations.push("⚡ Volume spikes detected - consider implementing volume-based alerts");
-        }
-        break;
+    // Add cost optimization recommendations
+    this.addCostOptimizationRecommendations(result, recommendations);
 
-      case "performance":
-        if (result.summary.trend === "increasing") {
-          recommendations.push("🐌 Performance is degrading - investigate performance bottlenecks");
-        }
-        if (result.summary.maxValue > result.summary.averageValue * 2) {
-          recommendations.push("🎯 Performance spikes detected - implement latency monitoring");
-        }
-        break;
-    }
-
-    // Cost optimization recommendations
-    if (result.statistics?.bytesScanned) {
-      const bytesScanned = result.statistics.bytesScanned;
-      if (bytesScanned > 1024 * 1024 * 1024) { // > 1GB
-        recommendations.push("💰 Large amount of data scanned - consider using field indexes for better performance");
-      }
-    }
-
+    // Display recommendations if any exist
     if (recommendations.length > 0) {
       this.log("\n💡 Recommendations:");
-      recommendations.forEach((rec, index) => {
+      for (const [index, rec] of recommendations.entries()) {
         this.log(`${index + 1}. ${rec}`);
-      });
+      }
+    }
+  }
+
+  /**
+   * Add recommendations based on metric type
+   * @internal
+   */
+  private addMetricTypeRecommendations(result: LogMetricsResult, recommendations: string[]): void {
+    switch (result.metricType) {
+      case "error-rate": {
+        this.addErrorRateRecommendations(result, recommendations);
+        break;
+      }
+      case "volume": {
+        this.addVolumeRecommendations(result, recommendations);
+        break;
+      }
+      case "performance": {
+        this.addPerformanceRecommendations(result, recommendations);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Add error rate specific recommendations
+   * @internal
+   */
+  private addErrorRateRecommendations(result: LogMetricsResult, recommendations: string[]): void {
+    if (result.summary.trend === "increasing") {
+      recommendations.push("⚠️  Error rate is increasing - investigate recent changes");
+    }
+    if (result.summary.averageValue > 5) {
+      recommendations.push(
+        "🔍 High error rate detected - consider implementing error monitoring alerts",
+      );
+    }
+  }
+
+  /**
+   * Add volume specific recommendations
+   * @internal
+   */
+  private addVolumeRecommendations(result: LogMetricsResult, recommendations: string[]): void {
+    if (result.summary.trend === "increasing") {
+      recommendations.push(
+        "📈 Log volume is increasing - monitor storage costs and retention policies",
+      );
+    }
+    if (result.summary.maxValue > result.summary.averageValue * 3) {
+      recommendations.push("⚡ Volume spikes detected - consider implementing volume-based alerts");
+    }
+  }
+
+  /**
+   * Add performance specific recommendations
+   * @internal
+   */
+  private addPerformanceRecommendations(result: LogMetricsResult, recommendations: string[]): void {
+    if (result.summary.trend === "increasing") {
+      recommendations.push("🐌 Performance is degrading - investigate performance bottlenecks");
+    }
+    if (result.summary.maxValue > result.summary.averageValue * 2) {
+      recommendations.push("🎯 Performance spikes detected - implement latency monitoring");
+    }
+  }
+
+  /**
+   * Add cost optimization recommendations
+   * @internal
+   */
+  private addCostOptimizationRecommendations(
+    result: LogMetricsResult,
+    recommendations: string[],
+  ): void {
+    if (result.statistics?.bytesScanned) {
+      const bytesScanned = result.statistics.bytesScanned;
+      if (bytesScanned > 1024 * 1024 * 1024) {
+        // > 1GB
+        recommendations.push(
+          "💰 Large amount of data scanned - consider using field indexes for better performance",
+        );
+      }
     }
   }
 }

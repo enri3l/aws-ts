@@ -6,12 +6,47 @@
  *
  */
 
+import type { Target } from "@aws-sdk/client-eventbridge";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeListTargetsByRule } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeListTargetsByRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+
+/**
+ * Extended target interface with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedTarget extends Target {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * EventBridge targets list result from service layer
+ *
+ * @internal
+ */
+interface TargetsListResult {
+  /**
+   * Array of EventBridge targets
+   */
+  readonly targets: ExtendedTarget[];
+
+  /**
+   * Pagination token for next page of results
+   */
+  readonly nextToken?: string;
+
+  /**
+   * Total count of targets returned
+   */
+  readonly totalCount?: number;
+}
 
 /**
  * EventBridge list targets by rule command for target discovery
@@ -136,21 +171,26 @@ export default class EventBridgeListTargetsByRuleCommand extends Command {
       });
 
       // List targets for the rule
-      const targetsResult = await eventBridgeService.listTargetsByRule(
-        input.ruleName,
+      const paginatedResult = await eventBridgeService.listTargetsByRule(
+        input.rule,
         {
           ...(input.region && { region: input.region }),
           ...(input.profile && { profile: input.profile }),
         },
-        {
-          EventBusName: input.eventBusName,
-          Limit: input.limit,
-          NextToken: input.nextToken,
-        },
+        input.eventBusName,
+        input.nextToken,
+        input.limit,
       );
 
+      // Convert to expected result format
+      const targetsResult: TargetsListResult = {
+        targets: paginatedResult.items as ExtendedTarget[],
+        ...(paginatedResult.nextToken !== undefined && { nextToken: paginatedResult.nextToken }),
+        totalCount: paginatedResult.items.length,
+      };
+
       // Format output based on requested format
-      this.formatAndDisplayOutput(targetsResult, input.format, input.ruleName, input.eventBusName);
+      this.formatAndDisplayOutput(targetsResult, input.format, input.rule, input.eventBusName);
     } catch (error) {
       const formattedError = this.formatEventBridgeError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -168,12 +208,12 @@ export default class EventBridgeListTargetsByRuleCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    targetsResult: any,
+    targetsResult: TargetsListResult,
     format: string,
     ruleName: string,
     eventBusName: string,
   ): void {
-    const targets = targetsResult.targets || [];
+    const targets = targetsResult.targets ?? [];
     const nextToken = targetsResult.nextToken;
 
     if (targets.length === 0) {
@@ -183,113 +223,19 @@ export default class EventBridgeListTargetsByRuleCommand extends Command {
 
     switch (format) {
       case "table": {
-        this.log(`Found ${targets.length} targets for rule: ${ruleName} (${eventBusName})\n`);
-
-        // Summary table
-        const tableData = targets.map((target: any, index: number) => ({
-          "#": index + 1,
-          "Target ID": target.Id || "N/A",
-          "Target ARN": target.Arn || "N/A",
-          "Role ARN": target.RoleArn || "None",
-          "Input Type": this.getInputType(target),
-          "Retry Policy": target.RetryPolicy ? "Configured" : "Default",
-          "Dead Letter": target.DeadLetterConfig ? "Configured" : "None",
-        }));
-
-        // Use DataProcessor for consistent table formatting
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          tableData.map((item, index) => ({ data: item, index })),
-        );
-        this.log(output);
-
-        // Detailed target information
-        this.log("\n📋 Target Details:");
-        targets.forEach((target: any, index: number) => {
-          this.log(`\n${index + 1}. Target: ${target.Id || "N/A"}`);
-          this.log(`   ARN: ${target.Arn || "N/A"}`);
-
-          if (target.RoleArn) {
-            this.log(`   Role: ${target.RoleArn}`);
-          }
-
-          if (target.Input) {
-            this.log(`   Static Input: Configured (${target.Input.length} characters)`);
-          }
-
-          if (target.InputPath) {
-            this.log(`   Input Path: ${target.InputPath}`);
-          }
-
-          if (target.InputTransformer) {
-            this.log(`   Input Transformer: Configured`);
-            if (target.InputTransformer.InputPathsMap) {
-              this.log(`   Input Paths: ${Object.keys(target.InputTransformer.InputPathsMap).length} paths`);
-            }
-          }
-
-          if (target.RetryPolicy) {
-            this.log(`   Retry Policy: Max ${target.RetryPolicy.MaximumRetryAttempts || 0} attempts, ${target.RetryPolicy.MaximumEventAgeInSeconds || 0}s max age`);
-          }
-
-          if (target.DeadLetterConfig) {
-            this.log(`   Dead Letter Queue: ${target.DeadLetterConfig.Arn}`);
-          }
-        });
-
-        // Pagination info
-        if (nextToken) {
-          this.log(`\n📄 More targets available. Use --next-token ${nextToken} to continue.`);
-        }
-
+        this.displayTableFormat(targets, ruleName, eventBusName, nextToken);
         break;
       }
       case "json": {
-        const result = {
-          targets,
-          nextToken,
-          totalCount: targets.length,
-          ruleName,
-          eventBusName,
-        };
-
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: result, index: 0 }]);
-        this.log(output);
+        this.displayJsonFormat(targets, ruleName, eventBusName, nextToken);
         break;
       }
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput(
-          targets.map((target: any, index: number) => ({ data: target, index })),
-        );
-        this.log(output);
+        this.displayJsonlFormat(targets);
         break;
       }
       case "csv": {
-        // Flatten targets for CSV output
-        const flattenedData = targets.map((target: any) => ({
-          Id: target.Id || "",
-          Arn: target.Arn || "",
-          RoleArn: target.RoleArn || "",
-          Input: target.Input || "",
-          InputPath: target.InputPath || "",
-          HasInputTransformer: target.InputTransformer ? "true" : "false",
-          InputPathsCount: target.InputTransformer?.InputPathsMap ? Object.keys(target.InputTransformer.InputPathsMap).length : 0,
-          HasRetryPolicy: target.RetryPolicy ? "true" : "false",
-          MaxRetryAttempts: target.RetryPolicy?.MaximumRetryAttempts || 0,
-          MaxEventAgeSeconds: target.RetryPolicy?.MaximumEventAgeInSeconds || 0,
-          HasDeadLetterConfig: target.DeadLetterConfig ? "true" : "false",
-          DeadLetterArn: target.DeadLetterConfig?.Arn || "",
-          RuleName: ruleName,
-          EventBusName: eventBusName,
-        }));
-
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          flattenedData.map((item, index) => ({ data: item, index })),
-        );
-        this.log(output);
+        this.displayCsvFormat(targets, ruleName, eventBusName);
         break;
       }
       default: {
@@ -299,13 +245,192 @@ export default class EventBridgeListTargetsByRuleCommand extends Command {
   }
 
   /**
+   * Display targets in table format
+   *
+   * @param targets - Targets to display
+   * @param ruleName - Rule name for display
+   * @param eventBusName - Event bus name for display
+   * @param nextToken - Pagination token if available
+   * @internal
+   */
+  private displayTableFormat(
+    targets: Target[],
+    ruleName: string,
+    eventBusName: string,
+    nextToken?: string,
+  ): void {
+    this.log(`Found ${targets.length} targets for rule: ${ruleName} (${eventBusName})\n`);
+
+    // Summary table
+    const tableData = targets.map((target, index) => ({
+      "#": index + 1,
+      "Target ID": target.Id ?? "N/A",
+      "Target ARN": target.Arn ?? "N/A",
+      "Role ARN": target.RoleArn ?? "None",
+      "Input Type": this.getInputType(target),
+      "Retry Policy": target.RetryPolicy ? "Configured" : "Default",
+      "Dead Letter": target.DeadLetterConfig ? "Configured" : "None",
+    }));
+
+    // Use DataProcessor for consistent table formatting
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput(tableData.map((item, index) => ({ data: item, index })));
+    this.log(output);
+
+    // Detailed target information
+    this.displayTargetDetails(targets);
+
+    // Pagination info
+    if (nextToken) {
+      this.log(`\n📄 More targets available. Use --next-token ${nextToken} to continue.`);
+    }
+  }
+
+  /**
+   * Display detailed target information
+   *
+   * @param targets - Targets to display
+   * @internal
+   */
+  private displayTargetDetails(targets: Target[]): void {
+    this.log("\n📋 Target Details:");
+    for (const [index, target] of targets.entries()) {
+      this.displaySingleTargetDetails(target, index + 1);
+    }
+  }
+
+  /**
+   * Display details for a single target
+   *
+   * @param target - Target to display
+   * @param index - Target index for display
+   * @internal
+   */
+  private displaySingleTargetDetails(target: Target, index: number): void {
+    this.log(`\n${index}. Target: ${target.Id ?? "N/A"}`);
+    this.log(`   ARN: ${target.Arn ?? "N/A"}`);
+
+    if (target.RoleArn) {
+      this.log(`   Role: ${target.RoleArn}`);
+    }
+
+    if (target.Input) {
+      this.log(`   Static Input: Configured (${target.Input.length} characters)`);
+    }
+
+    if (target.InputPath) {
+      this.log(`   Input Path: ${target.InputPath}`);
+    }
+
+    if (target.InputTransformer) {
+      this.log(`   Input Transformer: Configured`);
+      if (target.InputTransformer.InputPathsMap) {
+        this.log(
+          `   Input Paths: ${Object.keys(target.InputTransformer.InputPathsMap).length} paths`,
+        );
+      }
+    }
+
+    if (target.RetryPolicy) {
+      this.log(
+        `   Retry Policy: Max ${target.RetryPolicy.MaximumRetryAttempts ?? 0} attempts, ${target.RetryPolicy.MaximumEventAgeInSeconds ?? 0}s max age`,
+      );
+    }
+
+    if (target.DeadLetterConfig) {
+      this.log(`   Dead Letter Queue: ${target.DeadLetterConfig.Arn}`);
+    }
+  }
+
+  /**
+   * Display targets in JSON format
+   *
+   * @param targets - Targets to display
+   * @param ruleName - Rule name for display
+   * @param eventBusName - Event bus name for display
+   * @param nextToken - Pagination token if available
+   * @internal
+   */
+  private displayJsonFormat(
+    targets: Target[],
+    ruleName: string,
+    eventBusName: string,
+    nextToken?: string,
+  ): void {
+    const result = {
+      targets,
+      nextToken,
+      totalCount: targets.length,
+      ruleName,
+      eventBusName,
+    };
+
+    const processor = new DataProcessor({ format: DataFormat.JSON });
+    const output = processor.formatOutput([{ data: result, index: 0 }]);
+    this.log(output);
+  }
+
+  /**
+   * Display targets in JSONL format
+   *
+   * @param targets - Targets to display
+   * @internal
+   */
+  private displayJsonlFormat(targets: Target[]): void {
+    const processor = new DataProcessor({ format: DataFormat.JSONL });
+    const output = processor.formatOutput(
+      targets.map((target, index) => ({ data: target as ExtendedTarget, index })),
+    );
+    this.log(output);
+  }
+
+  /**
+   * Display targets in CSV format
+   *
+   * @param targets - Targets to display
+   * @param ruleName - Rule name for display
+   * @param eventBusName - Event bus name for display
+   * @internal
+   */
+  private displayCsvFormat(targets: Target[], ruleName: string, eventBusName: string): void {
+    // Flatten targets for CSV output
+    const flattenedData = targets.map((target) => ({
+      Id: target.Id ?? "",
+      Arn: target.Arn ?? "",
+      RoleArn: target.RoleArn ?? "",
+      Input: target.Input ?? "",
+      InputPath: target.InputPath ?? "",
+      HasInputTransformer: target.InputTransformer ? "true" : "false",
+      InputPathsCount: target.InputTransformer?.InputPathsMap
+        ? Object.keys(target.InputTransformer.InputPathsMap).length
+        : 0,
+      HasRetryPolicy: target.RetryPolicy ? "true" : "false",
+      MaxRetryAttempts: target.RetryPolicy?.MaximumRetryAttempts ?? 0,
+      MaxEventAgeSeconds: target.RetryPolicy?.MaximumEventAgeInSeconds ?? 0,
+      HasDeadLetterConfig: target.DeadLetterConfig ? "true" : "false",
+      DeadLetterArn: target.DeadLetterConfig?.Arn ?? "",
+      RuleName: ruleName,
+      EventBusName: eventBusName,
+    }));
+
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput(
+      flattenedData.map((item, index) => ({
+        data: item,
+        index,
+      })),
+    );
+    this.log(output);
+  }
+
+  /**
    * Determine the input type for a target
    *
    * @param target - Target object to analyze
    * @returns Input type description
    * @internal
    */
-  private getInputType(target: any): string {
+  private getInputType(target: Target): string {
     if (target.Input) {
       return "Static";
     }

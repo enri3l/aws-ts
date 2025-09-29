@@ -6,12 +6,25 @@
  *
  */
 
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaPublishVersion } from "../../lib/lambda-schemas.js";
 import { LambdaPublishVersionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended function configuration with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedFunctionConfiguration extends FunctionConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda publish version command for version creation
@@ -31,23 +44,28 @@ export default class LambdaPublishVersionCommand extends Command {
     },
     {
       description: "Publish a version with custom description",
-      command: "<%= config.bin %> <%= command.id %> my-function --description 'Release v2.1.0 with bug fixes'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --description 'Release v2.1.0 with bug fixes'",
     },
     {
       description: "Publish version with code SHA validation",
-      command: "<%= config.bin %> <%= command.id %> my-function --code-sha256 abc123def456... --description 'Validated release'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --code-sha256 abc123def456... --description 'Validated release'",
     },
     {
       description: "Publish version with revision ID for optimistic locking",
-      command: "<%= config.bin %> <%= command.id %> my-function --revision-id rev123 --description 'Safe publish'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --revision-id rev123 --description 'Safe publish'",
     },
     {
       description: "Publish version in specific region",
-      command: "<%= config.bin %> <%= command.id %> my-function --region us-west-2 --description 'West coast deployment'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --region us-west-2 --description 'West coast deployment'",
     },
     {
       description: "Publish version with JSON output",
-      command: "<%= config.bin %> <%= command.id %> my-function --format json --description 'API deployment'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --format json --description 'API deployment'",
     },
   ];
 
@@ -162,108 +180,50 @@ export default class LambdaPublishVersionCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    versionConfig: any,
+    versionConfig: FunctionConfiguration,
     format: string,
     functionName: string,
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Version Published: ${functionName}\n`);
-
-        // Version Information
-        this.log("📋 Version Details:");
-        const versionInfo = [
-          ["Function Name", versionConfig?.FunctionName || "N/A"],
-          ["Function ARN", versionConfig?.FunctionArn || "N/A"],
-          ["Version", versionConfig?.Version || "N/A"],
-          ["Description", versionConfig?.Description || "No description"],
-          ["State", versionConfig?.State || "N/A"],
-          ["Last Modified", versionConfig?.LastModified || "N/A"],
-        ];
-
-        versionInfo.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Code Information
-        this.log("\n📦 Code Details:");
-        const codeInfo = [
-          ["Code Size", `${versionConfig?.CodeSize || 0} bytes`],
-          ["Code SHA256", versionConfig?.CodeSha256 || "N/A"],
-          ["Package Type", versionConfig?.PackageType || "Zip"],
-        ];
-
-        codeInfo.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Runtime Configuration
-        this.log("\n⚙️  Runtime Configuration:");
-        const runtimeInfo = [
-          ["Runtime", versionConfig?.Runtime || "N/A"],
-          ["Handler", versionConfig?.Handler || "N/A"],
-          ["Memory Size", `${versionConfig?.MemorySize || 0} MB`],
-          ["Timeout", `${versionConfig?.Timeout || 0} seconds`],
-        ];
-
-        runtimeInfo.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // IAM Role
-        this.log("\n🔐 IAM Configuration:");
-        this.log(`  Role: ${versionConfig?.Role || "N/A"}`);
-
-        // Environment Variables
-        if (versionConfig?.Environment?.Variables && Object.keys(versionConfig.Environment.Variables).length > 0) {
-          this.log("\n🌍 Environment Variables:");
-          Object.entries(versionConfig.Environment.Variables).forEach(([key, value]) => {
-            this.log(`  ${key}: ${value}`);
-          });
-        }
-
-        // Layers
-        if (versionConfig?.Layers && versionConfig.Layers.length > 0) {
-          this.log("\n📦 Layers:");
-          versionConfig.Layers.forEach((layer: any, index: number) => {
-            this.log(`  ${index + 1}. ${layer.Arn}`);
-          });
-        }
-
-        this.log("\n💡 Note: This version is now immutable and can be referenced by version number or alias.");
+        this.displayTableFormat(versionConfig, functionName);
         break;
       }
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: versionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: versionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: versionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: versionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten version configuration for CSV output
         const flattenedData = {
-          FunctionName: versionConfig?.FunctionName || "",
-          FunctionArn: versionConfig?.FunctionArn || "",
-          Version: versionConfig?.Version || "",
-          Description: versionConfig?.Description || "",
-          State: versionConfig?.State || "",
-          LastModified: versionConfig?.LastModified || "",
-          CodeSize: versionConfig?.CodeSize || 0,
-          CodeSha256: versionConfig?.CodeSha256 || "",
-          PackageType: versionConfig?.PackageType || "",
-          Runtime: versionConfig?.Runtime || "",
-          Handler: versionConfig?.Handler || "",
-          MemorySize: versionConfig?.MemorySize || 0,
-          Timeout: versionConfig?.Timeout || 0,
-          Role: versionConfig?.Role || "",
-          LayerCount: versionConfig?.Layers?.length || 0,
-          EnvironmentVariableCount: Object.keys(versionConfig?.Environment?.Variables || {}).length,
+          FunctionName: versionConfig?.FunctionName ?? "",
+          FunctionArn: versionConfig?.FunctionArn ?? "",
+          Version: versionConfig?.Version ?? "",
+          Description: versionConfig?.Description ?? "",
+          State: versionConfig?.State ?? "",
+          LastModified: versionConfig?.LastModified ?? "",
+          CodeSize: versionConfig?.CodeSize ?? 0,
+          CodeSha256: versionConfig?.CodeSha256 ?? "",
+          PackageType: versionConfig?.PackageType ?? "",
+          Runtime: versionConfig?.Runtime ?? "",
+          Handler: versionConfig?.Handler ?? "",
+          MemorySize: versionConfig?.MemorySize ?? 0,
+          Timeout: versionConfig?.Timeout ?? 0,
+          Role: versionConfig?.Role ?? "",
+          LayerCount: versionConfig?.Layers?.length ?? 0,
+          EnvironmentVariableCount: Object.keys(versionConfig?.Environment?.Variables ?? {}).length,
         };
 
         const processor = new DataProcessor({ format: DataFormat.CSV });
@@ -275,6 +235,84 @@ export default class LambdaPublishVersionCommand extends Command {
         throw new Error(`Unsupported output format: ${format}`);
       }
     }
+  }
+
+  /**
+   * Display version publication result in table format
+   *
+   * @param versionConfig - Published version configuration
+   * @param functionName - Function name for display
+   * @internal
+   */
+  private displayTableFormat(versionConfig: FunctionConfiguration, functionName: string): void {
+    this.log(`✅ Version Published: ${functionName}\n`);
+
+    // Version Information
+    this.log("📋 Version Details:");
+    const versionInfo = [
+      ["Function Name", versionConfig?.FunctionName ?? "N/A"],
+      ["Function ARN", versionConfig?.FunctionArn ?? "N/A"],
+      ["Version", versionConfig?.Version ?? "N/A"],
+      ["Description", versionConfig?.Description ?? "No description"],
+      ["State", versionConfig?.State ?? "N/A"],
+      ["Last Modified", versionConfig?.LastModified ?? "N/A"],
+    ];
+
+    for (const [key, value] of versionInfo) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // Code Information
+    this.log("\n📦 Code Details:");
+    const codeInfo = [
+      ["Code Size", `${versionConfig?.CodeSize ?? 0} bytes`],
+      ["Code SHA256", versionConfig?.CodeSha256 ?? "N/A"],
+      ["Package Type", versionConfig?.PackageType ?? "Zip"],
+    ];
+
+    for (const [key, value] of codeInfo) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // Runtime Configuration
+    this.log("\n⚙️  Runtime Configuration:");
+    const runtimeInfo = [
+      ["Runtime", versionConfig?.Runtime ?? "N/A"],
+      ["Handler", versionConfig?.Handler ?? "N/A"],
+      ["Memory Size", `${versionConfig?.MemorySize ?? 0} MB`],
+      ["Timeout", `${versionConfig?.Timeout ?? 0} seconds`],
+    ];
+
+    for (const [key, value] of runtimeInfo) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // IAM Role
+    this.log("\n🔐 IAM Configuration:");
+    this.log(`  Role: ${versionConfig?.Role ?? "N/A"}`);
+
+    // Environment Variables
+    if (
+      versionConfig?.Environment?.Variables &&
+      Object.keys(versionConfig.Environment.Variables).length > 0
+    ) {
+      this.log("\n🌍 Environment Variables:");
+      for (const [key, value] of Object.entries(versionConfig.Environment.Variables)) {
+        this.log(`  ${key}: ${String(value)}`);
+      }
+    }
+
+    // Layers
+    if (versionConfig?.Layers && versionConfig.Layers.length > 0) {
+      this.log("\n📦 Layers:");
+      for (const [index, layer] of versionConfig.Layers.entries()) {
+        this.log(`  ${index + 1}. ${layer.Arn ?? "N/A"}`);
+      }
+    }
+
+    this.log(
+      "\n💡 Note: This version is now immutable and can be referenced by version number or alias.",
+    );
   }
 
   /**

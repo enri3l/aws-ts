@@ -6,12 +6,25 @@
  *
  */
 
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaGetFunctionConfiguration } from "../../lib/lambda-schemas.js";
 import { LambdaGetFunctionConfigurationSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended function configuration with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedFunctionConfiguration extends FunctionConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda get function configuration command for retrieving function settings
@@ -153,156 +166,60 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    functionConfig: any,
+    functionConfig: FunctionConfiguration,
     format: string,
     functionName: string,
   ): void {
     switch (format) {
       case "table": {
-        this.log(`Function Configuration: ${functionName}\n`);
-
-        // Basic Configuration
-        this.log("📋 Basic Configuration:");
-        const basicConfig = [
-          ["Function Name", functionConfig?.FunctionName || "N/A"],
-          ["Function ARN", functionConfig?.FunctionArn || "N/A"],
-          ["Runtime", functionConfig?.Runtime || "N/A"],
-          ["Handler", functionConfig?.Handler || "N/A"],
-          ["Description", functionConfig?.Description || "No description"],
-          ["State", functionConfig?.State || "N/A"],
-          ["State Reason", functionConfig?.StateReason || "N/A"],
-          ["Last Modified", functionConfig?.LastModified || "N/A"],
-          ["Version", functionConfig?.Version || "N/A"],
-          ["Last Update Status", functionConfig?.LastUpdateStatus || "N/A"],
-        ];
-
-        basicConfig.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Resource Configuration
-        this.log("\n⚙️  Resource Configuration:");
-        const resourceConfig = [
-          ["Memory Size", `${functionConfig?.MemorySize || 0} MB`],
-          ["Timeout", `${functionConfig?.Timeout || 0} seconds`],
-          ["Ephemeral Storage", `${functionConfig?.EphemeralStorage?.Size || 512} MB`],
-          ["Code Size", `${functionConfig?.CodeSize || 0} bytes`],
-          ["Code SHA256", functionConfig?.CodeSha256 || "N/A"],
-          ["Package Type", functionConfig?.PackageType || "Zip"],
-        ];
-
-        resourceConfig.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // IAM Role and Execution
-        this.log("\n🔐 IAM and Execution:");
-        this.log(`  Role: ${functionConfig?.Role || "N/A"}`);
-        if (functionConfig?.DeadLetterConfig?.TargetArn) {
-          this.log(`  Dead Letter Queue: ${functionConfig.DeadLetterConfig.TargetArn}`);
-        }
-
-        // Concurrency Configuration
-        if (functionConfig?.ReservedConcurrencyLimit !== undefined) {
-          this.log("\n🚀 Concurrency Configuration:");
-          this.log(`  Reserved Concurrency: ${functionConfig.ReservedConcurrencyLimit}`);
-        }
-
-        // VPC Configuration
-        if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
-          this.log("\n🌐 VPC Configuration:");
-          this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
-          this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") || "None"}`);
-          this.log(`  Security Groups: ${functionConfig.VpcConfig.SecurityGroupIds?.join(", ") || "None"}`);
-        }
-
-        // Environment Variables
-        if (functionConfig?.Environment?.Variables && Object.keys(functionConfig.Environment.Variables).length > 0) {
-          this.log("\n🌍 Environment Variables:");
-          Object.entries(functionConfig.Environment.Variables).forEach(([key, value]) => {
-            this.log(`  ${key}: ${value}`);
-          });
-        }
-
-        // KMS Configuration
-        if (functionConfig?.KMSKeyArn) {
-          this.log("\n🔒 Encryption:");
-          this.log(`  KMS Key: ${functionConfig.KMSKeyArn}`);
-        }
-
-        // Layers
-        if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
-          this.log("\n📦 Layers:");
-          functionConfig.Layers.forEach((layer: any, index: number) => {
-            this.log(`  ${index + 1}. ${layer.Arn} (${layer.CodeSize || 0} bytes)`);
-          });
-        }
-
-        // File System Configuration
-        if (functionConfig?.FileSystemConfigs && functionConfig.FileSystemConfigs.length > 0) {
-          this.log("\n💾 File System Configurations:");
-          functionConfig.FileSystemConfigs.forEach((fsConfig: any, index: number) => {
-            this.log(`  ${index + 1}. ${fsConfig.Arn} -> ${fsConfig.LocalMountPath}`);
-          });
-        }
-
-        // Image Configuration
-        if (functionConfig?.ImageConfigResponse) {
-          this.log("\n🐳 Image Configuration:");
-          if (functionConfig.ImageConfigResponse.ImageConfig?.EntryPoint) {
-            this.log(`  Entry Point: ${functionConfig.ImageConfigResponse.ImageConfig.EntryPoint.join(" ")}`);
-          }
-          if (functionConfig.ImageConfigResponse.ImageConfig?.Command) {
-            this.log(`  Command: ${functionConfig.ImageConfigResponse.ImageConfig.Command.join(" ")}`);
-          }
-          if (functionConfig.ImageConfigResponse.ImageConfig?.WorkingDirectory) {
-            this.log(`  Working Directory: ${functionConfig.ImageConfigResponse.ImageConfig.WorkingDirectory}`);
-          }
-        }
-
+        this.displayTableFormat(functionConfig, functionName);
         break;
       }
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten function configuration for CSV output
         const flattenedData = {
-          FunctionName: functionConfig?.FunctionName || "",
-          FunctionArn: functionConfig?.FunctionArn || "",
-          Runtime: functionConfig?.Runtime || "",
-          Role: functionConfig?.Role || "",
-          Handler: functionConfig?.Handler || "",
-          CodeSize: functionConfig?.CodeSize || 0,
-          Description: functionConfig?.Description || "",
-          Timeout: functionConfig?.Timeout || 0,
-          MemorySize: functionConfig?.MemorySize || 0,
-          LastModified: functionConfig?.LastModified || "",
-          CodeSha256: functionConfig?.CodeSha256 || "",
-          Version: functionConfig?.Version || "",
-          State: functionConfig?.State || "",
-          StateReason: functionConfig?.StateReason || "",
-          LastUpdateStatus: functionConfig?.LastUpdateStatus || "",
-          PackageType: functionConfig?.PackageType || "",
-          EphemeralStorageSize: functionConfig?.EphemeralStorage?.Size || 512,
-          ReservedConcurrencyLimit: functionConfig?.ReservedConcurrencyLimit || "",
-          VpcId: functionConfig?.VpcConfig?.VpcId || "",
-          SubnetIds: functionConfig?.VpcConfig?.SubnetIds?.join(";") || "",
-          SecurityGroupIds: functionConfig?.VpcConfig?.SecurityGroupIds?.join(";") || "",
-          DeadLetterTargetArn: functionConfig?.DeadLetterConfig?.TargetArn || "",
-          KMSKeyArn: functionConfig?.KMSKeyArn || "",
-          LayerCount: functionConfig?.Layers?.length || 0,
-          FileSystemCount: functionConfig?.FileSystemConfigs?.length || 0,
-          EnvironmentVariableCount: Object.keys(functionConfig?.Environment?.Variables || {}).length,
+          FunctionName: functionConfig?.FunctionName ?? "",
+          FunctionArn: functionConfig?.FunctionArn ?? "",
+          Runtime: functionConfig?.Runtime ?? "",
+          Role: functionConfig?.Role ?? "",
+          Handler: functionConfig?.Handler ?? "",
+          CodeSize: functionConfig?.CodeSize ?? 0,
+          Description: functionConfig?.Description ?? "",
+          Timeout: functionConfig?.Timeout ?? 0,
+          MemorySize: functionConfig?.MemorySize ?? 0,
+          LastModified: functionConfig?.LastModified ?? "",
+          CodeSha256: functionConfig?.CodeSha256 ?? "",
+          Version: functionConfig?.Version ?? "",
+          State: functionConfig?.State ?? "",
+          StateReason: functionConfig?.StateReason ?? "",
+          LastUpdateStatus: functionConfig?.LastUpdateStatus ?? "",
+          PackageType: functionConfig?.PackageType ?? "",
+          EphemeralStorageSize: functionConfig?.EphemeralStorage?.Size ?? 512,
+          VpcId: functionConfig?.VpcConfig?.VpcId ?? "",
+          SubnetIds: functionConfig?.VpcConfig?.SubnetIds?.join(";") ?? "",
+          SecurityGroupIds: functionConfig?.VpcConfig?.SecurityGroupIds?.join(";") ?? "",
+          DeadLetterTargetArn: functionConfig?.DeadLetterConfig?.TargetArn ?? "",
+          KMSKeyArn: functionConfig?.KMSKeyArn ?? "",
+          LayerCount: functionConfig?.Layers?.length ?? 0,
+          FileSystemCount: functionConfig?.FileSystemConfigs?.length ?? 0,
+          EnvironmentVariableCount: Object.keys(functionConfig?.Environment?.Variables ?? {})
+            .length,
         };
 
         const processor = new DataProcessor({ format: DataFormat.CSV });
@@ -313,6 +230,136 @@ export default class LambdaGetFunctionConfigurationCommand extends Command {
       default: {
         throw new Error(`Unsupported output format: ${format}`);
       }
+    }
+  }
+
+  /**
+   * Display function configuration in table format
+   *
+   * @param functionConfig - Function configuration to display
+   * @param functionName - Function name for display
+   * @internal
+   */
+  private displayTableFormat(functionConfig: FunctionConfiguration, functionName: string): void {
+    this.log(`Function Configuration: ${functionName}\n`);
+    this.displayBasicConfiguration(functionConfig);
+    this.displayResourceConfiguration(functionConfig);
+    this.displayVpcAndEnvironmentConfiguration(functionConfig);
+    this.displayAdvancedConfiguration(functionConfig);
+  }
+
+  /**
+   * Display basic function configuration
+   *
+   * @param functionConfig - Function configuration
+   * @internal
+   */
+  private displayBasicConfiguration(functionConfig: FunctionConfiguration): void {
+    this.log("📋 Function Details:");
+    const basicConfig = [
+      ["Function Name", functionConfig?.FunctionName ?? "N/A"],
+      ["Function ARN", functionConfig?.FunctionArn ?? "N/A"],
+      ["Runtime", functionConfig?.Runtime ?? "N/A"],
+      ["Handler", functionConfig?.Handler ?? "N/A"],
+      ["Description", functionConfig?.Description ?? "No description"],
+      ["State", functionConfig?.State ?? "N/A"],
+      ["Last Modified", functionConfig?.LastModified ?? "N/A"],
+      ["Version", functionConfig?.Version ?? "N/A"],
+    ];
+
+    for (const [key, value] of basicConfig) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // IAM Role
+    this.log("\n🔐 IAM Configuration:");
+    this.log(`  Role: ${functionConfig?.Role ?? "N/A"}`);
+  }
+
+  /**
+   * Display resource configuration
+   *
+   * @param functionConfig - Function configuration
+   * @internal
+   */
+  private displayResourceConfiguration(functionConfig: FunctionConfiguration): void {
+    this.log("\n⚙️  Resource Configuration:");
+    const resourceConfig = [
+      ["Memory Size", `${functionConfig?.MemorySize ?? 0} MB`],
+      ["Timeout", `${functionConfig?.Timeout ?? 0} seconds`],
+      ["Code Size", `${functionConfig?.CodeSize ?? 0} bytes`],
+      ["Code SHA256", functionConfig?.CodeSha256 ?? "N/A"],
+      ["Package Type", functionConfig?.PackageType ?? "Zip"],
+      ["Ephemeral Storage", `${functionConfig?.EphemeralStorage?.Size ?? 512} MB`],
+    ];
+
+    for (const [key, value] of resourceConfig) {
+      this.log(`  ${key}: ${value}`);
+    }
+  }
+
+  /**
+   * Display VPC and environment configuration
+   *
+   * @param functionConfig - Function configuration
+   * @internal
+   */
+  private displayVpcAndEnvironmentConfiguration(functionConfig: FunctionConfiguration): void {
+    // VPC Configuration
+    if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
+      this.log("\n🌐 VPC Configuration:");
+      this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
+      this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") ?? "None"}`);
+      this.log(
+        `  Security Groups: ${functionConfig.VpcConfig.SecurityGroupIds?.join(", ") ?? "None"}`,
+      );
+    }
+
+    // Environment Variables
+    if (
+      functionConfig?.Environment?.Variables &&
+      Object.keys(functionConfig.Environment.Variables).length > 0
+    ) {
+      this.log("\n🌍 Environment Variables:");
+      for (const [key, value] of Object.entries(functionConfig.Environment.Variables)) {
+        this.log(`  ${key}: ${value}`);
+      }
+    }
+  }
+
+  /**
+   * Display advanced configuration including layers, file systems, and encryption
+   *
+   * @param functionConfig - Function configuration
+   * @internal
+   */
+  private displayAdvancedConfiguration(functionConfig: FunctionConfiguration): void {
+    // Layers
+    if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
+      this.log("\n📦 Layers:");
+      for (const [index, layer] of functionConfig.Layers.entries()) {
+        this.log(`  ${index + 1}. ${layer.Arn ?? "N/A"} (${layer.CodeSize ?? 0} bytes)`);
+      }
+    }
+
+    // File System Configurations
+    if (functionConfig?.FileSystemConfigs && functionConfig.FileSystemConfigs.length > 0) {
+      this.log("\n💾 File System Configurations:");
+      for (const [index, config] of functionConfig.FileSystemConfigs.entries()) {
+        this.log(`  ${index + 1}. ${config.Arn ?? "N/A"} → ${config.LocalMountPath ?? "N/A"}`);
+      }
+    }
+
+    // Dead Letter Configuration
+    if (functionConfig?.DeadLetterConfig?.TargetArn) {
+      this.log("\n☠️  Dead Letter Configuration:");
+      this.log(`  Target ARN: ${functionConfig.DeadLetterConfig.TargetArn}`);
+    }
+
+    // KMS Configuration
+    if (functionConfig?.KMSKeyArn) {
+      this.log("\n🔒 Encryption:");
+      this.log(`  KMS Key: ${functionConfig.KMSKeyArn}`);
     }
   }
 

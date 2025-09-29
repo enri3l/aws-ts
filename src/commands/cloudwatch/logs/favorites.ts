@@ -6,13 +6,15 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
-import { FavoritesStorageService } from "../../../services/favorites-storage-service.js";
-import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
-import { DataProcessor } from "../../../lib/data-processing.js";
+import { Args, Command, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { SavedQuerySchema, type SavedQuery } from "../../../lib/cloudwatch-logs-schemas.js";
-import { parseTimeRange } from "../../../lib/time-utilities.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import {
+  FavoritesStorageService,
+  type FavoritesExport,
+} from "../../../services/favorites-storage-service.js";
 
 /**
  * CloudWatch Logs favorites management command implementation
@@ -124,30 +126,38 @@ EXAMPLES:
     }),
   };
 
-  static override readonly args = [
-    {
-      name: "subcommand",
+  static override readonly args = {
+    subcommand: Args.string({
       description: "Favorites subcommand to execute",
       required: true,
-      options: ["add-group", "add-query", "list", "remove", "run-favorite", "export", "import", "stats"],
-    },
-    {
-      name: "arg1",
+      options: [
+        "add-group",
+        "add-query",
+        "list",
+        "remove",
+        "run-favorite",
+        "export",
+        "import",
+        "stats",
+      ],
+    }),
+    arg1: Args.string({
       description: "First argument (varies by subcommand)",
       required: false,
-    },
-    {
-      name: "arg2",
+    }),
+    arg2: Args.string({
       description: "Second argument (varies by subcommand)",
       required: false,
-    },
-    {
-      name: "arg3",
+    }),
+    arg3: Args.string({
       description: "Third argument (varies by subcommand)",
       required: false,
-    },
-  ];
+    }),
+  };
 
+  /**
+   *
+   */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CloudWatchLogsFavoritesCommand);
 
@@ -162,34 +172,45 @@ EXAMPLES:
 
       // Route to appropriate subcommand handler
       switch (args.subcommand) {
-        case "add-group":
+        case "add-group": {
           await this.handleAddGroup(storageService, args, flags);
           break;
-        case "add-query":
+        }
+        case "add-query": {
           await this.handleAddQuery(storageService, args, flags);
           break;
-        case "list":
-          await this.handleList(storageService, flags);
+        }
+        case "list": {
+          await this.handleList(storageService, {
+            ...(flags.type && { type: flags.type }),
+            format: flags.format,
+          });
           break;
-        case "remove":
+        }
+        case "remove": {
           await this.handleRemove(storageService, args, flags);
           break;
-        case "run-favorite":
+        }
+        case "run-favorite": {
           await this.handleRunFavorite(storageService, args, flags);
           break;
-        case "export":
+        }
+        case "export": {
           await this.handleExport(storageService, args, flags);
           break;
-        case "import":
+        }
+        case "import": {
           await this.handleImport(storageService, args, flags);
           break;
-        case "stats":
+        }
+        case "stats": {
           await this.handleStats(storageService, flags);
           break;
-        default:
+        }
+        default: {
           this.error(`Unknown subcommand: ${args.subcommand}`, { exit: 1 });
+        }
       }
-
     } catch (error) {
       const formattedError = handleCloudWatchLogsCommandError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -202,33 +223,40 @@ EXAMPLES:
    */
   private async handleAddGroup(
     storageService: FavoritesStorageService,
-    args: any,
-    flags: any
+    arguments_: {
+      subcommand: string;
+      arg1: string | undefined;
+      arg2: string | undefined;
+      arg3: string | undefined;
+    },
+    flags: { region: string | undefined; profile: string | undefined; force: boolean },
   ): Promise<void> {
-    if (!args.arg1) {
+    if (!arguments_.arg1) {
       this.error("Log group name is required for add-group subcommand", { exit: 1 });
     }
 
-    const logGroupName = args.arg1;
-    const alias = args.arg2 || logGroupName.split("/").pop() || logGroupName;
-    const description = args.arg3;
+    const logGroupName = arguments_.arg1;
+    const alias = arguments_.arg2 || logGroupName.split("/").pop() || logGroupName;
+    const description = arguments_.arg3;
 
     // Validate log group exists (optional)
     if (!flags.force) {
       const logsService = new CloudWatchLogsService({
         credentialService: {
-          defaultRegion: flags.region,
-          defaultProfile: flags.profile,
+          ...(flags.region && { defaultRegion: flags.region }),
+          ...(flags.profile && { defaultProfile: flags.profile }),
         },
       });
 
       try {
         await logsService.describeLogGroup(logGroupName, {
-          region: flags.region,
-          profile: flags.profile,
+          ...(flags.region && { region: flags.region }),
+          ...(flags.profile && { profile: flags.profile }),
         });
-      } catch (error) {
-        this.warn(`Warning: Could not verify log group '${logGroupName}' exists. Use --force to skip validation.`);
+      } catch {
+        this.warn(
+          `Warning: Could not verify log group '${logGroupName}' exists. Use --force to skip validation.`,
+        );
         if (!flags.force) {
           return;
         }
@@ -245,16 +273,21 @@ EXAMPLES:
    */
   private async handleAddQuery(
     storageService: FavoritesStorageService,
-    args: any,
-    flags: any
+    arguments_: {
+      subcommand: string;
+      arg1: string | undefined;
+      arg2: string | undefined;
+      arg3: string | undefined;
+    },
+    _flags: { region: string | undefined; profile: string | undefined },
   ): Promise<void> {
-    if (!args.arg1 || !args.arg2) {
+    if (!arguments_.arg1 || !arguments_.arg2) {
       this.error("Query name and query string are required for add-query subcommand", { exit: 1 });
     }
 
-    const queryName = args.arg1;
-    const queryString = args.arg2;
-    const description = args.arg3;
+    const queryName = arguments_.arg1;
+    const queryString = arguments_.arg2;
+    const description = arguments_.arg3;
 
     // Create and save the query first
     const collection = await storageService.loadCollection();
@@ -279,9 +312,18 @@ EXAMPLES:
    * Handle list subcommand
    * @internal
    */
-  private async handleList(storageService: FavoritesStorageService, flags: any): Promise<void> {
-    const typeFilter = flags.type === "groups" ? "log-group" :
-                      flags.type === "queries" ? "query" : undefined;
+  private async handleList(
+    storageService: FavoritesStorageService,
+    flags: { type?: string; format: string },
+  ): Promise<void> {
+    let typeFilter: "log-group" | "query" | undefined;
+    if (flags.type === "groups") {
+      typeFilter = "log-group";
+    } else if (flags.type === "queries") {
+      typeFilter = "query";
+    } else {
+      typeFilter = undefined;
+    }
 
     const favorites = await storageService.listFavorites(typeFilter);
 
@@ -295,21 +337,22 @@ EXAMPLES:
       console.table(
         favorites.map((fav, index) => ({
           "#": index + 1,
-          "Name": fav.name,
-          "Type": fav.type === "log-group" ? "Log Group" : "Query",
-          "Resource": fav.type === "log-group" ? fav.logGroupName : fav.queryName,
+          Name: fav.name,
+          Type: fav.type === "log-group" ? "Log Group" : "Query",
+          Resource: fav.type === "log-group" ? fav.logGroupName : fav.queryName,
           "Access Count": fav.accessCount || 0,
-          "Last Accessed": fav.lastAccessedAt ?
-            new Date(fav.lastAccessedAt).toLocaleDateString() : "Never",
-          "Created": new Date(fav.createdAt).toLocaleDateString(),
-        }))
+          "Last Accessed": fav.lastAccessedAt
+            ? new Date(fav.lastAccessedAt).toLocaleDateString()
+            : "Never",
+          Created: new Date(fav.createdAt).toLocaleDateString(),
+        })),
       );
     } else {
-      const processor = new DataProcessor();
-      const output = await processor.processData(
-        favorites,
-        flags.format as "json" | "jsonl" | "csv"
-      );
+      const processor = new DataProcessor({
+        format: DataFormat[flags.format.toUpperCase() as keyof typeof DataFormat],
+      });
+      const records = favorites.map((data, index) => ({ data, index }));
+      const output = processor.formatOutput(records);
       this.log(output);
     }
   }
@@ -320,14 +363,19 @@ EXAMPLES:
    */
   private async handleRemove(
     storageService: FavoritesStorageService,
-    args: any,
-    flags: any
+    arguments_: {
+      subcommand: string;
+      arg1: string | undefined;
+      arg2: string | undefined;
+      arg3: string | undefined;
+    },
+    flags: { force: boolean },
   ): Promise<void> {
-    if (!args.arg1) {
+    if (!arguments_.arg1) {
       this.error("Favorite name is required for remove subcommand", { exit: 1 });
     }
 
-    const favoriteName = args.arg1;
+    const favoriteName = arguments_.arg1;
 
     // Check if favorite exists
     const favorite = await storageService.getFavorite(favoriteName);
@@ -338,7 +386,7 @@ EXAMPLES:
     // Confirm removal unless --force is used
     if (!flags.force) {
       const { default: inquirer } = await import("inquirer");
-      const { confirmed } = await inquirer.prompt([
+      const response = await inquirer.prompt([
         {
           type: "confirm",
           name: "confirmed",
@@ -346,6 +394,7 @@ EXAMPLES:
           default: false,
         },
       ]);
+      const confirmed = response.confirmed as boolean;
 
       if (!confirmed) {
         this.log("Removal cancelled");
@@ -367,14 +416,19 @@ EXAMPLES:
    */
   private async handleRunFavorite(
     storageService: FavoritesStorageService,
-    args: any,
-    flags: any
+    arguments_: {
+      subcommand: string;
+      arg1: string | undefined;
+      arg2: string | undefined;
+      arg3: string | undefined;
+    },
+    _flags: Record<string, unknown>,
   ): Promise<void> {
-    if (!args.arg1) {
+    if (!arguments_.arg1) {
       this.error("Favorite name is required for run-favorite subcommand", { exit: 1 });
     }
 
-    const favoriteName = args.arg1;
+    const favoriteName = arguments_.arg1;
     const favorite = await storageService.getFavorite(favoriteName);
 
     if (!favorite) {
@@ -392,7 +446,7 @@ EXAMPLES:
     } else if (favorite.type === "query") {
       // Get the saved query and execute it
       const collection = await storageService.loadCollection();
-      const savedQuery = collection.savedQueries.find(q => q.name === favorite.queryName);
+      const savedQuery = collection.savedQueries.find((q) => q.name === favorite.queryName);
 
       if (!savedQuery) {
         this.error(`Saved query '${favorite.queryName}' not found`, { exit: 1 });
@@ -414,18 +468,25 @@ EXAMPLES:
    */
   private async handleExport(
     storageService: FavoritesStorageService,
-    args: any,
-    flags: any
+    arguments_: {
+      subcommand: string;
+      arg1: string | undefined;
+      arg2: string | undefined;
+      arg3: string | undefined;
+    },
+    _flags: Record<string, unknown>,
   ): Promise<void> {
-    const exportFile = args.arg1 || "favorites-export.json";
-    const description = args.arg2;
+    const exportFile = arguments_.arg1 || "favorites-export.json";
+    const description = arguments_.arg2;
 
     const exportData = await storageService.exportFavorites(description);
 
     const fs = await import("node:fs/promises");
-    await fs.writeFile(exportFile, JSON.stringify(exportData, null, 2), "utf8");
+    await fs.writeFile(exportFile, JSON.stringify(exportData, undefined, 2), "utf8");
 
-    this.log(`✅ Exported ${exportData.favorites.length} favorites and ${exportData.savedQueries.length} queries to: ${exportFile}`);
+    this.log(
+      `✅ Exported ${exportData.favorites.length} favorites and ${exportData.savedQueries.length} queries to: ${exportFile}`,
+    );
   }
 
   /**
@@ -434,22 +495,30 @@ EXAMPLES:
    */
   private async handleImport(
     storageService: FavoritesStorageService,
-    args: any,
-    flags: any
+    arguments_: {
+      subcommand: string;
+      arg1: string | undefined;
+      arg2: string | undefined;
+      arg3: string | undefined;
+    },
+    flags: { "merge-strategy": string; verbose: boolean },
   ): Promise<void> {
-    if (!args.arg1) {
+    if (!arguments_.arg1) {
       this.error("Import file is required for import subcommand", { exit: 1 });
     }
 
-    const importFile = args.arg1;
+    const importFile = arguments_.arg1;
     const mergeStrategy = flags["merge-strategy"] as "overwrite" | "skip" | "rename";
 
     try {
       const fs = await import("node:fs/promises");
       const data = await fs.readFile(importFile, "utf8");
-      const exportData = JSON.parse(data);
+      const exportData = JSON.parse(data) as unknown;
 
-      const summary = await storageService.importFavorites(exportData, mergeStrategy);
+      const summary = await storageService.importFavorites(
+        exportData as FavoritesExport,
+        mergeStrategy,
+      );
 
       this.log(`✅ Import completed:`);
       this.log(`   Imported: ${summary.imported}`);
@@ -457,11 +526,11 @@ EXAMPLES:
       if (summary.errors.length > 0) {
         this.log(`   Errors: ${summary.errors.length}`);
         if (flags.verbose) {
-          summary.errors.forEach(error => this.log(`   - ${error}`));
+          for (const error of summary.errors) this.log(`   - ${error}`);
         }
       }
     } catch (error) {
-      this.error(`Failed to import from '${importFile}': ${error}`, { exit: 1 });
+      this.error(`Failed to import from '${importFile}': ${String(error)}`, { exit: 1 });
     }
   }
 
@@ -469,7 +538,10 @@ EXAMPLES:
    * Handle stats subcommand
    * @internal
    */
-  private async handleStats(storageService: FavoritesStorageService, flags: any): Promise<void> {
+  private async handleStats(
+    storageService: FavoritesStorageService,
+    _flags: Record<string, unknown>,
+  ): Promise<void> {
     const stats = await storageService.getUsageStats();
     const favorites = await storageService.listFavorites();
 
@@ -486,17 +558,23 @@ EXAMPLES:
     const recommendations = this.generateRecommendations(stats, favorites);
     if (recommendations.length > 0) {
       this.log("\n💡 Recommendations:");
-      recommendations.forEach((rec, index) => {
+      for (const [index, rec] of recommendations.entries()) {
         this.log(`${index + 1}. ${rec}`);
-      });
+      }
     }
   }
 
   /**
    * Generate usage recommendations
    * @internal
+   * @param stats - Usage statistics object
+   * @param favorites - Array of favorite items
+   * @returns Array of recommendation strings
    */
-  private generateRecommendations(stats: any, favorites: any[]): string[] {
+  private generateRecommendations(
+    stats: { totalFavorites: number; totalQueries: number },
+    favorites: Array<{ accessCount?: number }>,
+  ): string[] {
     const recommendations: string[] = [];
 
     if (stats.totalFavorites === 0) {
@@ -507,9 +585,11 @@ EXAMPLES:
       recommendations.push("Consider organizing favorites or removing unused ones");
     }
 
-    const unusedFavorites = favorites.filter(fav => (fav.accessCount || 0) === 0);
+    const unusedFavorites = favorites.filter((fav) => (fav.accessCount || 0) === 0);
     if (unusedFavorites.length > 0) {
-      recommendations.push(`You have ${unusedFavorites.length} unused favorites that could be removed`);
+      recommendations.push(
+        `You have ${unusedFavorites.length} unused favorites that could be removed`,
+      );
     }
 
     if (stats.totalQueries === 0 && stats.totalFavorites > 0) {

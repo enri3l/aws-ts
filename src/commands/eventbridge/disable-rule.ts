@@ -14,6 +14,28 @@ import { EventBridgeDisableRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
 
 /**
+ * Rule disable operation result for display formatting
+ *
+ * @internal
+ */
+interface RuleDisableResult {
+  /**
+   * Indicates successful rule disable operation
+   */
+  readonly success: boolean;
+
+  /**
+   * Rule name that was disabled
+   */
+  readonly ruleName: string;
+
+  /**
+   * Event bus containing the rule
+   */
+  readonly eventBusName: string;
+}
+
+/**
  * EventBridge disable rule command for rule deactivation
  *
  * Disables an enabled EventBridge rule to temporarily stop event processing
@@ -122,8 +144,8 @@ export default class EventBridgeDisableRuleCommand extends Command {
       });
 
       // Disable the rule
-      const disableResult = await eventBridgeService.disableRule(
-        input.ruleName,
+      await eventBridgeService.disableRule(
+        input.name,
         {
           ...(input.region && { region: input.region }),
           ...(input.profile && { profile: input.profile }),
@@ -131,8 +153,15 @@ export default class EventBridgeDisableRuleCommand extends Command {
         input.eventBusName,
       );
 
+      // Create result for display
+      const disableResult: RuleDisableResult = {
+        success: true,
+        ruleName: input.name,
+        eventBusName: input.eventBusName,
+      };
+
       // Format output based on requested format
-      this.formatAndDisplayOutput(disableResult, input.format, input.ruleName, input.eventBusName);
+      this.formatAndDisplayOutput(disableResult, input.format, input.name, input.eventBusName);
     } catch (error) {
       const formattedError = this.formatEventBridgeError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -150,7 +179,7 @@ export default class EventBridgeDisableRuleCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    disableResult: any,
+    disableResult: RuleDisableResult,
     format: string,
     ruleName: string,
     eventBusName: string,
@@ -164,24 +193,24 @@ export default class EventBridgeDisableRuleCommand extends Command {
         const disableInfo = [
           ["Rule Name", ruleName],
           ["Event Bus", eventBusName],
-          ["Previous State", disableResult?.previousState || "Unknown"],
           ["Current State", "DISABLED"],
           ["Timestamp", new Date().toISOString()],
           ["Operation", "DISABLE_RULE"],
         ];
 
-        disableInfo.forEach(([key, value]) => {
+        for (const [key, value] of disableInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
-        this.log("\n💡 Note: The rule is now inactive and will not process events. Use 'eventbridge:enable-rule' to reactivate.");
+        this.log(
+          "\n💡 Note: The rule is now inactive and will not process events. Use 'eventbridge:enable-rule' to reactivate.",
+        );
         break;
       }
       case "json": {
         const result = {
           ruleName,
           eventBusName,
-          previousState: disableResult?.previousState || "Unknown",
           currentState: "DISABLED",
           timestamp: new Date().toISOString(),
           operation: "DISABLE_RULE",
@@ -197,7 +226,6 @@ export default class EventBridgeDisableRuleCommand extends Command {
         const result = {
           ruleName,
           eventBusName,
-          previousState: disableResult?.previousState || "Unknown",
           currentState: "DISABLED",
           timestamp: new Date().toISOString(),
           operation: "DISABLE_RULE",
@@ -213,7 +241,6 @@ export default class EventBridgeDisableRuleCommand extends Command {
         const result = {
           RuleName: ruleName,
           EventBusName: eventBusName,
-          PreviousState: disableResult?.previousState || "Unknown",
           CurrentState: "DISABLED",
           Timestamp: new Date().toISOString(),
           Operation: "DISABLE_RULE",

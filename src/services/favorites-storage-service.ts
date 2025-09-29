@@ -6,11 +6,11 @@
  *
  */
 
-import { promises as fs } from "node:fs";
-import { join, dirname } from "node:path";
+import fs from "node:fs/promises";
 import { homedir } from "node:os";
-import { FavoriteSchema, SavedQuerySchema, type Favorite, type SavedQuery } from "../lib/cloudwatch-logs-schemas.js";
+import path from "node:path";
 import { CloudWatchLogsError } from "../lib/cloudwatch-logs-errors.js";
+import { FavoriteSchema, type Favorite, type SavedQuery } from "../lib/cloudwatch-logs-schemas.js";
 
 /**
  * Storage configuration options
@@ -110,9 +110,9 @@ export class FavoritesStorageService {
    */
   constructor(options: FavoritesStorageOptions = {}) {
     this.options = options;
-    this.storageDir = options.storageDir || join(homedir(), ".aws-ts", "favorites");
-    this.favoritesFile = join(this.storageDir, "favorites.json");
-    this.backupDir = join(this.storageDir, "backups");
+    this.storageDir = options.storageDir || path.join(homedir(), ".aws-ts", "favorites");
+    this.favoritesFile = path.join(this.storageDir, "favorites.json");
+    this.backupDir = path.join(this.storageDir, "backups");
 
     if (this.options.enableDebugLogging) {
       console.debug(`Favorites storage initialized: ${this.storageDir}`);
@@ -219,11 +219,13 @@ export class FavoritesStorageService {
       collection.metadata.totalQueries = collection.savedQueries.length;
 
       // Save to file
-      const data = JSON.stringify(collection, null, 2);
+      const data = JSON.stringify(collection, undefined, 2);
       await fs.writeFile(this.favoritesFile, data, "utf8");
 
       if (this.options.enableDebugLogging) {
-        console.debug(`Saved ${collection.favorites.length} favorites and ${collection.savedQueries.length} queries`);
+        console.debug(
+          `Saved ${collection.favorites.length} favorites and ${collection.savedQueries.length} queries`,
+        );
       }
     } catch (error) {
       throw new CloudWatchLogsError(
@@ -244,11 +246,15 @@ export class FavoritesStorageService {
    * @returns Promise resolving when favorite is added
    * @throws When adding fails or favorite already exists
    */
-  async addLogGroupFavorite(name: string, logGroupName: string, description?: string): Promise<void> {
+  async addLogGroupFavorite(
+    name: string,
+    logGroupName: string,
+    description?: string,
+  ): Promise<void> {
     const collection = await this.loadCollection();
 
     // Check if favorite already exists
-    if (collection.favorites.some(fav => fav.name === name)) {
+    if (collection.favorites.some((fav) => fav.name === name)) {
       throw new CloudWatchLogsError(
         `Favorite with name '${name}' already exists`,
         "add-favorite",
@@ -283,7 +289,7 @@ export class FavoritesStorageService {
     const collection = await this.loadCollection();
 
     // Check if favorite already exists
-    if (collection.favorites.some(fav => fav.name === name)) {
+    if (collection.favorites.some((fav) => fav.name === name)) {
       throw new CloudWatchLogsError(
         `Favorite with name '${name}' already exists`,
         "add-favorite",
@@ -292,7 +298,7 @@ export class FavoritesStorageService {
     }
 
     // Check if referenced query exists
-    if (!collection.savedQueries.some(query => query.name === queryName)) {
+    if (!collection.savedQueries.some((query) => query.name === queryName)) {
       throw new CloudWatchLogsError(
         `Saved query '${queryName}' not found`,
         "add-favorite",
@@ -324,7 +330,7 @@ export class FavoritesStorageService {
     const collection = await this.loadCollection();
 
     if (type) {
-      return collection.favorites.filter(fav => fav.type === type);
+      return collection.favorites.filter((fav) => fav.type === type);
     }
 
     return collection.favorites;
@@ -334,11 +340,11 @@ export class FavoritesStorageService {
    * Get favorite by name
    *
    * @param name - Favorite name
-   * @returns Promise resolving to favorite or null if not found
+   * @returns Promise resolving to favorite or undefined if not found
    */
-  async getFavorite(name: string): Promise<Favorite | null> {
+  async getFavorite(name: string): Promise<Favorite | undefined> {
     const collection = await this.loadCollection();
-    return collection.favorites.find(fav => fav.name === name) || null;
+    return collection.favorites.find((fav) => fav.name === name);
   }
 
   /**
@@ -351,7 +357,7 @@ export class FavoritesStorageService {
     const collection = await this.loadCollection();
     const initialLength = collection.favorites.length;
 
-    collection.favorites = collection.favorites.filter(fav => fav.name !== name);
+    collection.favorites = collection.favorites.filter((fav) => fav.name !== name);
 
     if (collection.favorites.length < initialLength) {
       await this.saveCollection(collection);
@@ -369,7 +375,7 @@ export class FavoritesStorageService {
    */
   async recordAccess(name: string): Promise<void> {
     const collection = await this.loadCollection();
-    const favorite = collection.favorites.find(fav => fav.name === name);
+    const favorite = collection.favorites.find((fav) => fav.name === name);
 
     if (favorite) {
       favorite.accessCount = (favorite.accessCount || 0) + 1;
@@ -391,7 +397,7 @@ export class FavoritesStorageService {
       exportInfo: {
         exportedAt: new Date().toISOString(),
         version: "1.0.0",
-        description,
+        ...(description && { description }),
       },
       favorites: collection.favorites,
       savedQueries: collection.savedQueries,
@@ -407,70 +413,82 @@ export class FavoritesStorageService {
    */
   async importFavorites(
     exportData: FavoritesExport,
-    mergeStrategy: "overwrite" | "skip" | "rename" = "skip"
+    mergeStrategy: "overwrite" | "skip" | "rename" = "skip",
   ): Promise<{ imported: number; skipped: number; errors: string[] }> {
     const collection = await this.loadCollection();
     const summary = { imported: 0, skipped: 0, errors: [] as string[] };
 
     // Import favorites
-    for (const importedFav of exportData.favorites) {
-      try {
-        const existingIndex = collection.favorites.findIndex(fav => fav.name === importedFav.name);
-
-        if (existingIndex >= 0) {
-          switch (mergeStrategy) {
-            case "overwrite":
-              collection.favorites[existingIndex] = importedFav;
-              summary.imported++;
-              break;
-            case "rename":
-              const newName = `${importedFav.name}_imported_${Date.now()}`;
-              collection.favorites.push({ ...importedFav, name: newName });
-              summary.imported++;
-              break;
-            case "skip":
-            default:
-              summary.skipped++;
-              break;
-          }
-        } else {
-          collection.favorites.push(importedFav);
-          summary.imported++;
-        }
-      } catch (error) {
-        summary.errors.push(`Failed to import favorite '${importedFav.name}': ${error}`);
-      }
-    }
+    this.importItemsWithMergeStrategy(
+      exportData.favorites,
+      collection.favorites,
+      mergeStrategy,
+      summary,
+      "favorite",
+    );
 
     // Import saved queries
-    for (const importedQuery of exportData.savedQueries) {
-      try {
-        const existingIndex = collection.savedQueries.findIndex(query => query.name === importedQuery.name);
-
-        if (existingIndex >= 0) {
-          switch (mergeStrategy) {
-            case "overwrite":
-              collection.savedQueries[existingIndex] = importedQuery;
-              break;
-            case "rename":
-              const newName = `${importedQuery.name}_imported_${Date.now()}`;
-              collection.savedQueries.push({ ...importedQuery, name: newName });
-              break;
-            case "skip":
-            default:
-              // Skip without counting in summary
-              break;
-          }
-        } else {
-          collection.savedQueries.push(importedQuery);
-        }
-      } catch (error) {
-        summary.errors.push(`Failed to import query '${importedQuery.name}': ${error}`);
-      }
-    }
+    this.importItemsWithMergeStrategy(
+      exportData.savedQueries,
+      collection.savedQueries,
+      mergeStrategy,
+      summary,
+      "query",
+    );
 
     await this.saveCollection(collection);
     return summary;
+  }
+
+  /**
+   * Generic method to import items with merge strategy
+   *
+   * @param importItems - Items to import
+   * @param targetCollection - Target collection to import into
+   * @param mergeStrategy - How to handle conflicts
+   * @param summary - Import summary to update
+   * @param itemType - Type of item for error messages
+   * @internal
+   */
+  private importItemsWithMergeStrategy<T extends { name: string }>(
+    importItems: T[],
+    targetCollection: T[],
+    mergeStrategy: "overwrite" | "skip" | "rename",
+    summary: { imported: number; skipped: number; errors: string[] },
+    itemType: string,
+  ): void {
+    for (const importedItem of importItems) {
+      try {
+        const existingIndex = targetCollection.findIndex((item) => item.name === importedItem.name);
+
+        if (existingIndex === -1) {
+          targetCollection.push(importedItem);
+          summary.imported++;
+        } else {
+          switch (mergeStrategy) {
+            case "overwrite": {
+              targetCollection[existingIndex] = importedItem;
+              summary.imported++;
+              break;
+            }
+            case "rename": {
+              const newName = `${importedItem.name}_imported_${Date.now()}`;
+              targetCollection.push({ ...importedItem, name: newName });
+              summary.imported++;
+              break;
+            }
+            default: {
+              summary.skipped++;
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        summary.errors.push(
+          `Failed to import ${itemType} '${importedItem.name}': ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
   }
 
   /**
@@ -481,8 +499,8 @@ export class FavoritesStorageService {
    */
   private async createBackup(): Promise<void> {
     try {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const backupFile = join(this.backupDir, `favorites-${timestamp}.json`);
+      const timestamp = new Date().toISOString().replaceAll(/[:.]/g, "-");
+      const backupFile = path.join(this.backupDir, `favorites-${timestamp}.json`);
 
       const data = await fs.readFile(this.favoritesFile, "utf8");
       await fs.writeFile(backupFile, data, "utf8");
@@ -490,17 +508,19 @@ export class FavoritesStorageService {
       // Keep only last 10 backups
       const backupFiles = await fs.readdir(this.backupDir);
       const sortedBackups = backupFiles
-        .filter(file => file.startsWith("favorites-") && file.endsWith(".json"))
-        .sort()
-        .reverse();
+        .filter((file) => file.startsWith("favorites-") && file.endsWith(".json"))
+        .toSorted((a, b) => a.localeCompare(b))
+        .toReversed();
 
       for (const file of sortedBackups.slice(10)) {
-        await fs.unlink(join(this.backupDir, file));
+        await fs.unlink(path.join(this.backupDir, file));
       }
     } catch (error) {
       // Log error but don't fail the main operation
       if (this.options.enableDebugLogging) {
-        console.debug(`Backup creation failed: ${error}`);
+        console.debug(
+          `Backup creation failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
   }
@@ -522,15 +542,15 @@ export class FavoritesStorageService {
   async getUsageStats(): Promise<{
     totalFavorites: number;
     totalQueries: number;
-    mostAccessedFavorite: string | null;
-    leastRecentlyUsed: string | null;
+    mostAccessedFavorite: string | undefined;
+    leastRecentlyUsed: string | undefined;
   }> {
     const collection = await this.loadCollection();
 
-    let mostAccessedFavorite: string | null = null;
+    let mostAccessedFavorite: string | undefined;
     let maxAccess = 0;
 
-    let leastRecentlyUsed: string | null = null;
+    let leastRecentlyUsed: string | undefined;
     let oldestAccess = Date.now();
 
     for (const favorite of collection.favorites) {
@@ -539,9 +559,9 @@ export class FavoritesStorageService {
         mostAccessedFavorite = favorite.name;
       }
 
-      const lastAccess = favorite.lastAccessedAt ?
-        new Date(favorite.lastAccessedAt).getTime() :
-        new Date(favorite.createdAt).getTime();
+      const lastAccess = favorite.lastAccessedAt
+        ? new Date(favorite.lastAccessedAt).getTime()
+        : new Date(favorite.createdAt).getTime();
 
       if (lastAccess < oldestAccess) {
         oldestAccess = lastAccess;

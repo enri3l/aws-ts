@@ -6,12 +6,57 @@
  *
  */
 
+import type { Rule, Target } from "@aws-sdk/client-eventbridge";
 import { Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeListRules } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeListRulesSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+
+/**
+ * Extended rule interface with additional properties for display
+ *
+ * @internal
+ */
+interface ExtendedRule extends Rule {
+  /**
+   * Created by information (may not be available in all AWS regions/accounts)
+   */
+  readonly CreatedBy?: string;
+
+  /**
+   * Rule targets (loaded separately for display)
+   */
+  readonly Targets?: Target[];
+
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * EventBridge rules list result from service layer
+ *
+ * @internal
+ */
+interface RulesListResult {
+  /**
+   * Array of EventBridge rules
+   */
+  readonly rules: ExtendedRule[];
+
+  /**
+   * Pagination token for next page of results
+   */
+  readonly nextToken?: string;
+
+  /**
+   * Total count of rules returned
+   */
+  readonly totalCount?: number;
+}
 
 /**
  * EventBridge list rules command for rule discovery
@@ -137,7 +182,7 @@ export default class EventBridgeListRulesCommand extends Command {
       });
 
       // List rules from EventBridge
-      const rulesResult = await eventBridgeService.listRules(
+      const paginatedResult = await eventBridgeService.listRules(
         {
           ...(input.region && { region: input.region }),
           ...(input.profile && { profile: input.profile }),
@@ -149,6 +194,13 @@ export default class EventBridgeListRulesCommand extends Command {
           NextToken: input.nextToken,
         },
       );
+
+      // Convert to expected result format
+      const rulesResult: RulesListResult = {
+        rules: paginatedResult.items as ExtendedRule[],
+        ...(paginatedResult.nextToken !== undefined && { nextToken: paginatedResult.nextToken }),
+        totalCount: paginatedResult.items.length,
+      };
 
       // Format output based on requested format
       this.formatAndDisplayOutput(rulesResult, input.format, input.eventBusName);
@@ -168,11 +220,11 @@ export default class EventBridgeListRulesCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    rulesResult: any,
+    rulesResult: RulesListResult,
     format: string,
     eventBusName: string,
   ): void {
-    const rules = rulesResult.rules || [];
+    const rules = rulesResult.rules ?? [];
     const nextToken = rulesResult.nextToken;
 
     if (rules.length === 0) {
@@ -182,81 +234,155 @@ export default class EventBridgeListRulesCommand extends Command {
 
     switch (format) {
       case "table": {
-        this.log(`Found ${rules.length} EventBridge rules on event bus: ${eventBusName}\n`);
-
-        // Summary table
-        const tableData = rules.map((rule: any, index: number) => ({
-          "#": index + 1,
-          "Rule Name": rule.Name || "N/A",
-          "State": rule.State || "N/A",
-          "Schedule": rule.ScheduleExpression || "Event-driven",
-          "Description": rule.Description || "No description",
-          "Targets": rule.Targets ? rule.Targets.length : 0,
-          "Event Bus": rule.EventBusName || "default",
-        }));
-
-        // Use DataProcessor for consistent table formatting
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          tableData.map((item, index) => ({ data: item, index })),
-        );
-        this.log(output);
-
-        // Pagination info
-        if (nextToken) {
-          this.log(`\n📄 More rules available. Use --next-token ${nextToken} to continue.`);
-        }
-
+        this.displayTableFormat(rules, eventBusName, nextToken);
         break;
       }
       case "json": {
-        const result = {
-          rules,
-          nextToken,
-          totalCount: rules.length,
-          eventBusName,
-        };
-
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: result, index: 0 }]);
-        this.log(output);
+        this.displayJsonFormat(rules, eventBusName, nextToken);
         break;
       }
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput(
-          rules.map((rule: any, index: number) => ({ data: rule, index })),
-        );
-        this.log(output);
+        this.displayJsonlFormat(rules);
         break;
       }
       case "csv": {
-        // Flatten rules for CSV output
-        const flattenedData = rules.map((rule: any) => ({
-          Name: rule.Name || "",
-          Arn: rule.Arn || "",
-          EventPattern: rule.EventPattern || "",
-          ScheduleExpression: rule.ScheduleExpression || "",
-          State: rule.State || "",
-          Description: rule.Description || "",
-          EventBusName: rule.EventBusName || "",
-          ManagedBy: rule.ManagedBy || "",
-          RoleArn: rule.RoleArn || "",
-          CreatedBy: rule.CreatedBy || "",
-          TargetCount: rule.Targets ? rule.Targets.length : 0,
-        }));
-
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          flattenedData.map((item, index) => ({ data: item, index })),
-        );
-        this.log(output);
+        this.displayCsvFormat(rules);
         break;
       }
       default: {
         throw new Error(`Unsupported output format: ${format}`);
       }
     }
+  }
+
+  /**
+   * Display rules in table format
+   *
+   * @param rules - Rules to display
+   * @param eventBusName - Event bus name for display
+   * @param nextToken - Pagination token if available
+   * @internal
+   */
+  private displayTableFormat(
+    rules: ExtendedRule[],
+    eventBusName: string,
+    nextToken?: string,
+  ): void {
+    this.log(`Found ${rules.length} EventBridge rules on event bus: ${eventBusName}\n`);
+
+    // Summary table
+    const tableData = rules.map((rule, index) => ({
+      "#": index + 1,
+      "Rule Name": rule.Name ?? "N/A",
+      State: rule.State ?? "N/A",
+      Schedule: rule.ScheduleExpression ?? "Event-driven",
+      Description: rule.Description ?? "No description",
+      Targets: this.getTargetCount(rule.Targets),
+      "Event Bus": rule.EventBusName ?? "default",
+    }));
+
+    // Use DataProcessor for consistent table formatting
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput(tableData.map((item, index) => ({ data: item, index })));
+    this.log(output);
+
+    // Pagination info
+    if (nextToken) {
+      this.log(`\n📄 More rules available. Use --next-token ${nextToken} to continue.`);
+    }
+  }
+
+  /**
+   * Display rules in JSON format
+   *
+   * @param rules - Rules to display
+   * @param eventBusName - Event bus name for display
+   * @param nextToken - Pagination token if available
+   * @internal
+   */
+  private displayJsonFormat(rules: ExtendedRule[], eventBusName: string, nextToken?: string): void {
+    const result = {
+      rules,
+      nextToken,
+      totalCount: rules.length,
+      eventBusName,
+    };
+
+    const processor = new DataProcessor({ format: DataFormat.JSON });
+    const output = processor.formatOutput([{ data: result, index: 0 }]);
+    this.log(output);
+  }
+
+  /**
+   * Display rules in JSONL format
+   *
+   * @param rules - Rules to display
+   * @internal
+   */
+  private displayJsonlFormat(rules: ExtendedRule[]): void {
+    const processor = new DataProcessor({ format: DataFormat.JSONL });
+    const output = processor.formatOutput(rules.map((rule, index) => ({ data: rule, index })));
+    this.log(output);
+  }
+
+  /**
+   * Display rules in CSV format
+   *
+   * @param rules - Rules to display
+   * @internal
+   */
+  private displayCsvFormat(rules: ExtendedRule[]): void {
+    // Flatten rules for CSV output
+    const flattenedData = rules.map((rule) => ({
+      Name: rule.Name ?? "",
+      Arn: rule.Arn ?? "",
+      EventPattern: rule.EventPattern ?? "",
+      ScheduleExpression: rule.ScheduleExpression ?? "",
+      State: rule.State ?? "",
+      Description: rule.Description ?? "",
+      EventBusName: rule.EventBusName ?? "",
+      ManagedBy: rule.ManagedBy ?? "",
+      RoleArn: rule.RoleArn ?? "",
+      CreatedBy: this.getCreatedByValue(rule.CreatedBy),
+      TargetCount: this.getTargetCount(rule.Targets),
+    }));
+
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput(
+      flattenedData.map((item, index) => ({
+        data: item,
+        index,
+      })),
+    );
+    this.log(output);
+  }
+
+  /**
+   * Get target count safely handling Error objects
+   *
+   * @param targets - Targets array or Error object
+   * @returns Target count or 0 if not available
+   * @internal
+   */
+  private getTargetCount(targets: unknown): number {
+    if (Array.isArray(targets)) {
+      return targets.length;
+    }
+    return 0;
+  }
+
+  /**
+   * Get CreatedBy value safely handling Error objects
+   *
+   * @param createdBy - CreatedBy value or Error object
+   * @returns Safe string representation
+   * @internal
+   */
+  private getCreatedByValue(createdBy: unknown): string {
+    if (createdBy instanceof Error) {
+      return "Error";
+    }
+    return (createdBy as string) ?? "";
   }
 
   /**

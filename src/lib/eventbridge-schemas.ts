@@ -19,7 +19,7 @@ export const EventBridgeRuleNameSchema = z
   .min(1, "Rule name is required")
   .max(64, "Rule name must be 64 characters or less")
   .regex(
-    /^[\.\-_A-Za-z0-9]+$/,
+    /^[.\-_A-Za-z0-9]+$/,
     "Rule name can only contain letters, numbers, dots, hyphens, and underscores",
   );
 
@@ -32,10 +32,7 @@ export const EventBusNameSchema = z
   .string()
   .min(1, "Event bus name is required")
   .max(256, "Event bus name must be 256 characters or less")
-  .regex(
-    /^[\.\-_\/A-Za-z0-9]+$/,
-    "Event bus name contains invalid characters",
-  )
+  .regex(/^[.\-_/A-Za-z0-9]+$/, "Event bus name contains invalid characters")
   .default("default");
 
 /**
@@ -58,17 +55,14 @@ export const ScheduleExpressionSchema = z
 export const EventPatternSchema = z
   .string()
   .min(1, "Event pattern cannot be empty")
-  .refine(
-    (pattern) => {
-      try {
-        const parsed = JSON.parse(pattern);
-        return typeof parsed === "object" && parsed !== null;
-      } catch {
-        return false;
-      }
-    },
-    "Event pattern must be valid JSON object",
-  );
+  .refine((pattern) => {
+    try {
+      const parsed: unknown = JSON.parse(pattern);
+      return typeof parsed === "object" && parsed !== null;
+    } catch {
+      return false;
+    }
+  }, "Event pattern must be valid JSON object");
 
 /**
  * Rule state validation
@@ -87,7 +81,7 @@ export const EventBridgeTargetIdSchema = z
   .min(1, "Target ID is required")
   .max(64, "Target ID must be 64 characters or less")
   .regex(
-    /^[\.\-_A-Za-z0-9]+$/,
+    /^[.\-_A-Za-z0-9]+$/,
     "Target ID can only contain letters, numbers, dots, hyphens, and underscores",
   );
 
@@ -180,7 +174,7 @@ export const EcsParametersSchema = z
         z.object({
           capacityProvider: z.string().min(1, "Capacity provider is required"),
           weight: z.number().int().min(0).max(1000).optional(),
-          base: z.number().int().min(0).max(100000).optional(),
+          base: z.number().int().min(0).max(100_000).optional(),
         }),
       )
       .optional(),
@@ -226,7 +220,7 @@ export const BatchParametersSchema = z
     jobName: z.string().min(1, "Job name is required"),
     arrayProperties: z
       .object({
-        size: z.number().int().min(2).max(10000),
+        size: z.number().int().min(2).max(10_000),
       })
       .optional(),
     retryStrategy: z
@@ -314,7 +308,7 @@ export const DeadLetterConfigSchema = z
 export const RetryPolicySchema = z
   .object({
     maximumRetryAttempts: z.number().int().min(0).max(185).optional(),
-    maximumEventAge: z.number().int().min(60).max(86400).optional(),
+    maximumEventAgeInSeconds: z.number().int().min(60).max(86_400).optional(),
   })
   .optional();
 
@@ -353,7 +347,8 @@ export const EventBridgeTargetSchema = z
     retryPolicy: RetryPolicySchema,
   })
   .refine(
-    (target) => [target.input, target.inputPath, target.inputTransformer].filter(Boolean).length <= 1,
+    (target) =>
+      [target.input, target.inputPath, target.inputTransformer].filter(Boolean).length <= 1,
     "Only one of input, inputPath, or inputTransformer can be specified",
   );
 
@@ -498,6 +493,11 @@ export const EventBridgeDeleteRuleSchema = EventBridgeConfigSchema.extend({
    * Force delete rule even if it has targets
    */
   force: z.boolean().default(false),
+
+  /**
+   * Dry run mode - show what would be deleted without actually deleting
+   */
+  dryRun: z.boolean().default(false),
 });
 
 /**
@@ -614,6 +614,11 @@ export const EventBridgeRemoveTargetsSchema = EventBridgeConfigSchema.extend({
    * Force remove targets
    */
   force: z.boolean().default(false),
+
+  /**
+   * Dry run mode - show what would be removed without actually removing
+   */
+  dryRun: z.boolean().default(false),
 });
 
 // Type exports for TypeScript inference
