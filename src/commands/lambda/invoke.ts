@@ -273,7 +273,7 @@ export default class LambdaInvokeCommand extends Command {
    * @internal
    */
   private displayExecutionInfo(invocationResult: InvokeCommandOutput): void {
-    this.log("⚡ Execution Information:");
+    this.log("Execution Information:");
     const executionInfo = [
       ["Status Code", invocationResult?.StatusCode ?? "N/A"],
       ["Executed Version", invocationResult?.ExecutedVersion ?? "N/A"],
@@ -323,7 +323,7 @@ export default class LambdaInvokeCommand extends Command {
    */
   private displayLogOutput(invocationResult: InvokeCommandOutput): void {
     if (invocationResult?.LogResult) {
-      this.log("\n📝 Log Output:");
+      this.log("\nLog Output:");
       try {
         const logData = Buffer.from(invocationResult.LogResult, "base64").toString();
         this.log(`  ${logData}`);

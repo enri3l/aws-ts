@@ -312,7 +312,7 @@ export default class EventBridgePutRuleCommand extends Command {
    * @internal
    */
   private displayTableFormat(ruleResult: RuleCreationResult, ruleName: string): void {
-    this.log(`✅ Rule ${ruleResult.isUpdate ? "Updated" : "Created"}: ${ruleName}\n`);
+    this.log(`Rule ${ruleResult.isUpdate ? "Updated" : "Created"}: ${ruleName}\n`);
 
     this.displayRuleBasicInfo(ruleResult, ruleName);
     this.displayEventPattern(ruleResult);
@@ -321,7 +321,7 @@ export default class EventBridgePutRuleCommand extends Command {
     this.displayRoleInformation(ruleResult);
     this.displayTagsInformation(ruleResult);
 
-    this.log("\n💡 Next steps: Add targets to this rule using 'eventbridge:put-targets' command.");
+    this.log("\nNext steps: Add targets to this rule using 'eventbridge:put-targets' command.");
   }
 
   /**
@@ -332,7 +332,7 @@ export default class EventBridgePutRuleCommand extends Command {
    * @internal
    */
   private displayRuleBasicInfo(ruleResult: RuleCreationResult, ruleName: string): void {
-    this.log("📋 Rule Details:");
+    this.log("Rule Details:");
     const ruleInfo = [
       ["Rule Name", ruleResult?.ruleName || ruleName],
       ["Rule ARN", ruleResult?.ruleArn || "N/A"],
@@ -354,7 +354,7 @@ export default class EventBridgePutRuleCommand extends Command {
    */
   private displayEventPattern(ruleResult: RuleCreationResult): void {
     if (ruleResult?.eventPattern) {
-      this.log("\n🎯 Event Pattern:");
+      this.log("\n Event Pattern:");
       try {
         const pattern: unknown = JSON.parse(ruleResult.eventPattern);
         this.log(`  ${JSON.stringify(pattern, undefined, 2)}`);
@@ -372,7 +372,7 @@ export default class EventBridgePutRuleCommand extends Command {
    */
   private displayScheduleExpression(ruleResult: RuleCreationResult): void {
     if (ruleResult?.scheduleExpression) {
-      this.log("\n⏰ Schedule Expression:");
+      this.log("\n Schedule Expression:");
       this.log(`  ${ruleResult.scheduleExpression}`);
 
       // Explain schedule type
@@ -393,7 +393,7 @@ export default class EventBridgePutRuleCommand extends Command {
    */
   private displayRuleDescription(ruleResult: RuleCreationResult): void {
     if (ruleResult?.description) {
-      this.log("\n📝 Description:");
+      this.log("\nDescription:");
       this.log(`  ${ruleResult.description}`);
     }
   }
@@ -406,7 +406,7 @@ export default class EventBridgePutRuleCommand extends Command {
    */
   private displayRoleInformation(ruleResult: RuleCreationResult): void {
     if (ruleResult?.roleArn) {
-      this.log("\n🔐 IAM Role:");
+      this.log("\n IAM Role:");
       this.log(`  ${ruleResult.roleArn}`);
     }
   }
@@ -419,7 +419,7 @@ export default class EventBridgePutRuleCommand extends Command {
    */
   private displayTagsInformation(ruleResult: RuleCreationResult): void {
     if (ruleResult?.tags && Object.keys(ruleResult.tags).length > 0) {
-      this.log("\n🏷️  Tags:");
+      this.log("\nTags:");
       for (const [key, value] of Object.entries(ruleResult.tags)) {
         this.log(`  ${key}: ${value}`);
       }

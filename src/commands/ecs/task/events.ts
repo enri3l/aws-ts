@@ -170,7 +170,7 @@ export default class ECSTaskEventsCommand extends Command {
       }
 
       // Display header information
-      this.log(`📊 Task Events for ${tasks.length} task${tasks.length === 1 ? "" : "s"}`);
+      this.log(` Task Events for ${tasks.length} task${tasks.length === 1 ? "" : "s"}`);
 
       if (input.verbose) {
         this.log(`Event type filter: ${flags["event-type"]}`);
@@ -401,7 +401,7 @@ export default class ECSTaskEventsCommand extends Command {
     events: TaskEvent[],
     verbose: boolean,
   ): void {
-    this.log(`🔍 Task: ${taskId} (${taskFamily})`);
+    this.log(`Task: ${taskId} (${taskFamily})`);
     this.log(`Cluster: ${clusterName}`);
     this.log(`Status: ${task.lastStatus} (desired: ${task.desiredStatus})`);
     this.log(`ARN: ${task.taskArn}`);
@@ -413,9 +413,8 @@ export default class ECSTaskEventsCommand extends Command {
 
       for (const event of events) {
         const timestamp = new Date(event.timestamp).toLocaleString();
-        const typeIcon = event.type === "state-change" ? "🔄" : "📦";
 
-        this.log(`\n  ${typeIcon} ${timestamp}`);
+        this.log(`\n  ${timestamp}`);
         this.log(`     ${event.message}`);
         if (event.details && verbose) {
           this.log(`     Details: ${event.details}`);
@@ -524,10 +523,10 @@ export default class ECSTaskEventsCommand extends Command {
    * @internal
    */
   private displayVerboseInfo(): void {
-    this.log(`\n💡 Event Information:`);
+    this.log(`\nEvent Information:`);
     this.log(`This command shows task lifecycle events and container state changes.`);
     this.log(`For detailed CloudWatch Events, use AWS CloudWatch Logs or EventBridge.`);
-    this.log(`\n🔗 Additional Debugging:`);
+    this.log(`\nAdditional Debugging:`);
     this.log(`  • View task logs: aws-ts ecs task logs <task-arn>`);
     this.log(`  • Describe task details: aws-ts ecs task describe <task-arn>`);
     this.log(`  • Monitor real-time: aws-ts ecs task wait <task-arn> --state RUNNING`);

@@ -323,16 +323,79 @@ function getCustomECSErrorGuidance(error: ECSError): string {
  * @internal
  */
 function getClusterErrorGuidance(error: ECSError): string {
-  if (error.metadata.operation === "create-cluster") {
-    return "Verify cluster name is unique and follows AWS naming conventions. Check that you have sufficient IAM permissions for cluster creation.";
+  const operation = error.metadata.operation as string;
+  const clusterName = error.metadata.clusterName as string;
+  const clusterInfo = clusterName ? ` '${clusterName}'` : "";
+
+  switch (operation) {
+    case "list-clusters": {
+      return [
+        "Failed to list ECS clusters. Here's how to resolve it:",
+        "1. Check your AWS credentials: aws sts get-caller-identity",
+        "2. Verify region setting in your AWS configuration",
+        "3. Ensure you have ecs:ListClusters permission",
+        "",
+        "Try: aws ecs list-clusters --region <your-region>",
+      ].join("\n");
+    }
+    case "describe-clusters": {
+      return [
+        `Failed to describe ECS cluster${clusterInfo}:`,
+        "1. Verify the cluster name exists in your region",
+        "2. Check you have ecs:DescribeClusters permission",
+        "3. List available clusters: aws-ts ecs cluster list",
+        "4. Ensure you're using the correct AWS region",
+        "",
+        `Try: aws ecs describe-clusters --clusters ${clusterName || "<cluster-name>"}`,
+      ].join("\n");
+    }
+    case "create-cluster": {
+      return [
+        `Failed to create ECS cluster${clusterInfo}:`,
+        "1. Verify cluster name is unique in your region",
+        "2. Check cluster name follows AWS naming conventions (letters, numbers, hyphens, underscores)",
+        "3. Ensure you have ecs:CreateCluster permission",
+        "4. If using capacity providers, verify they exist in your account",
+        "5. Check for service quotas on number of clusters",
+        "",
+        `Try: aws ecs create-cluster --cluster-name ${clusterName || "<unique-name>"}`,
+      ].join("\n");
+    }
+    case "update-cluster": {
+      return [
+        `Failed to update ECS cluster${clusterInfo}:`,
+        "1. Verify the cluster exists and is in ACTIVE state",
+        "2. Check you have ecs:UpdateCluster permission",
+        "3. Ensure capacity provider updates are valid",
+        "4. Verify no conflicting updates are in progress",
+        "",
+        `Try: aws ecs describe-clusters --clusters ${clusterName || "<cluster-name>"} to check status`,
+      ].join("\n");
+    }
+    case "delete-cluster": {
+      return [
+        `Failed to delete ECS cluster${clusterInfo}:`,
+        `1. Ensure cluster has no active services: aws-ts ecs service list --cluster ${clusterName || "<cluster>"}`,
+        `2. Verify all tasks are stopped: aws-ts ecs task list --cluster ${clusterName || "<cluster>"}`,
+        "3. Use --force flag to delete cluster with running services (not recommended)",
+        "4. Check you have ecs:DeleteCluster permission",
+        "",
+        "Note: Delete all services and tasks before deleting the cluster for clean removal",
+      ].join("\n");
+    }
+    default: {
+      const failureMessage = clusterInfo
+        ? `ECS cluster operation failed for cluster${clusterInfo}:`
+        : "ECS cluster operation failed:";
+      return [
+        failureMessage,
+        "1. Verify cluster name and region are correct",
+        "2. Check IAM permissions for ECS cluster operations",
+        "3. List clusters to verify: aws-ts ecs cluster list",
+        "4. Review cluster status and configuration",
+      ].join("\n");
+    }
   }
-  if (error.metadata.operation === "delete-cluster") {
-    return "Ensure cluster has no active services or tasks. Use --force flag to delete cluster with running services. Check cluster status before deletion.";
-  }
-  if (error.metadata.operation === "describe-clusters") {
-    return "Verify the cluster name exists in the specified region. Use 'aws-ts ecs cluster list' to see available clusters.";
-  }
-  return "Check cluster name is correct and exists in the specified region. Verify IAM permissions for cluster operations.";
 }
 
 /**
@@ -343,19 +406,124 @@ function getClusterErrorGuidance(error: ECSError): string {
  * @internal
  */
 function getServiceErrorGuidance(error: ECSError): string {
-  if (error.metadata.operation === "create-service") {
-    return "Verify task definition exists and is active. Check network configuration for VPC subnets and security groups. Ensure cluster has sufficient capacity.";
+  const operation = error.metadata.operation as string;
+  const serviceName = error.metadata.serviceName as string;
+  const clusterName = error.metadata.clusterName as string;
+  const serviceInfo = serviceName ? ` '${serviceName}'` : "";
+  const clusterInfo = clusterName ? ` in cluster '${clusterName}'` : "";
+
+  switch (operation) {
+    case "list-services": {
+      return [
+        `Failed to list ECS services${clusterInfo}:`,
+        "1. Check your AWS credentials and region",
+        "2. Verify cluster name if specified: aws-ts ecs cluster list",
+        "3. Ensure you have ecs:ListServices permission",
+        "4. If listing across clusters, check permissions for all clusters",
+        "",
+        `Try: aws ecs list-services --cluster ${clusterName || "<cluster-name>"}`,
+      ].join("\n");
+    }
+    case "describe-services": {
+      return [
+        `Failed to describe ECS service${serviceInfo}${clusterInfo}:`,
+        "1. Verify the service name and cluster are correct",
+        "2. Check you have ecs:DescribeServices permission",
+        "3. List services to verify: aws-ts ecs service list --cluster <cluster>",
+        "4. Ensure you're using the correct AWS region",
+        "",
+        `Try: aws ecs describe-services --cluster ${clusterName || "<cluster>"} --services ${serviceName || "<service>"}`,
+      ].join("\n");
+    }
+    case "create-service": {
+      return [
+        `Failed to create ECS service${serviceInfo}${clusterInfo}:`,
+        "1. Verify task definition exists and is ACTIVE: aws-ts lambda describe-function <td>",
+        "2. Check network configuration: VPC, subnets, and security groups must be valid",
+        "3. Ensure cluster has sufficient capacity (EC2 instances or Fargate)",
+        "4. Verify you have ecs:CreateService permission",
+        "5. If using load balancer, check target group ARN and port mappings",
+        "6. Review IAM role for task execution (taskRoleArn, executionRoleArn)",
+        "",
+        "Common issues:",
+        "  - Subnet IDs must be in the same VPC as security groups",
+        "  - Task definition must support Fargate if using FARGATE launch type",
+        "  - Load balancer target group must be in the same VPC",
+      ].join("\n");
+    }
+    case "update-service": {
+      return [
+        `Failed to update ECS service${serviceInfo}${clusterInfo}:`,
+        "1. Verify service exists and is not currently updating",
+        "2. Check new task definition is registered: aws ecs describe-task-definition",
+        "3. Ensure task definition is compatible with current service configuration",
+        "4. Verify you have ecs:UpdateService permission",
+        "5. Wait for any in-progress deployments to complete",
+        "",
+        `Try: aws-ts ecs service describe ${serviceName || "<service>"} --cluster ${clusterName || "<cluster>"} to check status`,
+      ].join("\n");
+    }
+    case "delete-service": {
+      return [
+        `Failed to delete ECS service${serviceInfo}${clusterInfo}:`,
+        "1. Scale service to 0 desired count: aws-ts ecs service scale <service> --desired-count 0",
+        "2. Wait for all tasks to stop (this may take a few minutes)",
+        "3. Use --force flag to delete service with running tasks (not recommended)",
+        "4. Check you have ecs:DeleteService permission",
+        "5. Verify no active deployments are in progress",
+        "",
+        "Note: Service deletion requires desired count to be 0 unless using --force",
+      ].join("\n");
+    }
+    case "scale-service": {
+      return [
+        `Failed to scale ECS service${serviceInfo}${clusterInfo}:`,
+        "1. Verify service exists and cluster has sufficient capacity",
+        "2. Check desired count is within service limits (0 to max)",
+        "3. Ensure you have ecs:UpdateService permission",
+        "4. If scaling up, verify cluster has available EC2 instances or Fargate capacity",
+        "",
+        "Note: Scaling is performed via UpdateService with desired count modification",
+      ].join("\n");
+    }
+    case "restart-service": {
+      return [
+        `Failed to restart ECS service${serviceInfo}${clusterInfo}:`,
+        "1. Verify service exists and is in ACTIVE state",
+        "2. Check you have ecs:UpdateService permission",
+        "3. Ensure no other updates are in progress",
+        "4. Review service health checks and deployment configuration",
+        "",
+        "Note: Restart triggers force new deployment to replace all tasks",
+      ].join("\n");
+    }
+    default: {
+      if (error.message.includes("InvalidParameterException")) {
+        return [
+          `Invalid parameter in ECS service operation${serviceInfo}:`,
+          "1. Review all service configuration parameters",
+          "2. Check task definition ARN format: family:revision or full ARN",
+          "3. Verify subnet IDs are valid and in the correct VPC",
+          "4. Ensure security group IDs exist in your account",
+          "5. Validate load balancer configuration if using ELB",
+          "",
+          "Common issues:",
+          "  - Subnet and security group must be in the same VPC",
+          "  - Container name/port must match task definition",
+          "  - Network mode must support your launch type (awsvpc for Fargate)",
+        ].join("\n");
+      }
+      return [
+        `ECS service operation failed${serviceInfo}${clusterInfo}:`,
+        "1. Verify service name and cluster are correct",
+        "2. Check IAM permissions for ECS service operations",
+        "3. Ensure service is in expected state",
+        "4. Review service events for detailed error information",
+        "",
+        `Try: aws-ts ecs service describe ${serviceName || "<service>"} --cluster ${clusterName || "<cluster>"}`,
+      ].join("\n");
+    }
   }
-  if (error.metadata.operation === "update-service") {
-    return "Check that the service exists and is not already updating. Verify new task definition is registered and compatible with current deployment.";
-  }
-  if (error.metadata.operation === "delete-service") {
-    return "Scale service to 0 desired count before deletion, or use --force flag. Check for active deployments before deleting service.";
-  }
-  if (error.message.includes("InvalidParameterException")) {
-    return "Review service configuration parameters. Check task definition ARN format, subnet IDs, and security group configurations.";
-  }
-  return "Verify service name and cluster are correct. Check service status and ensure no conflicting operations are in progress.";
 }
 
 /**
@@ -366,16 +534,122 @@ function getServiceErrorGuidance(error: ECSError): string {
  * @internal
  */
 function getTaskErrorGuidance(error: ECSError): string {
-  if (error.metadata.operation === "run-task") {
-    return "Verify task definition is registered and active. Check network configuration and ensure cluster has available capacity for the task.";
+  const operation = error.metadata.operation as string;
+  const taskArn = error.metadata.taskArn as string;
+  const taskInfo = taskArn ? ` '${taskArn}'` : "";
+
+  switch (operation) {
+    case "list-tasks": {
+      return [
+        "Failed to list ECS tasks:",
+        "1. Check your AWS credentials and region",
+        "2. Verify cluster name if specified",
+        "3. Ensure you have ecs:ListTasks permission",
+        "4. Check filter parameters (service name, launch type, etc.)",
+        "",
+        "Try: aws ecs list-tasks --cluster <cluster-name>",
+      ].join("\n");
+    }
+    case "describe-tasks": {
+      return [
+        `Failed to describe ECS task${taskInfo}:`,
+        "1. Verify task ARN format: arn:aws:ecs:region:account:task/cluster/task-id",
+        "2. Check you have ecs:DescribeTasks permission",
+        "3. Ensure task exists: aws-ts ecs task list --cluster <cluster>",
+        "4. Verify you're using the correct AWS region and cluster",
+        "",
+        "Try: aws ecs describe-tasks --cluster <cluster> --tasks <task-arn>",
+      ].join("\n");
+    }
+    case "run-task": {
+      return [
+        "Failed to run ECS task:",
+        "1. Verify task definition is registered and ACTIVE",
+        "2. Check network configuration: VPC, subnets, security groups",
+        "3. Ensure cluster has available capacity (EC2 or Fargate)",
+        "4. Verify you have ecs:RunTask permission",
+        "5. If using Fargate, check platform version compatibility",
+        "6. Review IAM execution role (executionRoleArn) for ECR/CloudWatch access",
+        "",
+        "Common issues:",
+        "  - Task definition must exist: aws ecs describe-task-definition --task-definition <name>",
+        "  - Subnet must have available IP addresses",
+        "  - Security group must allow required traffic",
+        "  - Fargate requires awsvpc network mode",
+      ].join("\n");
+    }
+    case "stop-task": {
+      return [
+        `Failed to stop ECS task${taskInfo}:`,
+        "1. Verify task ARN is correct and task is running",
+        "2. Check you have ecs:StopTask permission",
+        "3. List running tasks: aws-ts ecs task list --cluster <cluster>",
+        "4. Ensure task is not already stopped or stopping",
+        "",
+        "Note: Tasks can take a few moments to stop gracefully",
+        "Try: aws ecs stop-task --cluster <cluster> --task <task-arn>",
+      ].join("\n");
+    }
+    case "exec-task": {
+      return [
+        `Failed to execute command in ECS task${taskInfo}:`,
+        "1. Verify ECS Exec is enabled on the task",
+        "2. Ensure container has required SSM agent (Amazon Linux 2 or later)",
+        "3. Check task role has ssmmessages:* permissions",
+        "4. Verify execute-command is enabled: aws-ts ecs task describe <task>",
+        "5. Ensure Session Manager plugin is installed locally",
+        "",
+        "Enable ECS Exec:",
+        "  - Update service with --enable-execute-command flag",
+        "  - Or run task with --enable-execute-command flag",
+        "  - Task role needs: ssmmessages:CreateControlChannel, ssmmessages:CreateDataChannel, ssmmessages:OpenControlChannel, ssmmessages:OpenDataChannel",
+      ].join("\n");
+    }
+    case "logs-task": {
+      return [
+        `Failed to stream logs for ECS task${taskInfo}:`,
+        "1. Verify task has CloudWatch Logs configured in task definition",
+        "2. Check you have logs:GetLogEvents permission",
+        "3. Ensure log group and stream exist in CloudWatch",
+        "4. Verify task execution role has logs:CreateLogStream permission",
+        "",
+        "Task definition must include:",
+        '  logConfiguration: { logDriver: "awslogs", options: { "awslogs-group": "...", "awslogs-region": "...", "awslogs-stream-prefix": "..." } }',
+      ].join("\n");
+    }
+    case "events-task": {
+      return [
+        `Failed to retrieve events for ECS task${taskInfo}:`,
+        "1. Verify task ARN is correct",
+        "2. Check you have ecs:DescribeTasks permission",
+        "3. Task events are included in DescribeTasks response",
+        "",
+        "Note: Task events provide deployment and state change history",
+      ].join("\n");
+    }
+    case "wait-task": {
+      return [
+        `Failed to wait for ECS task${taskInfo}:`,
+        "1. Verify task ARN is correct and task exists",
+        "2. Check you have ecs:DescribeTasks permission",
+        "3. Ensure timeout is reasonable for operation",
+        "4. Review task status and events for failure reasons",
+        "",
+        "Common wait conditions: tasks-running, tasks-stopped",
+      ].join("\n");
+    }
+    default: {
+      return [
+        `ECS task operation failed${taskInfo}:`,
+        "1. Verify task ARN format and cluster",
+        "2. Check IAM permissions for ECS task operations",
+        "3. List tasks to verify: aws-ts ecs task list",
+        "4. Review task status and events",
+        "",
+        "Try: aws ecs describe-tasks --cluster <cluster> --tasks <task-arn>",
+      ].join("\n");
+    }
   }
-  if (error.metadata.operation === "stop-task") {
-    return "Verify task ARN is correct and task is currently running. Check that you have permissions to stop the task.";
-  }
-  if (error.metadata.operation === "describe-tasks") {
-    return "Verify task ARN format is correct. Use 'aws-ts ecs task list' to see available tasks in the cluster.";
-  }
-  return "Check task ARN format and verify the task exists. Ensure proper IAM permissions for task operations.";
 }
 
 /**
@@ -386,10 +660,35 @@ function getTaskErrorGuidance(error: ECSError): string {
  * @internal
  */
 function getTaskDefinitionErrorGuidance(error: ECSError): string {
+  const taskDefinitionArn = error.metadata.taskDefinitionArn as string;
+  const tdInfo = taskDefinitionArn ? ` '${taskDefinitionArn}'` : "";
+
   if (error.message.includes("ClientException")) {
-    return "Review task definition JSON format and required fields. Check container definitions, CPU/memory allocations, and IAM role ARNs.";
+    return [
+      `Invalid task definition${tdInfo}:`,
+      "1. Review task definition JSON format and required fields",
+      "2. Check container definitions are valid (name, image, memory, CPU)",
+      "3. Verify CPU and memory allocations are within limits",
+      "4. Ensure IAM role ARNs are valid (taskRoleArn, executionRoleArn)",
+      "5. Validate port mappings and network mode compatibility",
+      "",
+      "Required fields for Fargate:",
+      "  - requiresCompatibilities: ['FARGATE']",
+      "  - networkMode: 'awsvpc'",
+      "  - cpu and memory at task level (not just container level)",
+      "  - executionRoleArn for ECR/CloudWatch access",
+    ].join("\n");
   }
-  return "Verify task definition family name and revision number. Check task definition is registered and active in the region.";
+
+  return [
+    `Task definition operation failed${tdInfo}:`,
+    "1. Verify task definition family name and revision number",
+    "2. Check task definition is registered: aws ecs describe-task-definition",
+    "3. Ensure task definition is in ACTIVE status",
+    "4. Verify you're using the correct AWS region",
+    "",
+    "Task definition format: family:revision or full ARN",
+  ].join("\n");
 }
 
 /**
@@ -400,13 +699,75 @@ function getTaskDefinitionErrorGuidance(error: ECSError): string {
  * @internal
  */
 function getDeploymentErrorGuidance(error: ECSError): string {
-  if (error.metadata.operation === "deploy") {
-    return "Check task definition compatibility and service configuration. Monitor deployment events for detailed failure reasons.";
+  const operation = error.metadata.operation as string;
+  const serviceName = error.metadata.serviceName as string;
+  const clusterName = error.metadata.clusterName as string;
+  const deploymentId = error.metadata.deploymentId as string;
+  const serviceInfo = serviceName ? ` for service '${serviceName}'` : "";
+  const clusterInfo = clusterName ? ` in cluster '${clusterName}'` : "";
+
+  switch (operation) {
+    case "deploy": {
+      return [
+        `ECS deployment failed${serviceInfo}${clusterInfo}:`,
+        "1. Check task definition compatibility with service configuration",
+        "2. Monitor deployment events: aws-ts ecs service describe <service>",
+        "3. Verify health check configuration and targets",
+        "4. Ensure cluster has sufficient capacity for new tasks",
+        "5. Review CloudWatch logs for container startup errors",
+        "",
+        "Common deployment failures:",
+        "  - Container image not found or no ECR pull permissions",
+        "  - Container fails health checks or exits immediately",
+        "  - Insufficient CPU/memory in cluster",
+        "  - Load balancer target group health checks failing",
+        "  - Task execution role missing required permissions",
+        "",
+        "Troubleshooting:",
+        "  1. Check service events for failure reasons",
+        "  2. Review CloudWatch logs for container errors",
+        "  3. Verify task definition can run: aws-ts ecs task run",
+        "  4. Test container locally if possible",
+      ].join("\n");
+    }
+    case "rollback": {
+      return [
+        `ECS deployment rollback failed${serviceInfo}${clusterInfo}:`,
+        "1. Verify previous deployment exists and is eligible for rollback",
+        "2. Check service deployment history: aws-ts ecs service describe <service>",
+        "3. Ensure previous task definition is still active",
+        "4. Verify you have ecs:UpdateService permission",
+        "",
+        "Note: Rollback updates service to use previous task definition",
+        `Try: aws ecs update-service --cluster ${clusterName || "<cluster>"} --service ${serviceName || "<service>"} --task-definition <previous-td>`,
+      ].join("\n");
+    }
+    case "stop-deployment": {
+      const deploymentMessage = deploymentId
+        ? `Failed to stop deployment '${deploymentId}':`
+        : "Failed to stop deployment:";
+      return [
+        deploymentMessage,
+        "1. Verify deployment ID is correct",
+        "2. Check deployment is in progress (not already completed)",
+        "3. Ensure you have ecs:UpdateService permission",
+        "",
+        "Note: Stopping deployment reverts to previous stable deployment",
+      ].join("\n");
+    }
+    default: {
+      return [
+        `ECS deployment operation failed${serviceInfo}${clusterInfo}:`,
+        "1. Monitor deployment status via service events",
+        "2. Check CloudWatch logs for detailed error information",
+        "3. Verify health check configuration for load balancers",
+        "4. Review task definition and service configuration",
+        "5. Ensure deployment configuration (min/max healthy percent) is appropriate",
+        "",
+        `Try: aws-ts ecs service describe ${serviceName || "<service>"} --cluster ${clusterName || "<cluster>"}`,
+      ].join("\n");
+    }
   }
-  if (error.metadata.operation === "rollback") {
-    return "Verify previous deployment exists and is eligible for rollback. Check service deployment history before attempting rollback.";
-  }
-  return "Monitor deployment status and check CloudWatch logs for detailed error information. Verify health check configuration.";
 }
 
 /**

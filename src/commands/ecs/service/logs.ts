@@ -281,7 +281,7 @@ export default class ECSServiceLogsCommand extends Command {
     flags: Interfaces.InferredFlags<typeof ECSServiceLogsCommand.flags>,
     serviceName: string,
   ): void {
-    this.log(`📋 Viewing logs for service '${serviceName}'`);
+    this.log(`Viewing logs for service '${serviceName}'`);
     this.log(`Found ${tasks.length} running task${tasks.length === 1 ? "" : "s"}:`);
 
     for (const task of tasks.slice(0, 5)) {
@@ -312,13 +312,13 @@ export default class ECSServiceLogsCommand extends Command {
     flags: Interfaces.InferredFlags<typeof ECSServiceLogsCommand.flags>,
     serviceName: string,
   ): void {
-    this.log("💡 Log Access Information:");
+    this.log("Log Access Information:");
     this.log("To view actual logs, ensure your task definition has:");
     this.log("  1. CloudWatch Logs driver configured");
     this.log("  2. Appropriate IAM permissions for log access");
     this.log("  3. Log group and stream names defined");
 
-    this.log("\n🔗 Alternative log viewing methods:");
+    this.log("\nAlternative log viewing methods:");
     this.log(
       `  • AWS Console: ECS → Clusters → ${flags.cluster || "default"} → Services → ${serviceName} → Tasks → View logs`,
     );
@@ -336,12 +336,12 @@ export default class ECSServiceLogsCommand extends Command {
     flags: Interfaces.InferredFlags<typeof ECSServiceLogsCommand.flags>,
   ): void {
     if (flags.follow) {
-      this.log("\n👁️  Real-time log following would be implemented here");
+      this.log("\nReal-time log following would be implemented here");
       this.log("This would stream logs continuously until interrupted (Ctrl+C)");
     }
 
     if (flags.since) {
-      this.log(`\n⏱️  Filtering logs since: ${flags.since}`);
+      this.log(`\nFiltering logs since: ${flags.since}`);
     }
 
     if (flags.tail) {
@@ -367,7 +367,7 @@ export default class ECSServiceLogsCommand extends Command {
     verbose: boolean,
   ): void {
     if (verbose) {
-      this.log(`\n🔍 Debug: Service has ${service.runningCount} running tasks`);
+      this.log(`\nDebug: Service has ${service.runningCount} running tasks`);
       this.log(`Task ARNs:`);
       for (const task of tasks) {
         this.log(`  - ${task.taskArn}`);

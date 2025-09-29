@@ -298,6 +298,22 @@ export default class ECSServiceDescribeCommand extends Command {
   }
 
   /**
+   * Escape CSV values according to RFC 4180
+   * Handles quotes, commas, and newlines
+   *
+   * @param value - The value to escape
+   * @returns Escaped CSV value
+   * @internal
+   */
+  private escapeCsvValue(value: string | number | undefined): string {
+    const stringValue = String(value ?? "");
+    if (/[",\n\r]/.test(stringValue)) {
+      return `"${stringValue.replaceAll('"', '""')}"`;
+    }
+    return stringValue;
+  }
+
+  /**
    * Display services in CSV format
    *
    * @param services - Services to display
@@ -317,17 +333,17 @@ export default class ECSServiceDescribeCommand extends Command {
     ];
     this.log(headers.join(","));
 
-    // CSV rows
+    // CSV rows with proper escaping
     for (const service of services) {
       const row = [
-        `"${service.serviceName}"`,
-        `"${service.clusterArn}"`,
-        `"${service.status}"`,
-        `"${service.taskDefinition}"`,
-        String(service.desiredCount),
-        String(service.runningCount),
-        String(service.pendingCount),
-        `"${service.launchType || "N/A"}"`,
+        this.escapeCsvValue(service.serviceName),
+        this.escapeCsvValue(service.clusterArn),
+        this.escapeCsvValue(service.status),
+        this.escapeCsvValue(service.taskDefinition),
+        this.escapeCsvValue(service.desiredCount),
+        this.escapeCsvValue(service.runningCount),
+        this.escapeCsvValue(service.pendingCount),
+        this.escapeCsvValue(service.launchType || "N/A"),
       ];
       this.log(row.join(","));
     }

@@ -494,9 +494,7 @@ export default class EventBridgePutTargetsCommand extends Command {
     ruleName: string,
     eventBusName: string,
   ): void {
-    this.log(
-      `✅ Targets ${putTargetsResult.isUpdate ? "Updated" : "Added"} for rule: ${ruleName}\n`,
-    );
+    this.log(`Targets ${putTargetsResult.isUpdate ? "Updated" : "Added"} for rule: ${ruleName}\n`);
 
     this.displayOperationSummary(putTargetsResult, ruleName, eventBusName);
     this.displayTargetDetails(putTargetsResult);
@@ -516,7 +514,7 @@ export default class EventBridgePutTargetsCommand extends Command {
     ruleName: string,
     eventBusName: string,
   ): void {
-    this.log("📋 Operation Summary:");
+    this.log("Operation Summary:");
     const operationInfo = [
       ["Rule Name", ruleName],
       ["Event Bus", eventBusName],
@@ -539,7 +537,7 @@ export default class EventBridgePutTargetsCommand extends Command {
    */
   private displayTargetDetails(putTargetsResult: PutTargetsResult): void {
     if (putTargetsResult.targets && putTargetsResult.targets.length > 0) {
-      this.log("\n🎯 Target Details:");
+      this.log("\n Target Details:");
       for (const [index, target] of putTargetsResult.targets.entries()) {
         this.displaySingleTarget(target, index + 1);
       }
@@ -592,7 +590,7 @@ export default class EventBridgePutTargetsCommand extends Command {
    */
   private displayFailureDetails(putTargetsResult: PutTargetsResult): void {
     if (putTargetsResult.failedEntries && putTargetsResult.failedEntries.length > 0) {
-      this.log("\n❌ Failed Targets:");
+      this.log("\nFailed Targets:");
       for (const [index, failure] of putTargetsResult.failedEntries.entries()) {
         this.log(`${index + 1}. Target ID: ${failure.TargetId ?? "N/A"}`);
         this.log(`   Error Code: ${failure.ErrorCode ?? "N/A"}`);

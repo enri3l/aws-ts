@@ -376,7 +376,7 @@ export default class CloudWatchLogsFollowCommand extends Command {
    */
   private handleStreamDisconnect(streamName: string, reason: string, verbose: boolean): void {
     if (verbose) {
-      this.log(`\u001B[93m⚠ Disconnected from stream: ${streamName} (${reason})\u001B[0m`);
+      this.log(`\u001B[93mDisconnected from stream: ${streamName} (${reason})\u001B[0m`);
     }
   }
 
@@ -390,7 +390,7 @@ export default class CloudWatchLogsFollowCommand extends Command {
    */
   private handleReconnect(streamName: string, attempt: number, verbose: boolean): void {
     if (verbose) {
-      this.log(`\u001B[94m🔄 Reconnecting to stream: ${streamName} (attempt ${attempt})\u001B[0m`);
+      this.log(`\u001B[94m Reconnecting to stream: ${streamName} (attempt ${attempt})\u001B[0m`);
     }
   }
 

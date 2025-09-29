@@ -256,10 +256,10 @@ export default class LambdaUpdateFunctionCodeCommand extends Command {
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Code Updated: ${functionName}\n`);
+        this.log(`Code Updated: ${functionName}\n`);
 
         // Basic Information
-        this.log("📋 Update Details:");
+        this.log("Update Details:");
         const updateInfo = [
           ["Function Name", functionConfig?.FunctionName ?? "N/A"],
           ["Function ARN", functionConfig?.FunctionArn ?? "N/A"],
@@ -274,7 +274,7 @@ export default class LambdaUpdateFunctionCodeCommand extends Command {
         }
 
         // Code Information
-        this.log("\n📦 Code Details:");
+        this.log("\n Code Details:");
         const codeInfo = [
           ["Code Size", `${functionConfig?.CodeSize ?? 0} bytes`],
           ["Code SHA256", functionConfig?.CodeSha256 ?? "N/A"],
@@ -286,7 +286,7 @@ export default class LambdaUpdateFunctionCodeCommand extends Command {
         }
 
         // Runtime Configuration
-        this.log("\n⚙️  Runtime Configuration:");
+        this.log("\nRuntime Configuration:");
         const runtimeInfo = [
           ["Runtime", functionConfig?.Runtime ?? "N/A"],
           ["Handler", functionConfig?.Handler ?? "N/A"],

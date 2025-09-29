@@ -296,13 +296,13 @@ export default class ECSServiceScaleCommand extends Command {
     this.log(`  Cluster: ${service.clusterArn.split("/").pop() || "Unknown"}`);
 
     if (newDesiredCount === 0) {
-      this.log("\n⚠️  Service scaled to 0 - all tasks will be stopped");
+      this.log("\nService scaled to 0 - all tasks will be stopped");
     } else if (newDesiredCount > previousCount) {
       this.log(
-        `\n📈 Scaling up: ${newDesiredCount - previousCount} additional tasks will be started`,
+        `\n Scaling up: ${newDesiredCount - previousCount} additional tasks will be started`,
       );
     } else {
-      this.log(`\n📉 Scaling down: ${previousCount - newDesiredCount} tasks will be stopped`);
+      this.log(`\n Scaling down: ${previousCount - newDesiredCount} tasks will be stopped`);
     }
   }
 

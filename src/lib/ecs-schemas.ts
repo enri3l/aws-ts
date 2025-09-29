@@ -68,7 +68,7 @@ export const ECSServiceNameSchema = z
 export const ECSTaskArnSchema = z
   .string()
   .regex(
-    /^arn:aws:ecs:[a-z0-9-]+:\d{12}:task\/[a-zA-Z0-9-_]+\/[a-f0-9]{32}$/,
+    /^arn:aws:ecs:[a-z0-9-]+:\d{12}:task\/([a-zA-Z0-9-_]+\/)?[a-f0-9]{32}$/,
     "Invalid ECS task ARN format",
   );
 

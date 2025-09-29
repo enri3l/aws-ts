@@ -264,7 +264,7 @@ EXAMPLES:
     }
 
     await storageService.addLogGroupFavorite(alias, logGroupName, description);
-    this.log(`✅ Added log group '${logGroupName}' to favorites as '${alias}'`);
+    this.log(`Added log group '${logGroupName}' to favorites as '${alias}'`);
   }
 
   /**
@@ -305,7 +305,7 @@ EXAMPLES:
 
     // Add to favorites
     await storageService.addQueryFavorite(queryName, queryName, description);
-    this.log(`✅ Added query '${queryName}' to favorites`);
+    this.log(`Added query '${queryName}' to favorites`);
   }
 
   /**
@@ -333,7 +333,7 @@ EXAMPLES:
     }
 
     if (flags.format === "table") {
-      this.log(`\n📋 Favorites (${favorites.length} total):`);
+      this.log(`\nFavorites (${favorites.length} total):`);
       console.table(
         favorites.map((fav, index) => ({
           "#": index + 1,
@@ -404,7 +404,7 @@ EXAMPLES:
 
     const removed = await storageService.removeFavorite(favoriteName);
     if (removed) {
-      this.log(`✅ Removed favorite '${favoriteName}'`);
+      this.log(`Removed favorite '${favoriteName}'`);
     } else {
       this.error(`Failed to remove favorite '${favoriteName}'`, { exit: 1 });
     }
@@ -440,7 +440,7 @@ EXAMPLES:
 
     // Execute based on type
     if (favorite.type === "log-group") {
-      this.log(`🔍 Opening log group: ${favorite.logGroupName}`);
+      this.log(`Opening log group: ${favorite.logGroupName}`);
       this.log(`Use: aws-ts cloudwatch:logs:describe-group "${favorite.logGroupName}"`);
       this.log(`Or: aws-ts cloudwatch:logs:tail "${favorite.logGroupName}"`);
     } else if (favorite.type === "query") {
@@ -452,7 +452,7 @@ EXAMPLES:
         this.error(`Saved query '${favorite.queryName}' not found`, { exit: 1 });
       }
 
-      this.log(`🔍 Executing saved query: ${savedQuery.name}`);
+      this.log(`Executing saved query: ${savedQuery.name}`);
       this.log(`Query: ${savedQuery.query}`);
 
       // For now, just show the command to run
@@ -485,7 +485,7 @@ EXAMPLES:
     await fs.writeFile(exportFile, JSON.stringify(exportData, undefined, 2), "utf8");
 
     this.log(
-      `✅ Exported ${exportData.favorites.length} favorites and ${exportData.savedQueries.length} queries to: ${exportFile}`,
+      `Exported ${exportData.favorites.length} favorites and ${exportData.savedQueries.length} queries to: ${exportFile}`,
     );
   }
 
@@ -520,7 +520,7 @@ EXAMPLES:
         mergeStrategy,
       );
 
-      this.log(`✅ Import completed:`);
+      this.log(`Import completed:`);
       this.log(`   Imported: ${summary.imported}`);
       this.log(`   Skipped: ${summary.skipped}`);
       if (summary.errors.length > 0) {
@@ -545,19 +545,19 @@ EXAMPLES:
     const stats = await storageService.getUsageStats();
     const favorites = await storageService.listFavorites();
 
-    this.log("\n📊 Favorites Usage Statistics:");
-    this.log(`📁 Total Favorites: ${stats.totalFavorites}`);
-    this.log(`📝 Total Saved Queries: ${stats.totalQueries}`);
-    this.log(`🏆 Most Accessed: ${stats.mostAccessedFavorite || "None"}`);
-    this.log(`⏰ Least Recently Used: ${stats.leastRecentlyUsed || "None"}`);
+    this.log("\nFavorites Usage Statistics:");
+    this.log(`Total Favorites: ${stats.totalFavorites}`);
+    this.log(`Total Saved Queries: ${stats.totalQueries}`);
+    this.log(`Most Accessed: ${stats.mostAccessedFavorite || "None"}`);
+    this.log(`Least Recently Used: ${stats.leastRecentlyUsed || "None"}`);
 
     // Show storage location
-    this.log(`\n📂 Storage Location: ${storageService.getStorageDir()}`);
+    this.log(`\n Storage Location: ${storageService.getStorageDir()}`);
 
     // Show recommendations
     const recommendations = this.generateRecommendations(stats, favorites);
     if (recommendations.length > 0) {
-      this.log("\n💡 Recommendations:");
+      this.log("\nRecommendations:");
       for (const [index, rec] of recommendations.entries()) {
         this.log(`${index + 1}. ${rec}`);
       }

@@ -204,7 +204,7 @@ export default class ECSServiceRestartCommand extends Command {
         this.log(`  Running Count: ${service.runningCount}`);
         this.log(`  Pending Count: ${service.pendingCount}`);
         this.log(`  Task Definition: ${service.taskDefinition}`);
-        this.log(`\n🔄 Service restart initiated - new deployment in progress`);
+        this.log(`\n Service restart initiated - new deployment in progress`);
         break;
       }
 
@@ -279,7 +279,7 @@ export default class ECSServiceRestartCommand extends Command {
    * @internal
    */
   private displayVerboseInfo(input: ECSUpdateService, service: ServiceDescription): void {
-    this.log(`\n🔍 Restart operation details:`);
+    this.log(`\nRestart operation details:`);
     this.log(`Service Name: ${service.serviceName}`);
     this.log(`Service ARN: ${service.serviceArn}`);
     this.log(`Cluster ARN: ${service.clusterArn}`);

@@ -206,11 +206,11 @@ export default class DynamoDBScanCommand extends Command {
           const estimatedRCUs = Math.ceil(tableInfo.itemCount / itemsPerRCU);
           const estimatedCost = estimatedRCUs * 0.000_13; // $0.13 per million RCUs
 
-          this.warn(`⚠️  COST WARNING: Large table scan detected`);
-          this.warn(`   📊 Items: ${tableInfo.itemCount.toLocaleString()}`);
-          this.warn(`   ⚡ Est. RCUs: ${estimatedRCUs.toLocaleString()}`);
-          this.warn(`   💰 Est. Cost: $${estimatedCost.toFixed(4)}`);
-          this.warn(`   💡 Use --limit, --filter-expression, or --force`);
+          this.warn(`COST WARNING: Large table scan detected`);
+          this.warn(`    Items: ${tableInfo.itemCount.toLocaleString()}`);
+          this.warn(`   Est. RCUs: ${estimatedRCUs.toLocaleString()}`);
+          this.warn(`    Est. Cost: $${estimatedCost.toFixed(4)}`);
+          this.warn(`   Use --limit, --filter-expression, or --force`);
           this.error("Operation cancelled for cost safety. Use --force to proceed.", { exit: 1 });
         }
       }

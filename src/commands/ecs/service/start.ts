@@ -331,11 +331,11 @@ export default class ECSServiceStartCommand extends Command {
 
     if (previousCount === 0) {
       this.log(
-        `\n🚀 Service started - ${targetCount} task${targetCount === 1 ? "" : "s"} will be launched`,
+        `\nService started - ${targetCount} task${targetCount === 1 ? "" : "s"} will be launched`,
       );
     } else {
       this.log(
-        `\n📈 Service scaled up - ${targetCount - previousCount} additional task${targetCount - previousCount === 1 ? "" : "s"} will be launched`,
+        `\n Service scaled up - ${targetCount - previousCount} additional task${targetCount - previousCount === 1 ? "" : "s"} will be launched`,
       );
     }
   }

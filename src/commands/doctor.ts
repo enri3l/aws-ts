@@ -294,7 +294,7 @@ export default class DoctorCommand extends Command {
 
       if (interactive) {
         if (!jsonMode) {
-          this.log("\n🛠 Starting interactive repair mode...");
+          this.log("\nStarting interactive repair mode...");
         }
         const interactiveRepairs = await this.autoRepairService.executeInteractiveRepairs(
           context,
@@ -307,7 +307,7 @@ export default class DoctorCommand extends Command {
     } catch (error) {
       if (!jsonMode) {
         this.log(
-          `\n⚠ Repair execution failed: ${error instanceof Error ? error.message : String(error)}`,
+          `\nRepair execution failed: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
       return allRepairResults;
@@ -428,7 +428,7 @@ export default class DoctorCommand extends Command {
       }
 
       if (result.status !== "pass" && result.remediation) {
-        this.log(`  💡 ${result.remediation}`);
+        this.log(`  ${result.remediation}`);
       }
     }
 
@@ -443,7 +443,7 @@ export default class DoctorCommand extends Command {
    */
   private outputSummaryGuidance(summary: DiagnosticSummary): void {
     if (summary.overallStatus === "pass") {
-      this.log("🎉 All checks passed! Your AWS CLI environment is properly configured.");
+      this.log("All checks passed! Your AWS CLI environment is properly configured.");
       return;
     }
 
@@ -491,16 +491,14 @@ export default class DoctorCommand extends Command {
       }
 
       if (result.backupPath) {
-        this.log(`  📁 Backup: ${result.backupPath}`);
+        this.log(`  Backup: ${result.backupPath}`);
       }
     }
 
     if (failedRepairs.length > 0) {
-      this.log(
-        "\n⚠ Some repairs failed. Review the errors above and consider manual intervention.",
-      );
+      this.log("\nSome repairs failed. Review the errors above and consider manual intervention.");
     } else if (successfulRepairs.length > 0) {
-      this.log("\n🎉 All repairs completed successfully!");
+      this.log("\nAll repairs completed successfully!");
     }
   }
 
@@ -565,7 +563,7 @@ export default class DoctorCommand extends Command {
         return "✓ All Checks Passed";
       }
       case "warn": {
-        return "⚠ Some Issues Found";
+        return "Some Issues Found";
       }
       case "fail": {
         return "✗ Critical Issues Found";

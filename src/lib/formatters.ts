@@ -96,7 +96,7 @@ export class TableFormatter extends BaseFormatter {
     if (result.failedItems > 0) {
       this.logger(`Success rate: ${((result.processedItems / total) * 100).toFixed(1)}%`);
     } else {
-      this.logger("✅ All items processed successfully!");
+      this.logger("All items processed successfully!");
     }
 
     if (result.unprocessedItems.length > 0) {

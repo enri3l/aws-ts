@@ -32,53 +32,53 @@ function getAuthenticationErrorGuidance(error: ErrorLike): string {
   switch (operation) {
     case "sso-login": {
       return [
-        "❌ SSO login failed. Here's how to resolve it:",
+        "SSO login failed. Here's how to resolve it:",
         "1. Configure SSO profile: aws configure sso" + profileInfo,
         "2. Login to SSO: aws sso login" + profileInfo,
         "3. Verify access: aws sts get-caller-identity" + profileInfo,
         "",
-        "💡 Make sure your SSO start URL and region are correct in ~/.aws/config",
+        "Note: Ensure your SSO start URL and region are correct in ~/.aws/config",
       ].join("\n");
     }
     case "credential-validation": {
       return [
-        "❌ Your AWS credentials have expired or are invalid:",
+        "Your AWS credentials have expired or are invalid:",
         "1. Refresh SSO credentials: aws sso login" + profileInfo,
         "2. For IAM users: aws configure" + profileInfo,
         "3. Test credentials: aws sts get-caller-identity" + profileInfo,
         "",
-        "💡 SSO tokens typically expire after 8 hours",
+        "Note: SSO tokens typically expire after 8 hours",
       ].join("\n");
     }
     case "sso-configure": {
       return [
-        "❌ SSO configuration failed:",
+        "SSO configuration failed:",
         "1. Ensure you have the correct SSO start URL from your admin",
         "2. Check your network connection to the SSO portal",
         "3. Verify the SSO region matches your organization's setup",
         "4. Try: aws configure sso" + profileInfo + " --no-browser",
         "",
-        "💡 Contact your AWS administrator if SSO details are unknown",
+        "Note: Contact your AWS administrator if SSO details are unknown",
       ].join("\n");
     }
     case "token-refresh": {
       return [
-        "❌ Token refresh failed:",
+        "Token refresh failed:",
         "1. Clear SSO cache: aws sso logout" + profileInfo,
         "2. Re-authenticate: aws sso login" + profileInfo,
         "3. If still failing, reconfigure: aws configure sso" + profileInfo,
         "",
-        "💡 This often happens when SSO configuration has changed",
+        "Note: This often happens when SSO configuration has changed",
       ].join("\n");
     }
     default: {
       return [
-        "❌ Authentication error occurred:",
+        "Authentication error occurred:",
         "1. Check profile configuration: aws configure list" + profileInfo,
         "2. For SSO: aws sso login" + profileInfo,
         "3. For IAM: aws configure" + profileInfo,
         "",
-        "💡 Run 'aws-ts auth status --detailed' for more information",
+        "Tip: Run 'aws-ts auth status --detailed' for more information",
       ].join("\n");
     }
   }
@@ -98,44 +98,44 @@ function getProfileErrorGuidance(error: ErrorLike): string {
   switch (operation) {
     case "profile-discovery": {
       return [
-        "❌ No AWS profiles found:",
+        "No AWS profiles found:",
         "1. Create AWS config directory: mkdir -p ~/.aws",
         "2. Configure first profile: aws configure sso",
         "3. Or set up IAM credentials: aws configure",
         "",
-        "💡 Your AWS config file should be at ~/.aws/config",
+        "Note: Your AWS config file should be at ~/.aws/config",
       ].join("\n");
     }
     case "profile-switch": {
       return [
-        "❌ Profile switch failed:",
+        "Profile switch failed:",
         "1. List available profiles: aws-ts auth profiles",
         profile
           ? `2. Check profile exists: aws configure list --profile ${profile}`
           : "2. Verify profile name spelling",
         "3. Create missing profile: aws configure sso",
         "",
-        "💡 Profile names are case-sensitive",
+        "Note: Profile names are case-sensitive",
       ].join("\n");
     }
     case "profile-lookup": {
       return [
-        "❌ Profile not found:",
+        "Profile not found:",
         "1. List profiles: aws-ts auth profiles",
         "2. Create profile: aws configure sso",
         profile ? `3. Or check spelling of '${profile}'` : "3. Verify profile name",
         "",
-        "💡 Use 'default' if no specific profile is needed",
+        "Tip: Use 'default' if no specific profile is needed",
       ].join("\n");
     }
     default: {
       return [
-        "❌ Profile configuration error:",
+        "Profile configuration error:",
         "1. Check ~/.aws/config file exists and is readable",
         "2. Verify profile syntax: [profile name] for named profiles",
         "3. Recreate profile: aws configure sso",
         "",
-        "💡 Run 'aws configure list' to see current configuration",
+        "Tip: Run 'aws configure list' to see current configuration",
       ].join("\n");
     }
   }
@@ -153,22 +153,22 @@ function getTokenErrorGuidance(error: ErrorLike): string {
 
   if (tokenType === "sso-token") {
     return [
-      "❌ Your SSO token has expired:",
+      "Your SSO token has expired:",
       "1. Login again: aws sso login --profile <profile>",
       "2. If login fails: aws sso logout then aws sso login",
       "3. For persistent issues: aws configure sso",
       "",
-      "💡 SSO tokens expire automatically for security",
+      "Note: SSO tokens expire automatically for security",
     ].join("\n");
   }
 
   return [
-    "❌ Token error occurred:",
+    "Token error occurred:",
     "1. Refresh credentials: aws sso login --profile <profile>",
     "2. Clear token cache: aws sso logout",
     "3. Reconfigure if needed: aws configure",
     "",
-    "💡 Check token expiry with 'aws-ts auth status'",
+    "Tip: Check token expiry with 'aws-ts auth status'",
   ].join("\n");
 }
 
@@ -185,47 +185,47 @@ function getAwsCliErrorGuidance(error: ErrorLike): string {
 
   if (exitCode === 127) {
     return [
-      "❌ AWS CLI not found:",
+      "AWS CLI not found:",
       "1. Install AWS CLI v2: https://aws.amazon.com/cli/",
       "2. Add to PATH: export PATH=$PATH:/usr/local/bin/aws",
       "3. Verify installation: aws --version",
       "",
-      "💡 AWS CLI v2 is required for SSO support",
+      "Note: AWS CLI v2 is required for SSO support",
     ].join("\n");
   }
 
   if (exitCode === 255) {
     return [
-      "❌ AWS CLI authentication failed:",
+      "AWS CLI authentication failed:",
       "1. Check network connectivity to AWS",
       "2. Verify credentials: aws sts get-caller-identity",
       "3. For SSO: aws sso login --profile <profile>",
       "4. Check region: aws configure get region",
       "",
-      "💡 Some regions may be disabled in your account",
+      "Note: Some regions may be disabled in your account",
     ].join("\n");
   }
 
   if (command?.includes("sso")) {
     return [
-      "❌ SSO command failed:",
+      "SSO command failed:",
       "1. Check SSO URL is reachable in browser",
       "2. Verify SSO region: aws configure get sso_region",
       "3. Try: aws sso login --no-browser",
       "4. Contact admin if SSO portal is down",
       "",
-      "💡 SSO requires browser authentication by default",
+      "Note: SSO requires browser authentication by default",
     ].join("\n");
   }
 
   return [
-    "❌ AWS CLI operation failed:",
+    "AWS CLI operation failed:",
     "1. Check command syntax and parameters",
     "2. Verify AWS service availability",
     "3. Review error details above",
     "4. Try with --debug for more information",
     "",
-    "💡 Some operations require specific IAM permissions",
+    "Note: Some operations require specific IAM permissions",
   ].join("\n");
 }
 
@@ -237,13 +237,13 @@ function getAwsCliErrorGuidance(error: ErrorLike): string {
  */
 function getGenericErrorGuidance(): string {
   return [
-    "❌ Unknown authentication error:",
+    "Unknown authentication error:",
     "1. Check AWS configuration: aws configure list",
     "2. Test basic access: aws sts get-caller-identity",
     "3. For SSO: aws sso login",
     "4. Get detailed status: aws-ts auth status --detailed",
     "",
-    "💡 Contact your AWS administrator if issues persist",
+    "Note: Contact your AWS administrator if issues persist",
   ].join("\n");
 }
 

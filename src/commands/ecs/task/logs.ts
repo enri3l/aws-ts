@@ -276,7 +276,7 @@ export default class ECSTaskLogsCommand extends Command {
     containers: NonNullable<TaskDescription["containers"]>,
     taskId: string,
   ): void {
-    this.log(`📋 Viewing logs for task ${taskId}`);
+    this.log(`Viewing logs for task ${taskId}`);
     const containerText = containers.length === 1 ? "container" : "containers";
     this.log(`Found ${containers.length} ${containerText}:`);
 
@@ -344,13 +344,13 @@ export default class ECSTaskLogsCommand extends Command {
     flags: Interfaces.InferredFlags<typeof ECSTaskLogsCommand.flags>,
     taskId: string,
   ): void {
-    this.log("💡 Log Access Information:");
+    this.log("Log Access Information:");
     this.log("To view actual logs, ensure your task definition has:");
     this.log("  1. CloudWatch Logs driver configured");
     this.log("  2. Appropriate IAM permissions for log access");
     this.log("  3. Log group and stream names defined");
 
-    this.log("\n🔗 Alternative log viewing methods:");
+    this.log("\nAlternative log viewing methods:");
     const clusterName = flags.cluster || "default";
     this.log(`  • AWS Console: ECS → Clusters → ${clusterName} → Tasks → ${taskId} → View logs`);
 
@@ -380,12 +380,12 @@ export default class ECSTaskLogsCommand extends Command {
     verbose: boolean,
   ): void {
     if (flags.follow) {
-      this.log("\n👁️  Real-time log following would be implemented here");
+      this.log("\nReal-time log following would be implemented here");
       this.log("This would stream logs continuously until interrupted (Ctrl+C)");
     }
 
     if (flags.since) {
-      this.log(`\n⏱️  Filtering logs since: ${flags.since}`);
+      this.log(`\nFiltering logs since: ${flags.since}`);
     }
 
     if (flags.tail) {
@@ -397,7 +397,7 @@ export default class ECSTaskLogsCommand extends Command {
     }
 
     if (verbose) {
-      this.log(`\n🔍 Debug: Task status is '${task.lastStatus}'`);
+      this.log(`\nDebug: Task status is '${task.lastStatus}'`);
       if (task.stoppedReason) {
         this.log(`Stop reason: ${task.stoppedReason}`);
       }

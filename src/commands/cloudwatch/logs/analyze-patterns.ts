@@ -231,22 +231,22 @@ EXAMPLES:
    */
   private displayPatternAnalysisTable(result: PatternAnalysisResult, verbose: boolean): void {
     // Display analysis summary
-    this.log(`\n📊 Pattern Analysis Results for: ${result.logGroupName}`);
+    this.log(`\n Pattern Analysis Results for: ${result.logGroupName}`);
     this.log(
-      `📅 Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`,
+      ` Analysis Period: ${result.timeRange.startTime.toISOString()} to ${result.timeRange.endTime.toISOString()}`,
     );
-    this.log(`📈 Total Events Analyzed: ${result.totalEvents.toLocaleString()}`);
-    this.log(`🔍 Sample Size: ${result.sampleSize.toLocaleString()}`);
-    this.log(`🎯 Unique Patterns Found: ${result.summary.uniquePatterns}`);
-    this.log(`📊 Pattern Coverage: ${result.summary.coveragePercentage.toFixed(1)}%`);
+    this.log(` Total Events Analyzed: ${result.totalEvents.toLocaleString()}`);
+    this.log(`Sample Size: ${result.sampleSize.toLocaleString()}`);
+    this.log(` Unique Patterns Found: ${result.summary.uniquePatterns}`);
+    this.log(` Pattern Coverage: ${result.summary.coveragePercentage.toFixed(1)}%`);
 
     if (result.summary.anomalyCount > 0) {
-      this.log(`⚠️  Anomalies Detected: ${result.summary.anomalyCount}`);
+      this.log(`Anomalies Detected: ${result.summary.anomalyCount}`);
     }
 
     // Display top patterns table
     if (result.patterns.length > 0) {
-      this.log("\n🔍 Top Log Patterns:");
+      this.log("\nTop Log Patterns:");
       console.table(
         result.patterns.slice(0, 10).map((pattern: PatternWithStats, index: number) => ({
           "#": index + 1,
@@ -266,7 +266,7 @@ EXAMPLES:
 
     // Display anomalies if any
     if (result.anomalies.length > 0) {
-      this.log("\n⚠️  Pattern Anomalies Detected:");
+      this.log("\nPattern Anomalies Detected:");
       console.table(
         result.anomalies.map((anomaly: PatternAnomaly, index: number) => ({
           "#": index + 1,
@@ -282,7 +282,7 @@ EXAMPLES:
 
     // Display examples in verbose mode
     if (verbose && result.patterns.length > 0) {
-      this.log("\n📝 Pattern Examples (Top 3 patterns):");
+      this.log("\nPattern Examples (Top 3 patterns):");
       for (const [index, pattern] of result.patterns.slice(0, 3).entries()) {
         this.log(`\n${index + 1}. Pattern: ${pattern.pattern}`);
         this.log(`   Count: ${pattern.count} (${pattern.percentage.toFixed(1)}%)`);
@@ -293,6 +293,6 @@ EXAMPLES:
       }
     }
 
-    this.log("\n✅ Pattern analysis complete");
+    this.log("\nPattern analysis complete");
   }
 }
