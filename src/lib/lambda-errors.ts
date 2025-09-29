@@ -234,14 +234,13 @@ export class ConcurrencyError extends BaseError {
  */
 export function isLambdaError(
   error: unknown,
-): error is (
+): error is
   | FunctionError
   | InvocationError
   | CodeDeploymentError
   | PermissionError
   | ConfigurationError
-  | ConcurrencyError
-) {
+  | ConcurrencyError {
   return (
     error instanceof FunctionError ||
     error instanceof InvocationError ||
@@ -273,7 +272,7 @@ interface ErrorLike {
 function getFunctionErrorGuidance(error: ErrorLike): string {
   const operation = error.metadata.operation as string;
   const functionName = error.metadata.functionName as string;
-  const funcInfo = functionName ? ` for function '${functionName}'` : "";
+  const functionInfo = functionName ? ` for function '${functionName}'` : "";
 
   switch (operation) {
     case "list-functions": {
@@ -288,7 +287,7 @@ function getFunctionErrorGuidance(error: ErrorLike): string {
     }
     case "get-function": {
       return [
-        `❌ Failed to get Lambda function${funcInfo}:`,
+        `❌ Failed to get Lambda function${functionInfo}:`,
         "1. Verify the function name is correct and exists",
         "2. Check you have lambda:GetFunction permission",
         "3. Ensure you're using the correct AWS region",
@@ -299,7 +298,7 @@ function getFunctionErrorGuidance(error: ErrorLike): string {
     }
     case "create-function": {
       return [
-        `❌ Failed to create Lambda function${funcInfo}:`,
+        `❌ Failed to create Lambda function${functionInfo}:`,
         "1. Verify the IAM role ARN exists and has lambda:InvokeFunction permission",
         "2. Check the function name doesn't already exist",
         "3. Ensure your code package is valid (ZIP format, size limits)",
@@ -310,7 +309,7 @@ function getFunctionErrorGuidance(error: ErrorLike): string {
     }
     case "delete-function": {
       return [
-        `❌ Failed to delete Lambda function${funcInfo}:`,
+        `❌ Failed to delete Lambda function${functionInfo}:`,
         "1. Verify the function exists and you have lambda:DeleteFunction permission",
         "2. Check if the function has aliases or event source mappings",
         "3. Ensure no other resources are referencing the function",
@@ -320,7 +319,7 @@ function getFunctionErrorGuidance(error: ErrorLike): string {
     }
     default: {
       return [
-        `❌ Lambda function operation failed${funcInfo}:`,
+        `❌ Lambda function operation failed${functionInfo}:`,
         "1. Check your AWS credentials and permissions",
         "2. Verify the function name and region are correct",
         "3. Review the specific error message for more details",
@@ -345,11 +344,11 @@ function getInvocationErrorGuidance(error: ErrorLike): string {
   const errorType = error.metadata.errorType as string;
 
   const invocationInfo = invocationType ? ` (${invocationType})` : "";
-  const funcInfo = functionName ? ` for function '${functionName}'` : "";
+  const functionInfo = functionName ? ` for function '${functionName}'` : "";
 
   if (statusCode === 429) {
     return [
-      `❌ Lambda function invocation throttled${funcInfo}:`,
+      `❌ Lambda function invocation throttled${functionInfo}:`,
       "1. Your function is hitting concurrency limits",
       "2. Wait and retry with exponential backoff",
       "3. Consider increasing reserved concurrency for the function",
@@ -361,7 +360,7 @@ function getInvocationErrorGuidance(error: ErrorLike): string {
 
   if (statusCode === 413) {
     return [
-      `❌ Lambda invocation payload too large${funcInfo}:`,
+      `❌ Lambda invocation payload too large${functionInfo}:`,
       "1. Synchronous payload limit: 6 MB",
       "2. Asynchronous payload limit: 256 KB",
       "3. Reduce your payload size or split into smaller chunks",
@@ -373,7 +372,7 @@ function getInvocationErrorGuidance(error: ErrorLike): string {
 
   if (errorType === "Task timed out") {
     return [
-      `❌ Lambda function timed out${funcInfo}:`,
+      `❌ Lambda function timed out${functionInfo}:`,
       "1. Increase the function timeout setting (max 15 minutes)",
       "2. Optimize your function code for better performance",
       "3. Check for infinite loops or blocking operations",
@@ -384,7 +383,7 @@ function getInvocationErrorGuidance(error: ErrorLike): string {
   }
 
   return [
-    `❌ Lambda function invocation failed${funcInfo}${invocationInfo}:`,
+    `❌ Lambda function invocation failed${functionInfo}${invocationInfo}:`,
     "1. Check the function logs in CloudWatch for error details",
     "2. Verify your payload format matches function expectations",
     "3. Ensure the function has sufficient memory and timeout",
@@ -406,12 +405,12 @@ function getCodeDeploymentErrorGuidance(error: ErrorLike): string {
   const deploymentType = error.metadata.deploymentType as string;
   const codeSize = error.metadata.codeSize as number;
 
-  const funcInfo = functionName ? ` for function '${functionName}'` : "";
+  const functionInfo = functionName ? ` for function '${functionName}'` : "";
   const sizeInfo = codeSize ? ` (${Math.round(codeSize / 1024 / 1024)} MB)` : "";
 
   if (deploymentType === "ZIP" && codeSize && codeSize > 50 * 1024 * 1024) {
     return [
-      `❌ Lambda code package too large${funcInfo}${sizeInfo}:`,
+      `❌ Lambda code package too large${functionInfo}${sizeInfo}:`,
       "1. Direct upload limit: 50 MB",
       "2. Upload to S3 and use S3 deployment for packages > 50 MB",
       "3. Remove unnecessary files and dependencies",
@@ -423,7 +422,7 @@ function getCodeDeploymentErrorGuidance(error: ErrorLike): string {
 
   if (deploymentType === "S3") {
     return [
-      `❌ S3 code deployment failed${funcInfo}:`,
+      `❌ S3 code deployment failed${functionInfo}:`,
       "1. Verify the S3 bucket and key exist and are accessible",
       "2. Check IAM permissions for S3 access",
       "3. Ensure the Lambda service has permission to access your S3 bucket",
@@ -434,7 +433,7 @@ function getCodeDeploymentErrorGuidance(error: ErrorLike): string {
   }
 
   return [
-    `❌ Lambda code deployment failed${funcInfo}:`,
+    `❌ Lambda code deployment failed${functionInfo}:`,
     "1. Verify your deployment package is valid ZIP format",
     "2. Check file permissions and structure in the package",
     "3. Ensure handler file and function exist in the package",
@@ -457,12 +456,12 @@ function getPermissionErrorGuidance(error: ErrorLike): string {
   const roleArn = error.metadata.roleArn as string;
   const requiredPermissions = error.metadata.requiredPermissions as string[];
 
-  const funcInfo = functionName ? ` for function '${functionName}'` : "";
+  const functionInfo = functionName ? ` for function '${functionName}'` : "";
   const permissionsList = requiredPermissions ? requiredPermissions.join(", ") : "";
 
   if (operation === "create-function" || operation === "update-function-configuration") {
     return [
-      `❌ Insufficient permissions for Lambda operation${funcInfo}:`,
+      `❌ Insufficient permissions for Lambda operation${functionInfo}:`,
       "1. Verify your IAM user/role has required Lambda permissions",
       "2. Check the function execution role has proper trust policy",
       "3. Ensure execution role has necessary service permissions",
@@ -476,7 +475,7 @@ function getPermissionErrorGuidance(error: ErrorLike): string {
   }
 
   return [
-    `❌ Permission denied for Lambda operation${funcInfo}:`,
+    `❌ Permission denied for Lambda operation${functionInfo}:`,
     "1. Check your IAM permissions for Lambda operations",
     "2. Verify you have access to the specific function/resource",
     "3. Ensure your credentials are valid and not expired",
@@ -497,18 +496,18 @@ function getPermissionErrorGuidance(error: ErrorLike): string {
  */
 function getConfigurationErrorGuidance(error: ErrorLike): string {
   const configType = error.metadata.configType as string;
-  const invalidValue = error.metadata.invalidValue as string | number;
+  const invalidValue = error.metadata.invalidValue as string | number | undefined;
   const validRange = error.metadata.validRange as string;
   const functionName = error.metadata.functionName as string;
 
-  const funcInfo = functionName ? ` for function '${functionName}'` : "";
-  const valueInfo = invalidValue !== undefined ? ` (provided: ${invalidValue})` : "";
+  const functionInfo = functionName ? ` for function '${functionName}'` : "";
+  const valueInfo = invalidValue === undefined ? "" : ` (provided: ${invalidValue})`;
   const rangeInfo = validRange ? ` Valid range: ${validRange}` : "";
 
   switch (configType) {
     case "memory": {
       return [
-        `❌ Invalid memory configuration${funcInfo}${valueInfo}:`,
+        `❌ Invalid memory configuration${functionInfo}${valueInfo}:`,
         "1. Memory must be between 128 MB and 10,240 MB",
         "2. Memory must be in 1 MB increments",
         "3. Higher memory also increases CPU allocation",
@@ -520,7 +519,7 @@ function getConfigurationErrorGuidance(error: ErrorLike): string {
     }
     case "timeout": {
       return [
-        `❌ Invalid timeout configuration${funcInfo}${valueInfo}:`,
+        `❌ Invalid timeout configuration${functionInfo}${valueInfo}:`,
         "1. Timeout must be between 1 second and 900 seconds (15 minutes)",
         "2. Consider your function's actual execution time",
         "3. Balance between performance and cost",
@@ -532,7 +531,7 @@ function getConfigurationErrorGuidance(error: ErrorLike): string {
     }
     case "environment": {
       return [
-        `❌ Invalid environment variable configuration${funcInfo}:`,
+        `❌ Invalid environment variable configuration${functionInfo}:`,
         "1. Total size of all environment variables must not exceed 4 KB",
         "2. Variable names must be valid identifiers",
         "3. Avoid sensitive data in environment variables",
@@ -542,7 +541,7 @@ function getConfigurationErrorGuidance(error: ErrorLike): string {
     }
     case "vpc": {
       return [
-        `❌ Invalid VPC configuration${funcInfo}:`,
+        `❌ Invalid VPC configuration${functionInfo}:`,
         "1. Verify subnet IDs exist and are in the same VPC",
         "2. Check security group IDs are valid and accessible",
         "3. Ensure subnets have route to NAT Gateway for internet access",
@@ -553,7 +552,7 @@ function getConfigurationErrorGuidance(error: ErrorLike): string {
     }
     default: {
       return [
-        `❌ Invalid Lambda configuration${funcInfo}${valueInfo}:`,
+        `❌ Invalid Lambda configuration${functionInfo}${valueInfo}:`,
         "1. Review the AWS Lambda limits and constraints",
         "2. Check the AWS Lambda documentation for valid values",
         "3. Verify your configuration matches AWS requirements",
@@ -579,7 +578,7 @@ function getConcurrencyErrorGuidance(error: ErrorLike): string {
   const limit = error.metadata.limit as number;
   const limitType = error.metadata.limitType as string;
 
-  const funcInfo = functionName ? ` for function '${functionName}'` : "";
+  const functionInfo = functionName ? ` for function '${functionName}'` : "";
   const concurrencyInfo = currentConcurrency ? ` (current: ${currentConcurrency})` : "";
   const limitInfo = limit ? ` (limit: ${limit})` : "";
 
@@ -597,7 +596,7 @@ function getConcurrencyErrorGuidance(error: ErrorLike): string {
     }
     case "function": {
       return [
-        `❌ Function concurrency limit exceeded${funcInfo}${concurrencyInfo}${limitInfo}:`,
+        `❌ Function concurrency limit exceeded${functionInfo}${concurrencyInfo}${limitInfo}:`,
         "1. Increase reserved concurrency for this function",
         "2. Optimize function code to reduce execution time",
         "3. Implement exponential backoff for retries",
@@ -608,7 +607,7 @@ function getConcurrencyErrorGuidance(error: ErrorLike): string {
     }
     case "reserved": {
       return [
-        `❌ Reserved concurrency limit exceeded${funcInfo}${concurrencyInfo}${limitInfo}:`,
+        `❌ Reserved concurrency limit exceeded${functionInfo}${concurrencyInfo}${limitInfo}:`,
         "1. Increase the reserved concurrency setting",
         "2. Review if reserved concurrency is necessary",
         "3. Monitor function metrics to right-size concurrency",
@@ -618,7 +617,7 @@ function getConcurrencyErrorGuidance(error: ErrorLike): string {
     }
     default: {
       return [
-        `❌ Concurrency limit exceeded${funcInfo}${concurrencyInfo}${limitInfo}:`,
+        `❌ Concurrency limit exceeded${functionInfo}${concurrencyInfo}${limitInfo}:`,
         "1. Monitor CloudWatch metrics for concurrent executions",
         "2. Implement retry logic with exponential backoff",
         "3. Consider provisioned concurrency for predictable workloads",

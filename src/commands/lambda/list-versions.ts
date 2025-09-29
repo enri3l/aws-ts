@@ -6,12 +6,28 @@
  *
  */
 
+import type {
+  FunctionConfiguration,
+  ListVersionsByFunctionCommandOutput,
+} from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaListVersions } from "../../lib/lambda-schemas.js";
 import { LambdaListVersionsSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended function configuration with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedFunctionConfiguration extends FunctionConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda list versions command for version discovery
@@ -86,7 +102,7 @@ export default class LambdaListVersionsCommand extends Command {
     "max-items": Flags.integer({
       description: "Maximum number of versions to return",
       min: 1,
-      max: 10000,
+      max: 10_000,
       helpValue: "NUMBER",
     }),
 
@@ -139,10 +155,8 @@ export default class LambdaListVersionsCommand extends Command {
           ...(input.region && { region: input.region }),
           ...(input.profile && { profile: input.profile }),
         },
-        {
-          MaxItems: input.maxItems,
-          Marker: input.marker,
-        },
+        input.marker,
+        input.maxItems,
       );
 
       // Format output based on requested format
@@ -163,12 +177,12 @@ export default class LambdaListVersionsCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    versionsResult: any,
+    versionsResult: ListVersionsByFunctionCommandOutput,
     format: string,
     functionName: string,
   ): void {
-    const versions = versionsResult.versions || [];
-    const nextMarker = versionsResult.nextMarker;
+    const versions = versionsResult?.Versions ?? [];
+    const nextMarker = versionsResult?.NextMarker;
 
     if (versions.length === 0) {
       this.log(`No versions found for function '${functionName}'.`);
@@ -180,20 +194,20 @@ export default class LambdaListVersionsCommand extends Command {
         this.log(`Found ${versions.length} versions for function: ${functionName}\n`);
 
         // Summary table
-        const tableData = versions.map((version: any, index: number) => ({
+        const tableData = versions.map((version: FunctionConfiguration, index: number) => ({
           "#": index + 1,
-          "Version": version.Version === "$LATEST" ? "$LATEST" : `v${version.Version}`,
-          "Description": version.Description || "No description",
-          "Runtime": version.Runtime || "N/A",
-          "Last Modified": version.LastModified || "N/A",
-          "Code Size": `${version.CodeSize || 0} bytes`,
-          "State": version.State || "N/A",
+          Version: version.Version === "$LATEST" ? "$LATEST" : `v${version.Version ?? ""}`,
+          Description: version.Description ?? "No description",
+          Runtime: version.Runtime ?? "N/A",
+          "Last Modified": version.LastModified ?? "N/A",
+          "Code Size": `${version.CodeSize ?? 0} bytes`,
+          State: version.State ?? "N/A",
         }));
 
         // Use DataProcessor for consistent table formatting
         const processor = new DataProcessor({ format: DataFormat.CSV });
         const output = processor.formatOutput(
-          tableData.map((item, index) => ({ data: item, index })),
+          tableData.map((item: Record<string, unknown>, index: number) => ({ data: item, index })),
         );
         this.log(output);
 
@@ -220,38 +234,44 @@ export default class LambdaListVersionsCommand extends Command {
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
         const output = processor.formatOutput(
-          versions.map((version: any, index: number) => ({ data: version, index })),
+          versions.map((version: FunctionConfiguration, index: number) => ({
+            data: version as ExtendedFunctionConfiguration,
+            index,
+          })),
         );
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten versions for CSV output
-        const flattenedData = versions.map((version: any) => ({
-          FunctionName: version.FunctionName || "",
-          FunctionArn: version.FunctionArn || "",
-          Version: version.Version || "",
-          Description: version.Description || "",
-          Runtime: version.Runtime || "",
-          Role: version.Role || "",
-          Handler: version.Handler || "",
-          CodeSize: version.CodeSize || 0,
-          Timeout: version.Timeout || 0,
-          MemorySize: version.MemorySize || 0,
-          LastModified: version.LastModified || "",
-          CodeSha256: version.CodeSha256 || "",
-          State: version.State || "",
-          StateReason: version.StateReason || "",
-          LastUpdateStatus: version.LastUpdateStatus || "",
-          PackageType: version.PackageType || "",
-          VpcId: version.VpcConfig?.VpcId || "",
-          LayerCount: version.Layers?.length || 0,
-          EnvironmentVariableCount: Object.keys(version.Environment?.Variables || {}).length,
+        const flattenedData = versions.map((version: FunctionConfiguration) => ({
+          FunctionName: version.FunctionName ?? "",
+          FunctionArn: version.FunctionArn ?? "",
+          Version: version.Version ?? "",
+          Description: version.Description ?? "",
+          Runtime: version.Runtime ?? "",
+          Role: version.Role ?? "",
+          Handler: version.Handler ?? "",
+          CodeSize: version.CodeSize ?? 0,
+          Timeout: version.Timeout ?? 0,
+          MemorySize: version.MemorySize ?? 0,
+          LastModified: version.LastModified ?? "",
+          CodeSha256: version.CodeSha256 ?? "",
+          State: version.State ?? "",
+          StateReason: version.StateReason ?? "",
+          LastUpdateStatus: version.LastUpdateStatus ?? "",
+          PackageType: version.PackageType ?? "",
+          VpcId: version.VpcConfig?.VpcId ?? "",
+          LayerCount: version.Layers?.length ?? 0,
+          EnvironmentVariableCount: Object.keys(version.Environment?.Variables ?? {}).length,
         }));
 
         const processor = new DataProcessor({ format: DataFormat.CSV });
         const output = processor.formatOutput(
-          flattenedData.map((item, index) => ({ data: item, index })),
+          flattenedData.map((item: Record<string, unknown>, index: number) => ({
+            data: item,
+            index,
+          })),
         );
         this.log(output);
         break;

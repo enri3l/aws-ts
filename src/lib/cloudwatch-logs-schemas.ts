@@ -49,7 +49,7 @@ export const FilterPatternSchema = z
 export const LogsInsightsQuerySchema = z
   .string()
   .min(1, "Query is required")
-  .max(10000, "Query must be 10000 characters or less");
+  .max(10_000, "Query must be 10000 characters or less");
 
 /**
  * Schema for time range validation
@@ -60,20 +60,34 @@ export const TimeRangeSchema = z.object({
   /**
    * Start time (ISO 8601 string, Unix timestamp, or relative time)
    */
-  startTime: z.union([
-    z.string().datetime(),
-    z.number().int().positive(),
-    z.string().regex(/^(last|past)\s+\d+\s+(minutes?|hours?|days?|weeks?)$/i, "Invalid relative time format"),
-  ]).optional(),
+  startTime: z
+    .union([
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)"),
+      z.number().int().positive(),
+      z
+        .string()
+        .regex(
+          /^(last|past)\s+\d+\s+(minutes?|hours?|days?|weeks?)$/i,
+          "Invalid relative time format",
+        ),
+    ])
+    .optional(),
 
   /**
    * End time (ISO 8601 string, Unix timestamp, or relative time)
    */
-  endTime: z.union([
-    z.string().datetime(),
-    z.number().int().positive(),
-    z.string().regex(/^(last|past)\s+\d+\s+(minutes?|hours?|days?|weeks?)$/i, "Invalid relative time format"),
-  ]).optional(),
+  endTime: z
+    .union([
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)"),
+      z.number().int().positive(),
+      z
+        .string()
+        .regex(
+          /^(last|past)\s+\d+\s+(minutes?|hours?|days?|weeks?)$/i,
+          "Invalid relative time format",
+        ),
+    ])
+    .optional(),
 });
 
 /**
@@ -279,7 +293,7 @@ export const CloudWatchLogsFollowSchema = CloudWatchLogsConfigSchema.pick({
   /**
    * Initial reconnection delay in milliseconds
    */
-  reconnectDelay: z.number().int().min(500).max(10000).default(1000),
+  reconnectDelay: z.number().int().min(500).max(10_000).default(1000),
 
   /**
    * Maximum number of events to buffer
@@ -289,7 +303,7 @@ export const CloudWatchLogsFollowSchema = CloudWatchLogsConfigSchema.pick({
   /**
    * Buffer flush interval in milliseconds
    */
-  flushInterval: z.number().int().min(1000).max(30000).default(2000),
+  flushInterval: z.number().int().min(1000).max(30_000).default(2000),
 
   /**
    * Disable colored output
@@ -331,7 +345,9 @@ export const CloudWatchLogsQuerySchema = CloudWatchLogsConfigSchema.extend({
   /**
    * Query language type
    */
-  queryLanguage: z.enum(["CloudWatchLogsInsights", "OpenSearchPPL", "OpenSearchSQL"]).default("CloudWatchLogsInsights"),
+  queryLanguage: z
+    .enum(["CloudWatchLogsInsights", "OpenSearchPPL", "OpenSearchSQL"])
+    .default("CloudWatchLogsInsights"),
 
   /**
    * Time range for query
@@ -462,17 +478,27 @@ export const SavedQuerySchema = z.object({
   /**
    * Query language type
    */
-  queryLanguage: z.enum(["CloudWatchLogsInsights", "OpenSearchPPL", "OpenSearchSQL"]).default("CloudWatchLogsInsights"),
+  queryLanguage: z
+    .enum(["CloudWatchLogsInsights", "OpenSearchPPL", "OpenSearchSQL"])
+    .default("CloudWatchLogsInsights"),
 
   /**
    * Creation timestamp
    */
-  createdAt: z.string().datetime(),
+  createdAt: z
+    .string()
+    .regex(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/,
+      "Invalid datetime format (ISO 8601)",
+    ),
 
   /**
    * Last used timestamp
    */
-  lastUsedAt: z.string().datetime().optional(),
+  lastUsedAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/, "Invalid datetime format (ISO 8601)")
+    .optional(),
 
   /**
    * Usage count
@@ -514,12 +540,20 @@ export const FavoriteSchema = z.object({
   /**
    * Creation timestamp
    */
-  createdAt: z.string().datetime(),
+  createdAt: z
+    .string()
+    .regex(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/,
+      "Invalid datetime format (ISO 8601)",
+    ),
 
   /**
    * Last accessed timestamp
    */
-  lastAccessedAt: z.string().datetime().optional(),
+  lastAccessedAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/, "Invalid datetime format (ISO 8601)")
+    .optional(),
 
   /**
    * Access count

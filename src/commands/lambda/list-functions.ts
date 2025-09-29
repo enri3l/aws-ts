@@ -6,12 +6,25 @@
  *
  */
 
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaListFunctions } from "../../lib/lambda-schemas.js";
 import { LambdaListFunctionsSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended function configuration with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedFunctionConfiguration extends FunctionConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda list functions command for discovering available functions
@@ -80,7 +93,7 @@ export default class LambdaListFunctionsCommand extends Command {
     "max-items": Flags.integer({
       description: "Maximum number of functions to return",
       min: 1,
-      max: 10000,
+      max: 10_000,
       helpValue: "NUMBER",
     }),
 
@@ -133,7 +146,7 @@ export default class LambdaListFunctionsCommand extends Command {
           ...(input.profile && { profile: input.profile }),
         },
         {
-          FunctionVersion: input.functionVersion,
+          ...(input.functionVersion === "ALL" && { FunctionVersion: input.functionVersion }),
           MaxItems: input.maxItems,
           Marker: input.marker,
         },
@@ -155,7 +168,7 @@ export default class LambdaListFunctionsCommand extends Command {
    * @throws Error When unsupported output format is specified
    * @internal
    */
-  private formatAndDisplayOutput(functions: any[], format: string): void {
+  private formatAndDisplayOutput(functions: FunctionConfiguration[], format: string): void {
     if (functions.length === 0) {
       this.log("No Lambda functions found in the specified region.");
       return;
@@ -164,13 +177,13 @@ export default class LambdaListFunctionsCommand extends Command {
     switch (format) {
       case "table": {
         this.log(`Found ${functions.length} Lambda functions:\n`);
-        const tableData = functions.map((func, index) => ({
+        const tableData = functions.map((function_, index) => ({
           "#": index + 1,
-          "Function Name": func.FunctionName || "N/A",
-          "Runtime": func.Runtime || "N/A",
-          "Last Modified": func.LastModified || "N/A",
-          "Memory (MB)": func.MemorySize || "N/A",
-          "Timeout (s)": func.Timeout || "N/A",
+          "Function Name": function_?.FunctionName ?? "N/A",
+          Runtime: function_?.Runtime ?? "N/A",
+          "Last Modified": function_?.LastModified ?? "N/A",
+          "Memory (MB)": function_?.MemorySize ?? "N/A",
+          "Timeout (s)": function_?.Timeout ?? "N/A",
         }));
 
         // Use DataProcessor for consistent table formatting
@@ -184,7 +197,10 @@ export default class LambdaListFunctionsCommand extends Command {
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
         const output = processor.formatOutput(
-          functions.map((func, index) => ({ data: func, index })),
+          functions.map((function_, index) => ({
+            data: function_ as ExtendedFunctionConfiguration,
+            index,
+          })),
         );
         this.log(output);
         break;
@@ -192,29 +208,32 @@ export default class LambdaListFunctionsCommand extends Command {
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
         const output = processor.formatOutput(
-          functions.map((func, index) => ({ data: func, index })),
+          functions.map((function_, index) => ({
+            data: function_ as ExtendedFunctionConfiguration,
+            index,
+          })),
         );
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten function objects for CSV output
-        const flattenedData = functions.map((func) => ({
-          FunctionName: func.FunctionName || "",
-          FunctionArn: func.FunctionArn || "",
-          Runtime: func.Runtime || "",
-          Role: func.Role || "",
-          Handler: func.Handler || "",
-          CodeSize: func.CodeSize || 0,
-          Description: func.Description || "",
-          Timeout: func.Timeout || 0,
-          MemorySize: func.MemorySize || 0,
-          LastModified: func.LastModified || "",
-          CodeSha256: func.CodeSha256 || "",
-          Version: func.Version || "",
-          State: func.State || "",
-          StateReason: func.StateReason || "",
-          LastUpdateStatus: func.LastUpdateStatus || "",
+        const flattenedData = functions.map((function_) => ({
+          FunctionName: function_?.FunctionName ?? "",
+          FunctionArn: function_?.FunctionArn ?? "",
+          Runtime: function_?.Runtime ?? "",
+          Role: function_?.Role ?? "",
+          Handler: function_?.Handler ?? "",
+          CodeSize: function_?.CodeSize ?? 0,
+          Description: function_?.Description ?? "",
+          Timeout: function_?.Timeout ?? 0,
+          MemorySize: function_?.MemorySize ?? 0,
+          LastModified: function_?.LastModified ?? "",
+          CodeSha256: function_?.CodeSha256 ?? "",
+          Version: function_?.Version ?? "",
+          State: function_?.State ?? "",
+          StateReason: function_?.StateReason ?? "",
+          LastUpdateStatus: function_?.LastUpdateStatus ?? "",
         }));
 
         const processor = new DataProcessor({ format: DataFormat.CSV });

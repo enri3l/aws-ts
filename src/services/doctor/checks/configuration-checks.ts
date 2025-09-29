@@ -61,7 +61,6 @@ export class ConfigFileExistsCheck implements ICheck {
    * @throws When file access validation fails unexpectedly
    */
   // Context parameter required by ICheck interface but unused for configuration file validation
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async execute(_context: DoctorContext): Promise<CheckResult> {
     try {
       const configFilePath = process.env.AWS_CONFIG_FILE ?? path.join(homedir(), ".aws", "config");
@@ -471,7 +470,6 @@ export class CredentialsFileCheck implements ICheck {
    * @throws When credentials file validation fails unexpectedly
    */
   // Context parameter required by ICheck interface but unused for credentials file validation
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async execute(_context: DoctorContext): Promise<CheckResult> {
     try {
       const credentialsFilePath =

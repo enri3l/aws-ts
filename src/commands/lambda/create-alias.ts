@@ -6,12 +6,25 @@
  *
  */
 
+import type { AliasConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaCreateAlias } from "../../lib/lambda-schemas.js";
 import { LambdaCreateAliasSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended alias configuration with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedAliasConfiguration extends AliasConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda create alias command for alias management
@@ -31,23 +44,28 @@ export default class LambdaCreateAliasCommand extends Command {
     },
     {
       description: "Create alias with description",
-      command: "<%= config.bin %> <%= command.id %> my-function STAGING --function-version 3 --description 'Staging environment alias'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function STAGING --function-version 3 --description 'Staging environment alias'",
     },
     {
       description: "Create alias with traffic shifting (weighted routing)",
-      command: "<%= config.bin %> <%= command.id %> my-function CANARY --function-version 4 --additional-version-weights '3=0.1'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function CANARY --function-version 4 --additional-version-weights '3=0.1'",
     },
     {
       description: "Create development alias pointing to $LATEST",
-      command: "<%= config.bin %> <%= command.id %> my-function DEV --function-version '$LATEST' --description 'Development environment'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function DEV --function-version '$LATEST' --description 'Development environment'",
     },
     {
       description: "Create alias in specific region with JSON output",
-      command: "<%= config.bin %> <%= command.id %> my-function PROD --function-version 2 --region us-west-2 --format json",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function PROD --function-version 2 --region us-west-2 --format json",
     },
     {
       description: "Create alias with complex traffic distribution",
-      command: "<%= config.bin %> <%= command.id %> my-function BLUE-GREEN --function-version 5 --additional-version-weights '4=0.2,3=0.1' --description 'Blue-green deployment'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function BLUE-GREEN --function-version 5 --additional-version-weights '4=0.2,3=0.1' --description 'Blue-green deployment'",
     },
   ];
 
@@ -97,7 +115,8 @@ export default class LambdaCreateAliasCommand extends Command {
     }),
 
     "additional-version-weights": Flags.string({
-      description: "Additional version weights for traffic shifting (format: version=weight,version=weight)",
+      description:
+        "Additional version weights for traffic shifting (format: version=weight,version=weight)",
       helpValue: "VERSION_WEIGHTS",
     }),
 
@@ -125,7 +144,7 @@ export default class LambdaCreateAliasCommand extends Command {
       // Validate input using Zod schema
       const input: LambdaCreateAlias = LambdaCreateAliasSchema.parse({
         functionName: args.functionName,
-        aliasName: args.aliasName,
+        name: args.aliasName,
         functionVersion: flags["function-version"],
         description: flags.description,
         additionalVersionWeights: flags["additional-version-weights"],
@@ -150,11 +169,10 @@ export default class LambdaCreateAliasCommand extends Command {
       const aliasConfig = await lambdaService.createAlias(
         {
           functionName: input.functionName,
-          aliasName: input.aliasName,
+          name: input.name,
           functionVersion: input.functionVersion,
-          description: input.description,
-          additionalVersionWeights: input.additionalVersionWeights,
-          routingConfig: input.routingConfig,
+          ...(input.description && { description: input.description }),
+          ...(input.routingConfig && { routingConfig: input.routingConfig }),
         },
         {
           ...(input.region && { region: input.region }),
@@ -163,7 +181,7 @@ export default class LambdaCreateAliasCommand extends Command {
       );
 
       // Format output based on requested format
-      this.formatAndDisplayOutput(aliasConfig, input.format, input.functionName, input.aliasName);
+      this.formatAndDisplayOutput(aliasConfig, input.format, input.functionName, input.name);
     } catch (error) {
       const formattedError = this.formatLambdaError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -181,7 +199,7 @@ export default class LambdaCreateAliasCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    aliasConfig: any,
+    aliasConfig: AliasConfiguration,
     format: string,
     functionName: string,
     aliasName: string,
@@ -193,16 +211,16 @@ export default class LambdaCreateAliasCommand extends Command {
         // Alias Information
         this.log("📋 Alias Details:");
         const aliasInfo = [
-          ["Alias Name", aliasConfig?.Name || "N/A"],
-          ["Alias ARN", aliasConfig?.AliasArn || "N/A"],
-          ["Function Version", aliasConfig?.FunctionVersion || "N/A"],
-          ["Description", aliasConfig?.Description || "No description"],
-          ["Revision ID", aliasConfig?.RevisionId || "N/A"],
+          ["Alias Name", aliasConfig.Name ?? "N/A"],
+          ["Alias ARN", aliasConfig.AliasArn ?? "N/A"],
+          ["Function Version", aliasConfig.FunctionVersion ?? "N/A"],
+          ["Description", aliasConfig.Description ?? "No description"],
+          ["Revision ID", aliasConfig.RevisionId ?? "N/A"],
         ];
 
-        aliasInfo.forEach(([key, value]) => {
+        for (const [key, value] of aliasInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
         // Routing Configuration
         if (aliasConfig?.RoutingConfig?.AdditionalVersionWeights) {
@@ -211,32 +229,41 @@ export default class LambdaCreateAliasCommand extends Command {
           const primaryVersion = aliasConfig.FunctionVersion;
 
           // Calculate primary version weight
-          const additionalWeights = Object.values(weights).reduce((sum: number, weight: any) => sum + parseFloat(weight), 0);
+          const additionalWeights = Object.values(weights).reduce(
+            (sum: number, weight: number) => sum + Number(weight),
+            0,
+          );
           const primaryWeight = (1 - additionalWeights) * 100;
 
           this.log(`  Primary Version (${primaryVersion}): ${primaryWeight.toFixed(1)}%`);
 
-          Object.entries(weights).forEach(([version, weight]: [string, any]) => {
-            const weightPercent = (parseFloat(weight) * 100).toFixed(1);
+          for (const [version, weight] of Object.entries(weights)) {
+            const weightPercent = (Number(weight) * 100).toFixed(1);
             this.log(`  Version ${version}: ${weightPercent}%`);
-          });
+          }
         } else {
           this.log("\n🔀 Traffic Routing:");
           this.log(`  All traffic routed to version: ${aliasConfig?.FunctionVersion || "N/A"}`);
         }
 
-        this.log("\n💡 Note: You can now invoke the function using this alias name instead of the version number.");
+        this.log(
+          "\n💡 Note: You can now invoke the function using this alias name instead of the version number.",
+        );
         break;
       }
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: aliasConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: aliasConfig as ExtendedAliasConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: aliasConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: aliasConfig as ExtendedAliasConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
@@ -249,7 +276,9 @@ export default class LambdaCreateAliasCommand extends Command {
           Description: aliasConfig?.Description || "",
           RevisionId: aliasConfig?.RevisionId || "",
           HasRoutingConfig: aliasConfig?.RoutingConfig ? "true" : "false",
-          AdditionalVersionCount: Object.keys(aliasConfig?.RoutingConfig?.AdditionalVersionWeights || {}).length,
+          AdditionalVersionCount: Object.keys(
+            aliasConfig?.RoutingConfig?.AdditionalVersionWeights || {},
+          ).length,
           CreatedTimestamp: new Date().toISOString(),
         };
 

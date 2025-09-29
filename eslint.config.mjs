@@ -37,6 +37,14 @@ export default tseslint.config(
     },
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",
+      // Allow underscore-prefixed unused parameters (common pattern for intentionally unused parameters)
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
       // TSDoc/JSDoc Documentation Rules
       "tsdoc/syntax": "warn",
       "jsdoc/require-jsdoc": [

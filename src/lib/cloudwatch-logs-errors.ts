@@ -267,10 +267,12 @@ export class AnalyticsError extends BaseError {
       operation,
       logGroup,
       analysisType,
-      timeRange: timeRange ? {
-        start: timeRange.start?.toISOString(),
-        end: timeRange.end?.toISOString(),
-      } : undefined,
+      timeRange: timeRange
+        ? {
+            start: timeRange.start?.toISOString(),
+            end: timeRange.end?.toISOString(),
+          }
+        : undefined,
       cause,
       ...metadata,
     });
@@ -397,71 +399,148 @@ export function isCloudWatchLogsError(
  */
 export function getCloudWatchLogsErrorGuidance(error: unknown): string {
   if (isCloudWatchLogsError(error)) {
-    switch (error.code) {
-      case "LOG_GROUP_ERROR": {
-        if (error.metadata.operation === "describe-group") {
-          return "Verify the log group name is correct and exists in the specified region. Use 'aws-ts cloudwatch:logs:list-groups' to see available log groups.";
-        }
-        if (error.message.includes("does not exist")) {
-          return "The log group doesn't exist. Check the name and region, or create the log group first.";
-        }
-        return "Check log group permissions and ensure the log group exists in the correct region with proper access.";
-      }
-
-      case "LOG_STREAM_ERROR": {
-        return "Verify the log stream name is correct and exists within the specified log group. Check that the log stream is active and accessible.";
-      }
-
-      case "STREAMING_ERROR": {
-        if (error.message.includes("session limit")) {
-          return "CloudWatch Logs Live Tail sessions are limited to 3 hours. The session will automatically reconnect.";
-        }
-        if (error.message.includes("WebSocket")) {
-          return "Network connection issue. Check your internet connection and firewall settings. The stream will attempt to reconnect automatically.";
-        }
-        return "Streaming connection failed. Verify network connectivity and CloudWatch Logs permissions. The connection will retry automatically.";
-      }
-
-      case "QUERY_ERROR": {
-        if (error.message.includes("syntax")) {
-          return "Check your CloudWatch Logs Insights query syntax. Ensure all field names and operators are correct. Use 'fields @timestamp, @message' for basic queries.";
-        }
-        if (error.message.includes("timeout")) {
-          return "Query execution timed out. Try reducing the time range or simplifying the query. Consider using field indexes for better performance.";
-        }
-        return "Verify your query syntax and time range. Ensure the log groups exist and contain data for the specified time period.";
-      }
-
-      case "FILTER_ERROR": {
-        return "Check your filter pattern syntax. Ensure the pattern follows CloudWatch Logs filter syntax rules. Use quotes for exact matches and brackets for JSON field extraction.";
-      }
-
-      case "ANALYTICS_ERROR": {
-        return "Analytics operation failed. Verify the log group contains sufficient data for the analysis time range. Check that field indexes are configured if using complex patterns.";
-      }
-
-      case "FAVORITES_ERROR": {
-        if (error.message.includes("storage")) {
-          return "Unable to save favorites. Check write permissions for the configuration directory (~/.aws-ts/). Ensure the directory exists and is writable.";
-        }
-        return "Favorites operation failed. Verify the favorite name is unique and the configuration is valid.";
-      }
-
-      case "PERMISSION_ERROR": {
-        const requiredPerms = error.metadata.requiredPermissions as string[] | undefined;
-        if (requiredPerms && requiredPerms.length > 0) {
-          return `Missing required permissions: ${requiredPerms.join(", ")}. Update your IAM policy to include these CloudWatch Logs permissions.`;
-        }
-        return "Insufficient permissions for CloudWatch Logs operations. Ensure your AWS credentials have the necessary CloudWatch Logs permissions.";
-      }
-
-      default: {
-        return "Check your AWS credentials, CloudWatch Logs permissions, and region configuration. Verify the log groups exist and are accessible.";
-      }
-    }
+    return getErrorGuidanceByCode(error);
   }
 
   return "Unknown CloudWatch Logs error. Check AWS credentials and CloudWatch Logs configuration.";
+}
+
+/**
+ * Get error guidance based on error code
+ *
+ * @param error - CloudWatch Logs error with code
+ * @returns Specific guidance message
+ * @internal
+ */
+function getErrorGuidanceByCode(
+  error:
+    | CloudWatchLogsError
+    | LogGroupError
+    | LogStreamError
+    | StreamingError
+    | QueryError
+    | FilterError
+    | AnalyticsError
+    | FavoritesError
+    | PermissionError,
+): string {
+  switch (error.code) {
+    case "LOG_GROUP_ERROR": {
+      return getLogGroupErrorGuidance(error);
+    }
+
+    case "LOG_STREAM_ERROR": {
+      return "Verify the log stream name is correct and exists within the specified log group. Check that the log stream is active and accessible.";
+    }
+
+    case "STREAMING_ERROR": {
+      return getStreamingErrorGuidance(error);
+    }
+
+    case "QUERY_ERROR": {
+      return getQueryErrorGuidance(error);
+    }
+
+    case "FILTER_ERROR": {
+      return "Check your filter pattern syntax. Ensure the pattern follows CloudWatch Logs filter syntax rules. Use quotes for exact matches and brackets for JSON field extraction.";
+    }
+
+    case "ANALYTICS_ERROR": {
+      return "Analytics operation failed. Verify the log group contains sufficient data for the analysis time range. Check that field indexes are configured if using complex patterns.";
+    }
+
+    case "FAVORITES_ERROR": {
+      return getFavoritesErrorGuidance(error);
+    }
+
+    case "PERMISSION_ERROR": {
+      return getPermissionErrorGuidance(error);
+    }
+
+    default: {
+      return "Check your AWS credentials, CloudWatch Logs permissions, and region configuration. Verify the log groups exist and are accessible.";
+    }
+  }
+}
+
+/**
+ * Get guidance for log group errors
+ *
+ * @param error - Log group error
+ * @returns Specific log group guidance
+ * @internal
+ */
+function getLogGroupErrorGuidance(error: LogGroupError | CloudWatchLogsError): string {
+  if (error.metadata.operation === "describe-group") {
+    return "Verify the log group name is correct and exists in the specified region. Use 'aws-ts cloudwatch:logs:list-groups' to see available log groups.";
+  }
+  if (error.message.includes("does not exist")) {
+    return "The log group doesn't exist. Check the name and region, or create the log group first.";
+  }
+  return "Check log group permissions and ensure the log group exists in the correct region with proper access.";
+}
+
+/**
+ * Get guidance for streaming errors
+ *
+ * @param error - Streaming error
+ * @returns Specific streaming guidance
+ * @internal
+ */
+function getStreamingErrorGuidance(error: StreamingError): string {
+  if (error.message.includes("session limit")) {
+    return "CloudWatch Logs Live Tail sessions are limited to 3 hours. The session will automatically reconnect.";
+  }
+  if (error.message.includes("WebSocket")) {
+    return "Network connection issue. Check your internet connection and firewall settings. The stream will attempt to reconnect automatically.";
+  }
+  return "Streaming connection failed. Verify network connectivity and CloudWatch Logs permissions. The connection will retry automatically.";
+}
+
+/**
+ * Get guidance for query errors
+ *
+ * @param error - Query error
+ * @returns Specific query guidance
+ * @internal
+ */
+function getQueryErrorGuidance(error: QueryError): string {
+  if (error.message.includes("syntax")) {
+    return "Check your CloudWatch Logs Insights query syntax. Ensure all field names and operators are correct. Use 'fields @timestamp, @message' for basic queries.";
+  }
+  if (error.message.includes("timeout")) {
+    return "Query execution timed out. Try reducing the time range or simplifying the query. Consider using field indexes for better performance.";
+  }
+  return "Verify your query syntax and time range. Ensure the log groups exist and contain data for the specified time period.";
+}
+
+/**
+ * Get guidance for favorites errors
+ *
+ * @param error - Favorites error
+ * @returns Specific favorites guidance
+ * @internal
+ */
+function getFavoritesErrorGuidance(error: FavoritesError): string {
+  if (error.message.includes("storage")) {
+    return "Unable to save favorites. Check write permissions for the configuration directory (~/.aws-ts/). Ensure the directory exists and is writable.";
+  }
+  return "Favorites operation failed. Verify the favorite name is unique and the configuration is valid.";
+}
+
+/**
+ * Get guidance for permission errors
+ *
+ * @param error - Permission error
+ * @returns Specific permission guidance
+ * @internal
+ */
+function getPermissionErrorGuidance(error: PermissionError): string {
+  const requiredPerms = error.metadata.requiredPermissions as string[] | undefined;
+  if (requiredPerms && requiredPerms.length > 0) {
+    return `Missing required permissions: ${requiredPerms.join(", ")}. Update your IAM policy to include these CloudWatch Logs permissions.`;
+  }
+  return "Insufficient permissions for CloudWatch Logs operations. Ensure your AWS credentials have the necessary CloudWatch Logs permissions.";
 }
 
 /**
@@ -479,28 +558,62 @@ export function handleCloudWatchLogsCommandError(
   verbose = false,
   context?: string,
 ): string {
+  // Handle specific common error patterns
+  const specificErrorMessage = handleSpecificErrorPatterns(error, context);
+  if (specificErrorMessage) {
+    return specificErrorMessage;
+  }
+
+  // Get CloudWatch Logs-specific guidance for other errors
+  return formatErrorWithGuidance(error, verbose);
+}
+
+/**
+ * Handle specific error patterns with direct messages
+ *
+ * @param error - The error that occurred
+ * @param context - Optional context for the operation
+ * @returns Formatted message or undefined if not a specific pattern
+ * @internal
+ */
+function handleSpecificErrorPatterns(error: unknown, context?: string): string | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
   // Handle time parsing errors
-  if (error instanceof Error && error.message.includes("Invalid time")) {
+  if (error.message.includes("Invalid time")) {
     return `Invalid time format: ${error.message}. Use ISO 8601 format, Unix timestamps, or relative time like "last 2 hours".`;
   }
 
   // Handle WebSocket connection errors
-  if (error instanceof Error && error.message.includes("WebSocket")) {
+  if (error.message.includes("WebSocket")) {
     return `Streaming connection failed: ${error.message}. Check network connectivity and try again.`;
   }
 
   // Handle query syntax errors
-  if (error instanceof Error && error.message.includes("query syntax")) {
+  if (error.message.includes("query syntax")) {
     return `Query syntax error: ${error.message}. Check CloudWatch Logs Insights query syntax documentation.`;
   }
 
   // Handle file not found errors for saved queries/favorites
-  if (error instanceof Error && error.message.includes("ENOENT")) {
+  if (error.message.includes("ENOENT")) {
     const fileContext = context ? ` for ${context}` : "";
     return `Configuration file not found${fileContext}. Initialize favorites or saved queries first.`;
   }
 
-  // Get CloudWatch Logs-specific guidance
+  return undefined;
+}
+
+/**
+ * Format error with CloudWatch Logs guidance
+ *
+ * @param error - The error that occurred
+ * @param verbose - Whether to include verbose details
+ * @returns Formatted error message with guidance
+ * @internal
+ */
+function formatErrorWithGuidance(error: unknown, verbose: boolean): string {
   const guidance = getCloudWatchLogsErrorGuidance(error);
   const errorMessage = error instanceof Error ? error.message : String(error);
 

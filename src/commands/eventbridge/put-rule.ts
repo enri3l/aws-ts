@@ -14,6 +14,68 @@ import { EventBridgePutRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
 
 /**
+ * Rule creation result from EventBridge service
+ *
+ * @internal
+ */
+interface RuleCreationResult {
+  /**
+   * Indicates if this was an update operation
+   */
+  readonly isUpdate?: boolean;
+
+  /**
+   * Name of the rule
+   */
+  readonly ruleName?: string;
+
+  /**
+   * ARN of the rule
+   */
+  readonly ruleArn?: string;
+
+  /**
+   * Current state of the rule
+   */
+  readonly state?: string;
+
+  /**
+   * Event bus name containing the rule
+   */
+  readonly eventBusName?: string;
+
+  /**
+   * Event pattern as JSON string
+   */
+  readonly eventPattern?: string;
+
+  /**
+   * Schedule expression if rule is time-based
+   */
+  readonly scheduleExpression?: string;
+
+  /**
+   * Rule description
+   */
+  readonly description?: string;
+
+  /**
+   * IAM role ARN for the rule
+   */
+  readonly roleArn?: string;
+
+  /**
+   * Tags associated with the rule
+   */
+  readonly tags?: Record<string, string>;
+
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
+
+/**
  * EventBridge put rule command for rule creation and updates
  *
  * Creates or updates EventBridge rules with support for event patterns,
@@ -27,31 +89,38 @@ export default class EventBridgePutRuleCommand extends Command {
   static override readonly examples = [
     {
       description: "Create rule with event pattern",
-      command: '<%= config.bin %> <%= command.id %> my-rule --event-pattern \'{"source":["aws.ec2"],"detail-type":["EC2 Instance State-change Notification"]}\'',
+      command:
+        '<%= config.bin %> <%= command.id %> my-rule --event-pattern \'{"source":["aws.ec2"],"detail-type":["EC2 Instance State-change Notification"]}\'',
     },
     {
       description: "Create scheduled rule that runs every 5 minutes",
-      command: "<%= config.bin %> <%= command.id %> my-scheduled-rule --schedule-expression 'rate(5 minutes)'",
+      command:
+        "<%= config.bin %> <%= command.id %> my-scheduled-rule --schedule-expression 'rate(5 minutes)'",
     },
     {
       description: "Create cron-based rule for weekdays at 9 AM",
-      command: "<%= config.bin %> <%= command.id %> weekday-rule --schedule-expression 'cron(0 9 ? * MON-FRI *)'",
+      command:
+        "<%= config.bin %> <%= command.id %> weekday-rule --schedule-expression 'cron(0 9 ? * MON-FRI *)'",
     },
     {
       description: "Create rule on custom event bus",
-      command: '<%= config.bin %> <%= command.id %> custom-rule --event-pattern \'{"source":["myapp"]}\' --event-bus-name custom-bus',
+      command:
+        '<%= config.bin %> <%= command.id %> custom-rule --event-pattern \'{"source":["myapp"]}\' --event-bus-name custom-bus',
     },
     {
       description: "Create rule with description and specific state",
-      command: '<%= config.bin %> <%= command.id %> my-rule --event-pattern \'{"source":["aws.s3"]}\' --description "S3 bucket events" --state DISABLED',
+      command:
+        '<%= config.bin %> <%= command.id %> my-rule --event-pattern \'{"source":["aws.s3"]}\' --description "S3 bucket events" --state DISABLED',
     },
     {
       description: "Create rule with IAM role for cross-account access",
-      command: '<%= config.bin %> <%= command.id %> cross-account-rule --event-pattern \'{"account":["123456789012"]}\' --role-arn arn:aws:iam::123456789012:role/EventBridgeRole',
+      command:
+        '<%= config.bin %> <%= command.id %> cross-account-rule --event-pattern \'{"account":["123456789012"]}\' --role-arn arn:aws:iam::123456789012:role/EventBridgeRole',
     },
     {
       description: "Update existing rule with new pattern",
-      command: '<%= config.bin %> <%= command.id %> existing-rule --event-pattern \'{"source":["aws.ec2","aws.s3"]}\' --description "Updated rule"',
+      command:
+        '<%= config.bin %> <%= command.id %> existing-rule --event-pattern \'{"source":["aws.ec2","aws.s3"]}\' --description "Updated rule"',
     },
   ];
 
@@ -175,14 +244,14 @@ export default class EventBridgePutRuleCommand extends Command {
       // Create or update the rule
       const ruleResult = await eventBridgeService.putRule(
         {
-          ruleName: input.ruleName,
-          eventPattern: input.eventPattern,
-          scheduleExpression: input.scheduleExpression,
-          description: input.description,
+          name: input.name,
+          ...(input.eventPattern && { eventPattern: input.eventPattern }),
+          ...(input.scheduleExpression && { scheduleExpression: input.scheduleExpression }),
+          ...(input.description && { description: input.description }),
           state: input.state,
           eventBusName: input.eventBusName,
-          roleArn: input.roleArn,
-          tags: input.tags,
+          ...(input.roleArn && { roleArn: input.roleArn }),
+          ...(input.tags && { tags: input.tags }),
         },
         {
           ...(input.region && { region: input.region }),
@@ -191,7 +260,7 @@ export default class EventBridgePutRuleCommand extends Command {
       );
 
       // Format output based on requested format
-      this.formatAndDisplayOutput(ruleResult, input.format, input.ruleName);
+      this.formatAndDisplayOutput(ruleResult, input.format, input.name);
     } catch (error) {
       const formattedError = this.formatEventBridgeError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -208,112 +277,205 @@ export default class EventBridgePutRuleCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    ruleResult: any,
+    ruleResult: RuleCreationResult,
     format: string,
     ruleName: string,
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Rule ${ruleResult.isUpdate ? "Updated" : "Created"}: ${ruleName}\n`);
-
-        // Rule Information
-        this.log("📋 Rule Details:");
-        const ruleInfo = [
-          ["Rule Name", ruleResult?.ruleName || ruleName],
-          ["Rule ARN", ruleResult?.ruleArn || "N/A"],
-          ["State", ruleResult?.state || "ENABLED"],
-          ["Event Bus", ruleResult?.eventBusName || "default"],
-          ["Operation", ruleResult.isUpdate ? "UPDATE" : "CREATE"],
-        ];
-
-        ruleInfo.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Pattern or Schedule
-        if (ruleResult?.eventPattern) {
-          this.log("\n🎯 Event Pattern:");
-          try {
-            const pattern = JSON.parse(ruleResult.eventPattern);
-            this.log(`  ${JSON.stringify(pattern, null, 2)}`);
-          } catch (error) {
-            this.log(`  ${ruleResult.eventPattern}`);
-          }
-        }
-
-        if (ruleResult?.scheduleExpression) {
-          this.log("\n⏰ Schedule Expression:");
-          this.log(`  ${ruleResult.scheduleExpression}`);
-
-          // Explain schedule type
-          const schedule = ruleResult.scheduleExpression;
-          if (schedule.startsWith("rate(")) {
-            this.log("  Type: Rate expression (fixed interval)");
-          } else if (schedule.startsWith("cron(")) {
-            this.log("  Type: Cron expression (specific times)");
-          }
-        }
-
-        // Description
-        if (ruleResult?.description) {
-          this.log("\n📝 Description:");
-          this.log(`  ${ruleResult.description}`);
-        }
-
-        // IAM Role
-        if (ruleResult?.roleArn) {
-          this.log("\n🔐 IAM Role:");
-          this.log(`  ${ruleResult.roleArn}`);
-        }
-
-        // Tags
-        if (ruleResult?.tags && Object.keys(ruleResult.tags).length > 0) {
-          this.log("\n🏷️  Tags:");
-          Object.entries(ruleResult.tags).forEach(([key, value]) => {
-            this.log(`  ${key}: ${value}`);
-          });
-        }
-
-        this.log("\n💡 Next steps: Add targets to this rule using 'eventbridge:put-targets' command.");
+        this.displayTableFormat(ruleResult, ruleName);
         break;
       }
       case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: ruleResult, index: 0 }]);
-        this.log(output);
+        this.displayJsonFormat(ruleResult);
         break;
       }
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: ruleResult, index: 0 }]);
-        this.log(output);
+        this.displayJsonlFormat(ruleResult);
         break;
       }
       case "csv": {
-        // Flatten rule result for CSV output
-        const flattenedData = {
-          RuleName: ruleResult?.ruleName || ruleName,
-          RuleArn: ruleResult?.ruleArn || "",
-          State: ruleResult?.state || "ENABLED",
-          EventBusName: ruleResult?.eventBusName || "default",
-          Operation: ruleResult.isUpdate ? "UPDATE" : "CREATE",
-          HasEventPattern: ruleResult?.eventPattern ? "true" : "false",
-          HasScheduleExpression: ruleResult?.scheduleExpression ? "true" : "false",
-          Description: ruleResult?.description || "",
-          RoleArn: ruleResult?.roleArn || "",
-          TagCount: ruleResult?.tags ? Object.keys(ruleResult.tags).length : 0,
-          CreatedTimestamp: new Date().toISOString(),
-        };
-
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
-        this.log(output);
+        this.displayCsvFormat(ruleResult, ruleName);
         break;
       }
       default: {
         throw new Error(`Unsupported output format: ${format}`);
       }
     }
+  }
+
+  /**
+   * Display rule result in table format
+   *
+   * @param ruleResult - Rule creation result to display
+   * @param ruleName - Rule name for display
+   * @internal
+   */
+  private displayTableFormat(ruleResult: RuleCreationResult, ruleName: string): void {
+    this.log(`✅ Rule ${ruleResult.isUpdate ? "Updated" : "Created"}: ${ruleName}\n`);
+
+    this.displayRuleBasicInfo(ruleResult, ruleName);
+    this.displayEventPattern(ruleResult);
+    this.displayScheduleExpression(ruleResult);
+    this.displayRuleDescription(ruleResult);
+    this.displayRoleInformation(ruleResult);
+    this.displayTagsInformation(ruleResult);
+
+    this.log("\n💡 Next steps: Add targets to this rule using 'eventbridge:put-targets' command.");
+  }
+
+  /**
+   * Display basic rule information
+   *
+   * @param ruleResult - Rule creation result to display
+   * @param ruleName - Rule name for display
+   * @internal
+   */
+  private displayRuleBasicInfo(ruleResult: RuleCreationResult, ruleName: string): void {
+    this.log("📋 Rule Details:");
+    const ruleInfo = [
+      ["Rule Name", ruleResult?.ruleName || ruleName],
+      ["Rule ARN", ruleResult?.ruleArn || "N/A"],
+      ["State", ruleResult?.state || "ENABLED"],
+      ["Event Bus", ruleResult?.eventBusName || "default"],
+      ["Operation", ruleResult.isUpdate ? "UPDATE" : "CREATE"],
+    ];
+
+    for (const [key, value] of ruleInfo) {
+      this.log(`  ${key}: ${value}`);
+    }
+  }
+
+  /**
+   * Display event pattern information
+   *
+   * @param ruleResult - Rule creation result to display
+   * @internal
+   */
+  private displayEventPattern(ruleResult: RuleCreationResult): void {
+    if (ruleResult?.eventPattern) {
+      this.log("\n🎯 Event Pattern:");
+      try {
+        const pattern: unknown = JSON.parse(ruleResult.eventPattern);
+        this.log(`  ${JSON.stringify(pattern, undefined, 2)}`);
+      } catch {
+        this.log(`  ${ruleResult.eventPattern}`);
+      }
+    }
+  }
+
+  /**
+   * Display schedule expression information
+   *
+   * @param ruleResult - Rule creation result to display
+   * @internal
+   */
+  private displayScheduleExpression(ruleResult: RuleCreationResult): void {
+    if (ruleResult?.scheduleExpression) {
+      this.log("\n⏰ Schedule Expression:");
+      this.log(`  ${ruleResult.scheduleExpression}`);
+
+      // Explain schedule type
+      const schedule = ruleResult.scheduleExpression;
+      if (schedule.startsWith("rate(")) {
+        this.log("  Type: Rate expression (fixed interval)");
+      } else if (schedule.startsWith("cron(")) {
+        this.log("  Type: Cron expression (specific times)");
+      }
+    }
+  }
+
+  /**
+   * Display rule description
+   *
+   * @param ruleResult - Rule creation result to display
+   * @internal
+   */
+  private displayRuleDescription(ruleResult: RuleCreationResult): void {
+    if (ruleResult?.description) {
+      this.log("\n📝 Description:");
+      this.log(`  ${ruleResult.description}`);
+    }
+  }
+
+  /**
+   * Display IAM role information
+   *
+   * @param ruleResult - Rule creation result to display
+   * @internal
+   */
+  private displayRoleInformation(ruleResult: RuleCreationResult): void {
+    if (ruleResult?.roleArn) {
+      this.log("\n🔐 IAM Role:");
+      this.log(`  ${ruleResult.roleArn}`);
+    }
+  }
+
+  /**
+   * Display tags information
+   *
+   * @param ruleResult - Rule creation result to display
+   * @internal
+   */
+  private displayTagsInformation(ruleResult: RuleCreationResult): void {
+    if (ruleResult?.tags && Object.keys(ruleResult.tags).length > 0) {
+      this.log("\n🏷️  Tags:");
+      for (const [key, value] of Object.entries(ruleResult.tags)) {
+        this.log(`  ${key}: ${value}`);
+      }
+    }
+  }
+
+  /**
+   * Display rule result in JSON format
+   *
+   * @param ruleResult - Rule creation result to display
+   * @internal
+   */
+  private displayJsonFormat(ruleResult: RuleCreationResult): void {
+    const processor = new DataProcessor({ format: DataFormat.JSON });
+    const output = processor.formatOutput([{ data: ruleResult, index: 0 }]);
+    this.log(output);
+  }
+
+  /**
+   * Display rule result in JSONL format
+   *
+   * @param ruleResult - Rule creation result to display
+   * @internal
+   */
+  private displayJsonlFormat(ruleResult: RuleCreationResult): void {
+    const processor = new DataProcessor({ format: DataFormat.JSONL });
+    const output = processor.formatOutput([{ data: ruleResult, index: 0 }]);
+    this.log(output);
+  }
+
+  /**
+   * Display rule result in CSV format
+   *
+   * @param ruleResult - Rule creation result to display
+   * @param ruleName - Rule name for display
+   * @internal
+   */
+  private displayCsvFormat(ruleResult: RuleCreationResult, ruleName: string): void {
+    // Flatten rule result for CSV output
+    const flattenedData = {
+      RuleName: ruleResult?.ruleName || ruleName,
+      RuleArn: ruleResult?.ruleArn || "",
+      State: ruleResult?.state || "ENABLED",
+      EventBusName: ruleResult?.eventBusName || "default",
+      Operation: ruleResult.isUpdate ? "UPDATE" : "CREATE",
+      HasEventPattern: ruleResult?.eventPattern ? "true" : "false",
+      HasScheduleExpression: ruleResult?.scheduleExpression ? "true" : "false",
+      Description: ruleResult?.description || "",
+      RoleArn: ruleResult?.roleArn || "",
+      TagCount: ruleResult?.tags ? Object.keys(ruleResult.tags).length : 0,
+      CreatedTimestamp: new Date().toISOString(),
+    };
+
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
+    this.log(output);
   }
 
   /**

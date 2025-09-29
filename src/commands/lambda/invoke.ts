@@ -6,12 +6,25 @@
  *
  */
 
+import type { InvokeCommandOutput } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaInvoke } from "../../lib/lambda-schemas.js";
 import { LambdaInvokeSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended invocation result with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedInvokeCommandOutput extends InvokeCommandOutput {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda invoke command for function execution
@@ -51,7 +64,8 @@ export default class LambdaInvokeCommand extends Command {
     },
     {
       description: "Invoke with client context",
-      command: '<%= config.bin %> <%= command.id %> my-function --client-context \'{"custom": "data"}\'',
+      command:
+        '<%= config.bin %> <%= command.id %> my-function --client-context \'{"custom": "data"}\'',
     },
   ];
 
@@ -161,11 +175,10 @@ export default class LambdaInvokeCommand extends Command {
       const invocationResult = await lambdaService.invoke(
         {
           functionName: input.functionName,
-          qualifier: input.qualifier,
+          ...(input.qualifier && { qualifier: input.qualifier }),
           invocationType: input.invocationType,
-          payload: input.payload,
-          payloadFile: input.payloadFile,
-          clientContext: input.clientContext,
+          ...(input.payload && { payload: input.payload }),
+          ...(input.clientContext && { clientContext: input.clientContext }),
           logType: input.logType,
         },
         {
@@ -192,77 +205,37 @@ export default class LambdaInvokeCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    invocationResult: any,
+    invocationResult: InvokeCommandOutput,
     format: string,
     functionName: string,
   ): void {
     switch (format) {
       case "table": {
-        this.log(`Function Invocation Result: ${functionName}\n`);
-
-        // Execution Information
-        this.log("⚡ Execution Information:");
-        const executionInfo = [
-          ["Status Code", invocationResult?.StatusCode || "N/A"],
-          ["Executed Version", invocationResult?.ExecutedVersion || "N/A"],
-          ["Function Error", invocationResult?.FunctionError || "None"],
-          ["Log Result", invocationResult?.LogResult ? "Available" : "None"],
-        ];
-
-        executionInfo.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Payload Response
-        if (invocationResult?.Payload) {
-          this.log("\n📄 Response Payload:");
-          try {
-            const payload = invocationResult.Payload;
-            const payloadStr = typeof payload === "string" ? payload : Buffer.from(payload).toString();
-
-            // Try to pretty-print JSON
-            try {
-              const parsed = JSON.parse(payloadStr);
-              this.log(`  ${JSON.stringify(parsed, null, 2)}`);
-            } catch {
-              this.log(`  ${payloadStr}`);
-            }
-          } catch (error) {
-            this.log(`  Error parsing payload: ${error instanceof Error ? error.message : "Unknown error"}`);
-          }
-        }
-
-        // Log Output
-        if (invocationResult?.LogResult) {
-          this.log("\n📝 Log Output:");
-          try {
-            const logData = Buffer.from(invocationResult.LogResult, "base64").toString();
-            this.log(`  ${logData}`);
-          } catch (error) {
-            this.log(`  Error decoding logs: ${error instanceof Error ? error.message : "Unknown error"}`);
-          }
-        }
-
+        this.displayTableFormat(invocationResult, functionName);
         break;
       }
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: invocationResult, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: invocationResult as ExtendedInvokeCommandOutput, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: invocationResult, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: invocationResult as ExtendedInvokeCommandOutput, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten invocation result for CSV output
         const flattenedData = {
-          StatusCode: invocationResult?.StatusCode || "",
-          ExecutedVersion: invocationResult?.ExecutedVersion || "",
-          FunctionError: invocationResult?.FunctionError || "",
+          StatusCode: invocationResult?.StatusCode ?? "",
+          ExecutedVersion: invocationResult?.ExecutedVersion ?? "",
+          FunctionError: invocationResult?.FunctionError ?? "",
           LogResultAvailable: invocationResult?.LogResult ? "true" : "false",
           PayloadSize: invocationResult?.Payload ? Buffer.byteLength(invocationResult.Payload) : 0,
           HasError: invocationResult?.FunctionError ? "true" : "false",
@@ -275,6 +248,89 @@ export default class LambdaInvokeCommand extends Command {
       }
       default: {
         throw new Error(`Unsupported output format: ${format}`);
+      }
+    }
+  }
+
+  /**
+   * Display invocation result in table format
+   *
+   * @param invocationResult - Invocation result to display
+   * @param functionName - Function name for display
+   * @internal
+   */
+  private displayTableFormat(invocationResult: InvokeCommandOutput, functionName: string): void {
+    this.log(`Function Invocation Result: ${functionName}\n`);
+    this.displayExecutionInfo(invocationResult);
+    this.displayPayloadResponse(invocationResult);
+    this.displayLogOutput(invocationResult);
+  }
+
+  /**
+   * Display execution information section
+   *
+   * @param invocationResult - Invocation result to display
+   * @internal
+   */
+  private displayExecutionInfo(invocationResult: InvokeCommandOutput): void {
+    this.log("⚡ Execution Information:");
+    const executionInfo = [
+      ["Status Code", invocationResult?.StatusCode ?? "N/A"],
+      ["Executed Version", invocationResult?.ExecutedVersion ?? "N/A"],
+      ["Function Error", invocationResult?.FunctionError ?? "None"],
+      ["Log Result", invocationResult?.LogResult ? "Available" : "None"],
+    ];
+
+    for (const [key, value] of executionInfo) {
+      this.log(`  ${key}: ${value}`);
+    }
+  }
+
+  /**
+   * Display payload response section
+   *
+   * @param invocationResult - Invocation result to display
+   * @internal
+   */
+  private displayPayloadResponse(invocationResult: InvokeCommandOutput): void {
+    if (invocationResult?.Payload) {
+      this.log("\n📄 Response Payload:");
+      try {
+        const payload = invocationResult.Payload;
+        const payloadString =
+          typeof payload === "string" ? payload : Buffer.from(payload).toString();
+
+        // Try to pretty-print JSON
+        try {
+          const parsed: unknown = JSON.parse(payloadString);
+          this.log(`  ${JSON.stringify(parsed, undefined, 2)}`);
+        } catch {
+          this.log(`  ${payloadString}`);
+        }
+      } catch (error) {
+        this.log(
+          `  Error parsing payload: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Display log output section
+   *
+   * @param invocationResult - Invocation result to display
+   * @internal
+   */
+  private displayLogOutput(invocationResult: InvokeCommandOutput): void {
+    if (invocationResult?.LogResult) {
+      this.log("\n📝 Log Output:");
+      try {
+        const logData = Buffer.from(invocationResult.LogResult, "base64").toString();
+        this.log(`  ${logData}`);
+      } catch (error) {
+        this.log(
+          `  Error decoding logs: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       }
     }
   }

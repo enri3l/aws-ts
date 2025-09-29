@@ -62,7 +62,7 @@ export class NodeVersionCheck implements ICheck {
    */
   // Context parameter required by ICheck interface but unused for Node.js version validation
   // Async signature required by interface but version check is synchronous process.version access
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await
   async execute(_context: DoctorContext): Promise<CheckResult> {
     try {
       const nodeVersion = process.version;
@@ -170,7 +170,6 @@ export class AwsCliInstallationCheck implements ICheck {
    * @throws When command execution fails unexpectedly
    */
   // Context parameter required by ICheck interface but unused for AWS CLI installation validation
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async execute(_context: DoctorContext): Promise<CheckResult> {
     try {
       const result = await execa("aws", ["--version"], {
@@ -309,7 +308,7 @@ export class NodeModulesCheck implements ICheck {
    */
   // Context parameter required by ICheck interface but unused for dependency integrity validation
   // Async signature required by interface but dependency check uses synchronous filesystem operations
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/require-await
+  // eslint-disable-next-line @typescript-eslint/require-await
   async execute(_context: DoctorContext): Promise<CheckResult> {
     try {
       const nodeModulesPath = path.join(process.cwd(), "node_modules");

@@ -8,10 +8,10 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsFollow } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsFollowSchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
-import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { CloudWatchLogsService, type LogEvent } from "../../../services/cloudwatch-logs-service.js";
 
 /**
  * CloudWatch Logs follow command for stream pattern following
@@ -22,7 +22,8 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
  * @public
  */
 export default class CloudWatchLogsFollowCommand extends Command {
-  static override readonly description = "Follow specific log streams with pattern matching and auto-reconnect";
+  static override readonly description =
+    "Follow specific log streams with pattern matching and auto-reconnect";
 
   static override readonly examples = [
     {
@@ -35,27 +36,32 @@ export default class CloudWatchLogsFollowCommand extends Command {
     },
     {
       description: "Follow streams with regex pattern for specific instances",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --regex '^2024.*\\[\\w+\\].*$'",
+      command: String.raw`<%= config.bin %> <%= command.id %> /aws/lambda/my-function --regex '^2024.*\[\w+\].*$'`,
     },
     {
       description: "Follow streams from the last hour with error filtering",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --since '1h ago' --filter 'ERROR'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --since '1h ago' --filter 'ERROR'",
     },
     {
       description: "Follow and export to file while displaying",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --export-file stream-logs.txt",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --export-file stream-logs.txt",
     },
     {
       description: "Follow with custom reconnection settings",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --max-reconnects 10 --reconnect-delay 2000",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --max-reconnects 10 --reconnect-delay 2000",
     },
     {
       description: "Follow with buffer management for high volume",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --buffer-size 1000 --flush-interval 5000",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --buffer-size 1000 --flush-interval 5000",
     },
     {
       description: "Follow in a specific region with verbose debugging",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --region us-west-2 --verbose",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --region us-west-2 --verbose",
     },
   ];
 
@@ -119,7 +125,7 @@ export default class CloudWatchLogsFollowCommand extends Command {
       description: "Initial reconnection delay in milliseconds",
       default: 1000,
       min: 500,
-      max: 10000,
+      max: 10_000,
     }),
 
     "buffer-size": Flags.integer({
@@ -133,7 +139,7 @@ export default class CloudWatchLogsFollowCommand extends Command {
       description: "Buffer flush interval in milliseconds",
       default: 2000,
       min: 1000,
-      max: 30000,
+      max: 30_000,
     }),
 
     "no-color": Flags.boolean({
@@ -222,14 +228,14 @@ export default class CloudWatchLogsFollowCommand extends Command {
           ...(input.profile && { profile: input.profile }),
         },
         {
-          streamPattern: input.streamPattern,
+          ...(input.streamPattern && { streamPattern: input.streamPattern }),
           useRegex: input.regex,
-          filterPattern: input.filter,
-          startTime: input.since ? this.parseStartTime(input.since) : undefined,
+          ...(input.filter && { filterPattern: input.filter }),
+          ...(input.since && { startTime: this.parseStartTime(input.since) }),
           followNewStreams: input.followNewStreams,
         },
         {
-          exportFile: input.exportFile,
+          ...(input.exportFile && { exportFile: input.exportFile }),
           maxReconnects: input.maxReconnects,
           reconnectDelay: input.reconnectDelay,
           bufferSize: input.bufferSize,
@@ -238,10 +244,12 @@ export default class CloudWatchLogsFollowCommand extends Command {
           showTimestamp: input.showTimestamp,
           showStreamName: input.showStreamName,
           verbose: input.verbose,
-          onEvent: (event, streamName) => this.handleLogEvent(event, streamName, input),
+          onEvent: (event, streamName) => this.handleLogEvent(event as LogEvent, streamName, input),
           onStreamConnect: (streamName) => this.handleStreamConnect(streamName, input.verbose),
-          onStreamDisconnect: (streamName, reason) => this.handleStreamDisconnect(streamName, reason, input.verbose),
-          onReconnect: (streamName, attempt) => this.handleReconnect(streamName, attempt, input.verbose),
+          onStreamDisconnect: (streamName, reason) =>
+            this.handleStreamDisconnect(streamName, reason, input.verbose),
+          onReconnect: (streamName, attempt) =>
+            this.handleReconnect(streamName, attempt, input.verbose),
           onError: (error, streamName) => this.handleStreamError(error, streamName, input.verbose),
         },
       );
@@ -260,16 +268,17 @@ export default class CloudWatchLogsFollowCommand extends Command {
    *
    * @param timeString - Time string to parse
    * @returns Date object representing the start time
+   * @throws When time format is invalid
    * @internal
    */
   private parseStartTime(timeString: string): Date {
     // Handle relative time formats
     const relativeTimeRegex = /^(\d+)\s*(m|min|minutes?|h|hour|hours?|d|day|days?)\s*ago$/i;
-    const match = timeString.match(relativeTimeRegex);
+    const match = relativeTimeRegex.exec(timeString);
 
     if (match) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
+      const value = Number.parseInt(match[1]!, 10);
+      const unit = match[2]!.toLowerCase();
       const now = new Date();
 
       switch (unit.charAt(0)) {
@@ -290,8 +299,10 @@ export default class CloudWatchLogsFollowCommand extends Command {
 
     // Handle absolute time (ISO 8601)
     const absoluteTime = new Date(timeString);
-    if (isNaN(absoluteTime.getTime())) {
-      throw new Error(`Invalid time format: ${timeString}. Use relative (e.g., '5m ago') or ISO 8601 format.`);
+    if (Number.isNaN(absoluteTime.getTime())) {
+      throw new TypeError(
+        `Invalid time format: ${timeString}. Use relative (e.g., '5m ago') or ISO 8601 format.`,
+      );
     }
 
     return absoluteTime;
@@ -305,20 +316,18 @@ export default class CloudWatchLogsFollowCommand extends Command {
    * @param config - Command configuration
    * @internal
    */
-  private handleLogEvent(event: any, streamName: string, config: CloudWatchLogsFollow): void {
+  private handleLogEvent(event: LogEvent, streamName: string, config: CloudWatchLogsFollow): void {
     let output = "";
 
     // Add timestamp if requested
     if (config.showTimestamp && event.timestamp) {
       const timestamp = new Date(event.timestamp).toISOString();
-      output += config.noColor ? `[${timestamp}] ` : `\x1b[90m[${timestamp}]\x1b[0m `;
+      output += config.noColor ? `[${timestamp}] ` : `\u001B[90m[${timestamp}]\u001B[0m `;
     }
 
     // Add log stream name if requested
     if (config.showStreamName) {
-      output += config.noColor
-        ? `(${streamName}) `
-        : `\x1b[36m(${streamName})\x1b[0m `;
+      output += config.noColor ? `(${streamName}) ` : `\u001B[36m(${streamName})\u001B[0m `;
     }
 
     // Add the log message with potential coloring
@@ -328,13 +337,13 @@ export default class CloudWatchLogsFollowCommand extends Command {
     } else {
       // Apply colors based on log level detection
       if (message.includes("ERROR") || message.includes("FATAL")) {
-        output += `\x1b[91m${message}\x1b[0m`; // Bright red
+        output += `\u001B[91m${message}\u001B[0m`; // Bright red
       } else if (message.includes("WARN")) {
-        output += `\x1b[93m${message}\x1b[0m`; // Bright yellow
+        output += `\u001B[93m${message}\u001B[0m`; // Bright yellow
       } else if (message.includes("INFO")) {
-        output += `\x1b[94m${message}\x1b[0m`; // Bright blue
+        output += `\u001B[94m${message}\u001B[0m`; // Bright blue
       } else if (message.includes("DEBUG")) {
-        output += `\x1b[90m${message}\x1b[0m`; // Dark gray
+        output += `\u001B[90m${message}\u001B[0m`; // Dark gray
       } else {
         output += message; // Default color
       }
@@ -353,7 +362,7 @@ export default class CloudWatchLogsFollowCommand extends Command {
    */
   private handleStreamConnect(streamName: string, verbose: boolean): void {
     if (verbose) {
-      this.log(`\x1b[92m✓ Connected to stream: ${streamName}\x1b[0m`);
+      this.log(`\u001B[92m✓ Connected to stream: ${streamName}\u001B[0m`);
     }
   }
 
@@ -367,7 +376,7 @@ export default class CloudWatchLogsFollowCommand extends Command {
    */
   private handleStreamDisconnect(streamName: string, reason: string, verbose: boolean): void {
     if (verbose) {
-      this.log(`\x1b[93m⚠ Disconnected from stream: ${streamName} (${reason})\x1b[0m`);
+      this.log(`\u001B[93m⚠ Disconnected from stream: ${streamName} (${reason})\u001B[0m`);
     }
   }
 
@@ -381,7 +390,7 @@ export default class CloudWatchLogsFollowCommand extends Command {
    */
   private handleReconnect(streamName: string, attempt: number, verbose: boolean): void {
     if (verbose) {
-      this.log(`\x1b[94m🔄 Reconnecting to stream: ${streamName} (attempt ${attempt})\x1b[0m`);
+      this.log(`\u001B[94m🔄 Reconnecting to stream: ${streamName} (attempt ${attempt})\u001B[0m`);
     }
   }
 
@@ -403,17 +412,23 @@ export default class CloudWatchLogsFollowCommand extends Command {
   }
 
   /**
+   * Handle graceful shutdown
+   *
+   * @throws When stream is interrupted by user
+   * @internal
+   */
+  private gracefulShutdown(): void {
+    this.log("\n\nReceived interrupt signal. Closing stream connections...");
+    throw new Error("Stream interrupted by user");
+  }
+
+  /**
    * Set up graceful shutdown handling for CTRL+C
    *
    * @internal
    */
   private setupGracefulShutdown(): void {
-    const gracefulShutdown = () => {
-      this.log("\n\nReceived interrupt signal. Closing stream connections...");
-      process.exit(0);
-    };
-
-    process.on("SIGINT", gracefulShutdown);
-    process.on("SIGTERM", gracefulShutdown);
+    process.on("SIGINT", () => this.gracefulShutdown());
+    process.on("SIGTERM", () => this.gracefulShutdown());
   }
 }
