@@ -9,19 +9,19 @@
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-ff6b35.svg)](https://claude.ai/code)
 
 Modern TypeScript-based command-line interface for AWS operations with
-comprehensive architecture and testing infrastructure.
+CQRS architecture and testing infrastructure.
 
 ## Features
 
 - **TypeScript-First**: Built with TypeScript v5.9 and strict type checking
 - **Modular Architecture**: CQRS pattern with clean separation of concerns
-- **Comprehensive Testing**: Unit, integration, and E2E testing with TestContainers
+- **Testing**: Unit, integration, and E2E testing with TestContainers
 - **AWS SDK v3**: Latest AWS SDK with SSO credential provider integration
 - **TSDoc Documentation**: Machine-readable documentation with automated API docs
 - **Quality Tooling**: ESLint, Prettier, and automated quality gates
 - **Developer Experience**: Hot reload, debug support, and semantic versioning
 - **AWS Authentication**: SSO session management and multi-profile support
-- **Input Validation**: Zod schemas for comprehensive input validation
+- **Input Validation**: Zod schemas for input validation
 - **Error Handling**: Structured error types with user-friendly messages
 
 ## Quick Start
@@ -81,7 +81,7 @@ aws-ts auth:login --profile my-sso-profile
 ## Documentation
 
 This project follows the [Diataxis framework](https://diataxis.fr/) for
-comprehensive documentation:
+documentation:
 
 - **[Documentation Site](https://enri3l.github.io/aws-ts/)** - Complete documentation
 - **[Tutorials](https://enri3l.github.io/aws-ts/tutorials/)** - Step-by-step
@@ -159,7 +159,7 @@ pnpm publish:jsr:dry-run   # Test publish to JSR (dry run)
 
 ## 🧪 Testing Strategy
 
-The project implements a comprehensive testing approach:
+The project implements a multi-level testing approach:
 
 ### Test Types
 
@@ -235,7 +235,7 @@ for details.
 
 ### Code Standards
 
-- **TypeScript**: Strict mode with comprehensive type safety
+- **TypeScript**: Strict mode with type safety
 - **ESLint**: Enforced code quality rules with TSDoc validation
 - **Prettier**: Consistent code formatting
 - **Conventional Commits**: Semantic commit messages for automated versioning
@@ -273,7 +273,7 @@ Anthropic's agentic coding tool that understands codebases and helps with:
 
 - **Architecture Design**: CQRS patterns and modular structure
 - **Code Generation**: TypeScript handlers and validation schemas
-- **Documentation**: TSDoc standards and comprehensive README
+- **Documentation**: TSDoc standards and README
 - **Quality Assurance**: Linting rules and testing strategies
 
 ## License
@@ -285,7 +285,7 @@ LICENSE file for details.
 
 - **[Oclif](https://oclif.io/)** - Excellent CLI framework
 - **[AWS SDK Team](https://aws.amazon.com/sdk-for-javascript/)** -
-  Comprehensive AWS integration
+  AWS integration
 - **[Vitest](https://vitest.dev/)** - Fast and modern testing framework
 - **[TypeScript](https://www.typescriptlang.org/)** - Type safety and developer
   experience
