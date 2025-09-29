@@ -6,12 +6,28 @@
  *
  */
 
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaUpdateFunctionConfiguration } from "../../lib/lambda-schemas.js";
 import { LambdaUpdateFunctionConfigurationSchema } from "../../lib/lambda-schemas.js";
-import { LambdaService } from "../../services/lambda-service.js";
+import {
+  LambdaService,
+  type LambdaUpdateConfigurationParameters,
+} from "../../services/lambda-service.js";
+
+/**
+ * Extended function configuration interface with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedFunctionConfiguration extends FunctionConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda update function configuration command for settings modification
@@ -31,23 +47,28 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
     },
     {
       description: "Update environment variables",
-      command: '<%= config.bin %> <%= command.id %> my-function --environment \'{"Variables":{"ENV":"production","DEBUG":"false"}}\'',
+      command:
+        '<%= config.bin %> <%= command.id %> my-function --environment \'{"Variables":{"ENV":"production","DEBUG":"false"}}\'',
     },
     {
       description: "Update function description and handler",
-      command: "<%= config.bin %> <%= command.id %> my-function --description 'Updated function' --handler new-handler.main",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --description 'Updated function' --handler new-handler.main",
     },
     {
       description: "Update VPC configuration",
-      command: "<%= config.bin %> <%= command.id %> my-function --vpc-subnet-ids subnet-12345,subnet-67890 --vpc-security-group-ids sg-12345",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --vpc-subnet-ids subnet-12345,subnet-67890 --vpc-security-group-ids sg-12345",
     },
     {
       description: "Update function layers",
-      command: "<%= config.bin %> <%= command.id %> my-function --layers arn:aws:lambda:us-east-1:123456789012:layer:my-layer:2",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --layers arn:aws:lambda:us-east-1:123456789012:layer:my-layer:2",
     },
     {
       description: "Update dead letter queue configuration",
-      command: "<%= config.bin %> <%= command.id %> my-function --dead-letter-target-arn arn:aws:sqs:us-east-1:123456789012:dlq",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --dead-letter-target-arn arn:aws:sqs:us-east-1:123456789012:dlq",
     },
     {
       description: "Remove VPC configuration",
@@ -96,7 +117,7 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
     "memory-size": Flags.integer({
       description: "Memory size in MB (128-10240)",
       min: 128,
-      max: 10240,
+      max: 10_240,
       helpValue: "MB",
     }),
 
@@ -110,9 +131,22 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
     runtime: Flags.string({
       description: "Function runtime",
       options: [
-        "nodejs18.x", "nodejs20.x", "python3.9", "python3.10", "python3.11", "python3.12",
-        "java8.al2", "java11", "java17", "java21", "dotnet6", "dotnet8",
-        "go1.x", "ruby3.2", "provided.al2", "provided.al2023"
+        "nodejs18.x",
+        "nodejs20.x",
+        "python3.9",
+        "python3.10",
+        "python3.11",
+        "python3.12",
+        "java8.al2",
+        "java11",
+        "java17",
+        "java21",
+        "dotnet6",
+        "dotnet8",
+        "go1.x",
+        "ruby3.2",
+        "provided.al2",
+        "provided.al2023",
       ],
       helpValue: "RUNTIME",
     }),
@@ -196,76 +230,267 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
     const { args, flags } = await this.parse(LambdaUpdateFunctionConfigurationCommand);
 
     try {
-      // Validate input using Zod schema
-      const input: LambdaUpdateFunctionConfiguration = LambdaUpdateFunctionConfigurationSchema.parse({
-        functionName: args.functionName,
-        description: flags.description,
-        handler: flags.handler,
-        memorySize: flags["memory-size"],
-        timeout: flags.timeout,
-        runtime: flags.runtime,
-        role: flags.role,
-        environment: flags.environment,
-        vpcSubnetIds: flags["vpc-subnet-ids"],
-        vpcSecurityGroupIds: flags["vpc-security-group-ids"],
-        removeVpc: flags["remove-vpc"],
-        layers: flags.layers,
-        removeLayers: flags["remove-layers"],
-        deadLetterTargetArn: flags["dead-letter-target-arn"],
-        removeDeadLetterConfig: flags["remove-dead-letter-config"],
-        kmsKeyArn: flags["kms-key-arn"],
-        removeKmsKey: flags["remove-kms-key"],
-        revisionId: flags["revision-id"],
-        region: flags.region,
-        profile: flags.profile,
-        format: flags.format,
-        verbose: flags.verbose,
+      const input = this.parseAndValidateInput(args, flags);
+      const lambdaService = this.createLambdaService(input);
+      const updateParameters = this.buildUpdateParameters(input, flags);
+
+      const functionConfig = await lambdaService.updateFunctionConfiguration(updateParameters, {
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
       });
 
-      // Create Lambda service instance
-      const lambdaService = new LambdaService({
-        enableDebugLogging: input.verbose,
-        enableProgressIndicators: true,
-        clientConfig: {
-          ...(input.region && { region: input.region }),
-          ...(input.profile && { profile: input.profile }),
-        },
-      });
-
-      // Update function configuration
-      const functionConfig = await lambdaService.updateFunctionConfiguration(
-        {
-          functionName: input.functionName,
-          description: input.description,
-          handler: input.handler,
-          memorySize: input.memorySize,
-          timeout: input.timeout,
-          runtime: input.runtime,
-          role: input.role,
-          environment: input.environment,
-          vpcSubnetIds: input.vpcSubnetIds,
-          vpcSecurityGroupIds: input.vpcSecurityGroupIds,
-          removeVpc: input.removeVpc,
-          layers: input.layers,
-          removeLayers: input.removeLayers,
-          deadLetterTargetArn: input.deadLetterTargetArn,
-          removeDeadLetterConfig: input.removeDeadLetterConfig,
-          kmsKeyArn: input.kmsKeyArn,
-          removeKmsKey: input.removeKmsKey,
-          revisionId: input.revisionId,
-        },
-        {
-          ...(input.region && { region: input.region }),
-          ...(input.profile && { profile: input.profile }),
-        },
-      );
-
-      // Format output based on requested format
       this.formatAndDisplayOutput(functionConfig, input.format, input.functionName);
     } catch (error) {
       const formattedError = this.formatLambdaError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
     }
+  }
+
+  /**
+   * Parse and validate input from command line arguments and flags
+   *
+   * @param arguments_ - Command line arguments
+   * @param flags - Command line flags
+   * @returns Validated input object
+   * @internal
+   */
+  private parseAndValidateInput(
+    arguments_: { functionName: string },
+    flags: {
+      description?: string | undefined;
+      handler?: string | undefined;
+      "memory-size"?: number | undefined;
+      timeout?: number | undefined;
+      runtime?: string | undefined;
+      role?: string | undefined;
+      environment?: string | undefined;
+      "vpc-subnet-ids"?: string[] | undefined;
+      "vpc-security-group-ids"?: string[] | undefined;
+      "remove-vpc": boolean;
+      layers?: string[] | undefined;
+      "remove-layers": boolean;
+      "dead-letter-target-arn"?: string | undefined;
+      "remove-dead-letter-config": boolean;
+      "kms-key-arn"?: string | undefined;
+      "remove-kms-key": boolean;
+      "revision-id"?: string | undefined;
+      region?: string | undefined;
+      profile?: string | undefined;
+      format: string;
+      verbose: boolean;
+    },
+  ): LambdaUpdateFunctionConfiguration {
+    return LambdaUpdateFunctionConfigurationSchema.parse({
+      functionName: arguments_.functionName,
+      description: flags.description,
+      handler: flags.handler,
+      memorySize: flags["memory-size"],
+      timeout: flags.timeout,
+      runtime: flags.runtime,
+      role: flags.role,
+      environment: flags.environment,
+      vpcSubnetIds: flags["vpc-subnet-ids"],
+      vpcSecurityGroupIds: flags["vpc-security-group-ids"],
+      removeVpc: flags["remove-vpc"],
+      layers: flags.layers,
+      removeLayers: flags["remove-layers"],
+      deadLetterTargetArn: flags["dead-letter-target-arn"],
+      removeDeadLetterConfig: flags["remove-dead-letter-config"],
+      kmsKeyArn: flags["kms-key-arn"],
+      removeKmsKey: flags["remove-kms-key"],
+      revisionId: flags["revision-id"],
+      region: flags.region,
+      profile: flags.profile,
+      format: flags.format,
+      verbose: flags.verbose,
+    });
+  }
+
+  /**
+   * Create Lambda service instance with configuration
+   *
+   * @param input - Validated input configuration
+   * @returns Lambda service instance
+   * @internal
+   */
+  private createLambdaService(input: LambdaUpdateFunctionConfiguration): LambdaService {
+    return new LambdaService({
+      enableDebugLogging: input.verbose,
+      enableProgressIndicators: true,
+      clientConfig: {
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
+      },
+    });
+  }
+
+  /**
+   * Build update parameters object for Lambda service
+   *
+   * @param input - Validated input configuration
+   * @param flags - Command line flags
+   * @returns Update parameters object
+   * @internal
+   */
+  private buildUpdateParameters(
+    input: LambdaUpdateFunctionConfiguration,
+    flags: {
+      "vpc-subnet-ids"?: string[] | undefined;
+      "vpc-security-group-ids"?: string[] | undefined;
+      "remove-vpc": boolean;
+      "remove-layers": boolean;
+      "dead-letter-target-arn"?: string | undefined;
+      "remove-dead-letter-config": boolean;
+      "remove-kms-key": boolean;
+    },
+  ): LambdaUpdateConfigurationParameters {
+    const parameters: LambdaUpdateConfigurationParameters = {
+      functionName: input.functionName,
+    };
+
+    // Add optional properties only if they are defined (exactOptionalPropertyTypes compliance)
+    if (input.description !== undefined) {
+      parameters.description = input.description;
+    }
+    if (input.handler !== undefined) {
+      parameters.handler = input.handler;
+    }
+    if (input.memorySize !== undefined) {
+      parameters.memorySize = input.memorySize;
+    }
+    if (input.timeout !== undefined) {
+      parameters.timeout = input.timeout;
+    }
+    if (input.runtime !== undefined) {
+      parameters.runtime = input.runtime;
+    }
+    if (input.role !== undefined) {
+      parameters.role = input.role;
+    }
+    if (input.revisionId !== undefined) {
+      parameters.revisionId = input.revisionId;
+    }
+
+    // Merge in configuration sub-objects
+    Object.assign(parameters, this.buildEnvironmentConfig(input));
+    Object.assign(parameters, this.buildVpcConfig(input, flags));
+    Object.assign(parameters, this.buildLayersConfig(input, flags));
+    Object.assign(parameters, this.buildDeadLetterConfig(flags));
+    Object.assign(parameters, this.buildKmsConfig(input, flags));
+
+    return parameters;
+  }
+
+  /**
+   * Build environment configuration
+   *
+   * @param input - Validated input configuration
+   * @returns Environment configuration object
+   * @internal
+   */
+  private buildEnvironmentConfig(
+    input: LambdaUpdateFunctionConfiguration,
+  ): Partial<LambdaUpdateConfigurationParameters> {
+    if (input.environment && input.environment.variables) {
+      return {
+        environment: {
+          variables: input.environment.variables,
+        },
+      };
+    }
+    return {};
+  }
+
+  /**
+   * Build VPC configuration
+   *
+   * @param input - Validated input configuration
+   * @param flags - Command line flags
+   * @returns VPC configuration object
+   * @internal
+   */
+  private buildVpcConfig(
+    input: LambdaUpdateFunctionConfiguration,
+    flags: {
+      "vpc-subnet-ids"?: string[] | undefined;
+      "vpc-security-group-ids"?: string[] | undefined;
+      "remove-vpc": boolean;
+    },
+  ): Partial<LambdaUpdateConfigurationParameters> {
+    if (flags["remove-vpc"]) {
+      return { vpcConfig: { subnetIds: [], securityGroupIds: [] } };
+    }
+    if (flags["vpc-subnet-ids"] && flags["vpc-security-group-ids"]) {
+      return {
+        vpcConfig: {
+          subnetIds: flags["vpc-subnet-ids"],
+          securityGroupIds: flags["vpc-security-group-ids"],
+        },
+      };
+    }
+    return {};
+  }
+
+  /**
+   * Build layers configuration
+   *
+   * @param input - Validated input configuration
+   * @param flags - Command line flags
+   * @returns Layers configuration object
+   * @internal
+   */
+  private buildLayersConfig(
+    input: LambdaUpdateFunctionConfiguration,
+    flags: { "remove-layers": boolean },
+  ): Partial<LambdaUpdateConfigurationParameters> {
+    if (flags["remove-layers"]) {
+      return { layers: [] };
+    }
+    if (input.layers) {
+      return { layers: input.layers };
+    }
+    return {};
+  }
+
+  /**
+   * Build dead letter configuration
+   *
+   * @param flags - Command line flags
+   * @returns Dead letter configuration object
+   * @internal
+   */
+  private buildDeadLetterConfig(flags: {
+    "dead-letter-target-arn"?: string | undefined;
+    "remove-dead-letter-config": boolean;
+  }): Partial<LambdaUpdateConfigurationParameters> {
+    if (flags["remove-dead-letter-config"]) {
+      return { deadLetterConfig: {} };
+    }
+    if (flags["dead-letter-target-arn"]) {
+      return { deadLetterConfig: { targetArn: flags["dead-letter-target-arn"] } };
+    }
+    return {};
+  }
+
+  /**
+   * Build KMS configuration
+   *
+   * @param input - Validated input configuration
+   * @param flags - Command line flags
+   * @returns KMS configuration object
+   * @internal
+   */
+  private buildKmsConfig(
+    input: LambdaUpdateFunctionConfiguration,
+    flags: { "remove-kms-key": boolean },
+  ): Partial<LambdaUpdateConfigurationParameters> {
+    if (flags["remove-kms-key"]) {
+      return { kmsKeyArn: "" };
+    }
+    if (input.kmsKeyArn) {
+      return { kmsKeyArn: input.kmsKeyArn };
+    }
+    return {};
   }
 
   /**
@@ -278,117 +503,49 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    functionConfig: any,
+    functionConfig: FunctionConfiguration,
     format: string,
     functionName: string,
   ): void {
+    const extendedConfig = functionConfig as ExtendedFunctionConfiguration;
+
     switch (format) {
       case "table": {
-        this.log(`✅ Configuration Updated: ${functionName}\n`);
-
-        // Basic Configuration
-        this.log("📋 Function Configuration:");
-        const basicConfig = [
-          ["Function Name", functionConfig?.FunctionName || "N/A"],
-          ["Function ARN", functionConfig?.FunctionArn || "N/A"],
-          ["Runtime", functionConfig?.Runtime || "N/A"],
-          ["Handler", functionConfig?.Handler || "N/A"],
-          ["Description", functionConfig?.Description || "No description"],
-          ["State", functionConfig?.State || "N/A"],
-          ["Last Modified", functionConfig?.LastModified || "N/A"],
-          ["Version", functionConfig?.Version || "N/A"],
-        ];
-
-        basicConfig.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Resource Configuration
-        this.log("\n⚙️  Resource Configuration:");
-        const resourceConfig = [
-          ["Memory Size", `${functionConfig?.MemorySize || 0} MB`],
-          ["Timeout", `${functionConfig?.Timeout || 0} seconds`],
-          ["Ephemeral Storage", `${functionConfig?.EphemeralStorage?.Size || 512} MB`],
-        ];
-
-        resourceConfig.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // IAM Role
-        this.log("\n🔐 IAM Configuration:");
-        this.log(`  Role: ${functionConfig?.Role || "N/A"}`);
-
-        // VPC Configuration
-        if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
-          this.log("\n🌐 VPC Configuration:");
-          this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
-          this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") || "None"}`);
-          this.log(`  Security Groups: ${functionConfig.VpcConfig.SecurityGroupIds?.join(", ") || "None"}`);
-        }
-
-        // Environment Variables
-        if (functionConfig?.Environment?.Variables && Object.keys(functionConfig.Environment.Variables).length > 0) {
-          this.log("\n🌍 Environment Variables:");
-          Object.entries(functionConfig.Environment.Variables).forEach(([key, value]) => {
-            this.log(`  ${key}: ${value}`);
-          });
-        }
-
-        // Layers
-        if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
-          this.log("\n📦 Layers:");
-          functionConfig.Layers.forEach((layer: any, index: number) => {
-            this.log(`  ${index + 1}. ${layer.Arn}`);
-          });
-        }
-
-        // Dead Letter Configuration
-        if (functionConfig?.DeadLetterConfig?.TargetArn) {
-          this.log("\n☠️  Dead Letter Configuration:");
-          this.log(`  Target ARN: ${functionConfig.DeadLetterConfig.TargetArn}`);
-        }
-
-        // KMS Configuration
-        if (functionConfig?.KMSKeyArn) {
-          this.log("\n🔒 Encryption:");
-          this.log(`  KMS Key: ${functionConfig.KMSKeyArn}`);
-        }
-
+        this.displayTableFormat(functionConfig, functionName);
         break;
       }
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([{ data: extendedConfig, index: 0 }]);
         this.log(output);
         break;
       }
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([{ data: extendedConfig, index: 0 }]);
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten function configuration for CSV output
         const flattenedData = {
-          FunctionName: functionConfig?.FunctionName || "",
-          FunctionArn: functionConfig?.FunctionArn || "",
-          Runtime: functionConfig?.Runtime || "",
-          Role: functionConfig?.Role || "",
-          Handler: functionConfig?.Handler || "",
-          Description: functionConfig?.Description || "",
-          Timeout: functionConfig?.Timeout || 0,
-          MemorySize: functionConfig?.MemorySize || 0,
-          LastModified: functionConfig?.LastModified || "",
-          Version: functionConfig?.Version || "",
-          State: functionConfig?.State || "",
-          EphemeralStorageSize: functionConfig?.EphemeralStorage?.Size || 512,
-          VpcId: functionConfig?.VpcConfig?.VpcId || "",
-          LayerCount: functionConfig?.Layers?.length || 0,
-          HasDeadLetterConfig: functionConfig?.DeadLetterConfig?.TargetArn ? "true" : "false",
-          HasKMSKey: functionConfig?.KMSKeyArn ? "true" : "false",
-          EnvironmentVariableCount: Object.keys(functionConfig?.Environment?.Variables || {}).length,
+          FunctionName: functionConfig.FunctionName ?? "",
+          FunctionArn: functionConfig.FunctionArn ?? "",
+          Runtime: functionConfig.Runtime ?? "",
+          Role: functionConfig.Role ?? "",
+          Handler: functionConfig.Handler ?? "",
+          Description: functionConfig.Description ?? "",
+          Timeout: functionConfig.Timeout ?? 0,
+          MemorySize: functionConfig.MemorySize ?? 0,
+          LastModified: functionConfig.LastModified ?? "",
+          Version: functionConfig.Version ?? "",
+          State: functionConfig.State ?? "",
+          EphemeralStorageSize: functionConfig.EphemeralStorage?.Size ?? 512,
+          VpcId: functionConfig.VpcConfig?.VpcId ?? "",
+          LayerCount: functionConfig.Layers?.length ?? 0,
+          HasDeadLetterConfig: functionConfig.DeadLetterConfig?.TargetArn ? "true" : "false",
+          HasKMSKey: functionConfig.KMSKeyArn ? "true" : "false",
+          EnvironmentVariableCount: Object.keys(functionConfig.Environment?.Variables ?? {}).length,
         };
 
         const processor = new DataProcessor({ format: DataFormat.CSV });
@@ -399,6 +556,91 @@ export default class LambdaUpdateFunctionConfigurationCommand extends Command {
       default: {
         throw new Error(`Unsupported output format: ${format}`);
       }
+    }
+  }
+
+  /**
+   * Display function configuration in table format
+   *
+   * @param functionConfig - Updated function configuration
+   * @param functionName - Function name for display
+   * @internal
+   */
+  private displayTableFormat(functionConfig: FunctionConfiguration, functionName: string): void {
+    this.log(`✅ Configuration Updated: ${functionName}\n`);
+
+    // Basic Configuration
+    this.log("📋 Function Configuration:");
+    const basicConfig = [
+      ["Function Name", functionConfig.FunctionName ?? "N/A"],
+      ["Function ARN", functionConfig.FunctionArn ?? "N/A"],
+      ["Runtime", functionConfig.Runtime ?? "N/A"],
+      ["Handler", functionConfig.Handler ?? "N/A"],
+      ["Description", functionConfig.Description ?? "No description"],
+      ["State", functionConfig.State ?? "N/A"],
+      ["Last Modified", functionConfig.LastModified ?? "N/A"],
+      ["Version", functionConfig.Version ?? "N/A"],
+    ];
+
+    for (const [key, value] of basicConfig) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // Resource Configuration
+    this.log("\n⚙️  Resource Configuration:");
+    const resourceConfig = [
+      ["Memory Size", `${functionConfig.MemorySize ?? 0} MB`],
+      ["Timeout", `${functionConfig.Timeout ?? 0} seconds`],
+      ["Ephemeral Storage", `${functionConfig.EphemeralStorage?.Size ?? 512} MB`],
+    ];
+
+    for (const [key, value] of resourceConfig) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // IAM Role
+    this.log("\n🔐 IAM Configuration:");
+    this.log(`  Role: ${functionConfig.Role ?? "N/A"}`);
+
+    // VPC Configuration
+    if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
+      this.log("\n🌐 VPC Configuration:");
+      this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
+      this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") ?? "None"}`);
+      this.log(
+        `  Security Groups: ${functionConfig.VpcConfig.SecurityGroupIds?.join(", ") ?? "None"}`,
+      );
+    }
+
+    // Environment Variables
+    if (
+      functionConfig?.Environment?.Variables &&
+      Object.keys(functionConfig.Environment.Variables).length > 0
+    ) {
+      this.log("\n🌍 Environment Variables:");
+      for (const [key, value] of Object.entries(functionConfig.Environment.Variables)) {
+        this.log(`  ${key}: ${value}`);
+      }
+    }
+
+    // Layers
+    if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
+      this.log("\n📦 Layers:");
+      for (const [index, layer] of functionConfig.Layers.entries()) {
+        this.log(`  ${index + 1}. ${layer.Arn ?? "N/A"}`);
+      }
+    }
+
+    // Dead Letter Configuration
+    if (functionConfig?.DeadLetterConfig?.TargetArn) {
+      this.log("\n☠️  Dead Letter Configuration:");
+      this.log(`  Target ARN: ${functionConfig.DeadLetterConfig.TargetArn}`);
+    }
+
+    // KMS Configuration
+    if (functionConfig?.KMSKeyArn) {
+      this.log("\n🔒 Encryption:");
+      this.log(`  KMS Key: ${functionConfig.KMSKeyArn}`);
     }
   }
 

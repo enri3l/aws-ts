@@ -14,6 +14,28 @@ import { EventBridgeEnableRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
 
 /**
+ * Rule enable operation result for display formatting
+ *
+ * @internal
+ */
+interface RuleEnableResult {
+  /**
+   * Indicates successful rule enable operation
+   */
+  readonly success: boolean;
+
+  /**
+   * Rule name that was enabled
+   */
+  readonly ruleName: string;
+
+  /**
+   * Event bus containing the rule
+   */
+  readonly eventBusName: string;
+}
+
+/**
  * EventBridge enable rule command for rule activation
  *
  * Enables a disabled EventBridge rule to activate event processing
@@ -122,8 +144,8 @@ export default class EventBridgeEnableRuleCommand extends Command {
       });
 
       // Enable the rule
-      const enableResult = await eventBridgeService.enableRule(
-        input.ruleName,
+      await eventBridgeService.enableRule(
+        input.name,
         {
           ...(input.region && { region: input.region }),
           ...(input.profile && { profile: input.profile }),
@@ -131,8 +153,15 @@ export default class EventBridgeEnableRuleCommand extends Command {
         input.eventBusName,
       );
 
+      // Create result for display
+      const enableResult: RuleEnableResult = {
+        success: true,
+        ruleName: input.name,
+        eventBusName: input.eventBusName,
+      };
+
       // Format output based on requested format
-      this.formatAndDisplayOutput(enableResult, input.format, input.ruleName, input.eventBusName);
+      this.formatAndDisplayOutput(enableResult, input.format, input.name, input.eventBusName);
     } catch (error) {
       const formattedError = this.formatEventBridgeError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
@@ -150,7 +179,7 @@ export default class EventBridgeEnableRuleCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    enableResult: any,
+    enableResult: RuleEnableResult,
     format: string,
     ruleName: string,
     eventBusName: string,
@@ -164,15 +193,14 @@ export default class EventBridgeEnableRuleCommand extends Command {
         const enableInfo = [
           ["Rule Name", ruleName],
           ["Event Bus", eventBusName],
-          ["Previous State", enableResult?.previousState || "Unknown"],
           ["Current State", "ENABLED"],
           ["Timestamp", new Date().toISOString()],
           ["Operation", "ENABLE_RULE"],
         ];
 
-        enableInfo.forEach(([key, value]) => {
+        for (const [key, value] of enableInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
         this.log("\n💡 Note: The rule is now active and will process matching events.");
         break;
@@ -181,7 +209,6 @@ export default class EventBridgeEnableRuleCommand extends Command {
         const result = {
           ruleName,
           eventBusName,
-          previousState: enableResult?.previousState || "Unknown",
           currentState: "ENABLED",
           timestamp: new Date().toISOString(),
           operation: "ENABLE_RULE",
@@ -197,7 +224,6 @@ export default class EventBridgeEnableRuleCommand extends Command {
         const result = {
           ruleName,
           eventBusName,
-          previousState: enableResult?.previousState || "Unknown",
           currentState: "ENABLED",
           timestamp: new Date().toISOString(),
           operation: "ENABLE_RULE",
@@ -213,7 +239,6 @@ export default class EventBridgeEnableRuleCommand extends Command {
         const result = {
           RuleName: ruleName,
           EventBusName: eventBusName,
-          PreviousState: enableResult?.previousState || "Unknown",
           CurrentState: "ENABLED",
           Timestamp: new Date().toISOString(),
           Operation: "ENABLE_RULE",

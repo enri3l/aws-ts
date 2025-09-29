@@ -8,10 +8,32 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsTail } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsTailSchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+
+/**
+ * Log event interface for type safety
+ *
+ * @internal
+ */
+interface LogEventData {
+  /**
+   * Event timestamp in milliseconds since epoch
+   */
+  readonly timestamp?: number;
+
+  /**
+   * Log stream name where the event originated
+   */
+  readonly logStreamName?: string;
+
+  /**
+   * Log message content
+   */
+  readonly message?: string;
+}
 
 /**
  * CloudWatch Logs tail command for real-time log streaming
@@ -22,7 +44,8 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
  * @public
  */
 export default class CloudWatchLogsTailCommand extends Command {
-  static override readonly description = "Stream CloudWatch log events in real-time using live tail";
+  static override readonly description =
+    "Stream CloudWatch log events in real-time using live tail";
 
   static override readonly examples = [
     {
@@ -39,11 +62,13 @@ export default class CloudWatchLogsTailCommand extends Command {
     },
     {
       description: "Tail with specific time range (last 30 minutes)",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --since '30 minutes ago'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --since '30 minutes ago'",
     },
     {
       description: "Tail with pattern filtering and colored output",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'ERROR|WARN' --no-color",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'ERROR|WARN' --no-color",
     },
     {
       description: "Tail and save output to file while streaming",
@@ -51,7 +76,8 @@ export default class CloudWatchLogsTailCommand extends Command {
     },
     {
       description: "Tail in a specific region with custom profile",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --region us-west-2 --profile production",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --region us-west-2 --profile production",
     },
     {
       description: "Tail with verbose output for debugging",
@@ -149,7 +175,7 @@ export default class CloudWatchLogsTailCommand extends Command {
         profile: flags.profile,
         filter: flags.filter,
         since: flags.since,
-        logStreamNames: flags["log-stream-names"]?.split(",").map(s => s.trim()),
+        logStreamNames: flags["log-stream-names"]?.split(",").map((s) => s.trim()),
         logStreamNamePrefix: flags["log-stream-name-prefix"],
         outputFile: flags["output-file"],
         noColor: flags["no-color"],
@@ -187,19 +213,22 @@ export default class CloudWatchLogsTailCommand extends Command {
           ...(input.profile && { profile: input.profile }),
         },
         {
-          filterPattern: input.filter,
-          startTime: input.since ? this.parseStartTime(input.since) : undefined,
-          logStreamNames: input.logStreamNames,
-          logStreamNamePrefix: input.logStreamNamePrefix,
+          ...(input.filter && { filterPattern: input.filter }),
+          ...(input.since && { startTime: this.parseStartTime(input.since) }),
+          ...(input.logStreamNames && { logStreamNames: input.logStreamNames }),
+          ...(input.logStreamNamePrefix && { logStreamNamePrefix: input.logStreamNamePrefix }),
         },
         {
-          outputFile: input.outputFile,
+          ...(input.outputFile && { outputFile: input.outputFile }),
           noColor: input.noColor,
           showTimestamp: input.showTimestamp,
           showLogStream: input.showLogStream,
           verbose: input.verbose,
-          onEvent: (event) => this.handleLogEvent(event, input),
-          onError: (error) => this.handleStreamError(error, input.verbose),
+          onEvent: (event) => this.handleLogEvent(event as LogEventData, input),
+          onError: (error) =>
+            input.verbose
+              ? this.handleVerboseStreamError(error)
+              : this.handleQuietStreamError(error),
           onClose: () => this.handleStreamClose(input.verbose),
         },
       );
@@ -218,11 +247,12 @@ export default class CloudWatchLogsTailCommand extends Command {
    *
    * @param logGroupNamesArg - Command argument containing log group names
    * @returns Array of log group names
+   * @throws When no log groups provided or more than 10 log groups specified
    * @internal
    */
-  private parseLogGroupNames(logGroupNamesArg: string): string[] {
+  private parseLogGroupNames(logGroupNamesArgument: string): string[] {
     // Split by space and filter out empty strings
-    const logGroups = logGroupNamesArg.split(/\s+/).filter(name => name.length > 0);
+    const logGroups = logGroupNamesArgument.split(/\s+/).filter((name) => name.length > 0);
 
     if (logGroups.length === 0) {
       throw new Error("At least one log group name is required");
@@ -240,16 +270,17 @@ export default class CloudWatchLogsTailCommand extends Command {
    *
    * @param timeString - Time string to parse
    * @returns Date object representing the start time
+   * @throws When time unit is unsupported or time format is invalid
    * @internal
    */
   private parseStartTime(timeString: string): Date {
     // Handle relative time formats
     const relativeTimeRegex = /^(\d+)\s*(m|min|minutes?|h|hour|hours?|d|day|days?)\s*ago$/i;
-    const match = timeString.match(relativeTimeRegex);
+    const match = relativeTimeRegex.exec(timeString);
 
     if (match) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
+      const value = Number.parseInt(match[1]!, 10);
+      const unit = match[2]!.toLowerCase();
       const now = new Date();
 
       switch (unit.charAt(0)) {
@@ -270,8 +301,10 @@ export default class CloudWatchLogsTailCommand extends Command {
 
     // Handle absolute time (ISO 8601)
     const absoluteTime = new Date(timeString);
-    if (isNaN(absoluteTime.getTime())) {
-      throw new Error(`Invalid time format: ${timeString}. Use relative (e.g., '5m ago') or ISO 8601 format.`);
+    if (Number.isNaN(absoluteTime.getTime())) {
+      throw new TypeError(
+        `Invalid time format: ${timeString}. Use relative (e.g., '5m ago') or ISO 8601 format.`,
+      );
     }
 
     return absoluteTime;
@@ -284,58 +317,106 @@ export default class CloudWatchLogsTailCommand extends Command {
    * @param config - Command configuration
    * @internal
    */
-  private handleLogEvent(event: any, config: CloudWatchLogsTail): void {
+  private handleLogEvent(event: LogEventData, config: CloudWatchLogsTail): void {
     let output = "";
 
     // Add timestamp if requested
-    if (config.showTimestamp && event.timestamp) {
-      const timestamp = new Date(event.timestamp).toISOString();
-      output += config.noColor ? `[${timestamp}] ` : `\x1b[90m[${timestamp}]\x1b[0m `;
-    }
+    output += this.formatTimestamp(event.timestamp, config);
 
     // Add log stream name if requested
-    if (config.showLogStream && event.logStreamName) {
-      output += config.noColor
-        ? `(${event.logStreamName}) `
-        : `\x1b[36m(${event.logStreamName})\x1b[0m `;
-    }
+    output += this.formatLogStream(event.logStreamName, config);
 
     // Add the log message with potential coloring
-    const message = event.message || "";
-    if (config.noColor) {
-      output += message;
-    } else {
-      // Apply colors based on log level detection
-      if (message.includes("ERROR") || message.includes("FATAL")) {
-        output += `\x1b[91m${message}\x1b[0m`; // Bright red
-      } else if (message.includes("WARN")) {
-        output += `\x1b[93m${message}\x1b[0m`; // Bright yellow
-      } else if (message.includes("INFO")) {
-        output += `\x1b[94m${message}\x1b[0m`; // Bright blue
-      } else if (message.includes("DEBUG")) {
-        output += `\x1b[90m${message}\x1b[0m`; // Dark gray
-      } else {
-        output += message; // Default color
-      }
-    }
+    output += this.formatMessage(event.message || "", config.noColor);
 
     // Output to console
     this.log(output);
   }
 
   /**
-   * Handle stream errors
+   * Format timestamp for log output
    *
-   * @param error - Error that occurred during streaming
-   * @param verbose - Whether verbose output is enabled
+   * @param timestamp - Event timestamp
+   * @param config - Command configuration
+   * @returns Formatted timestamp string
    * @internal
    */
-  private handleStreamError(error: Error, verbose: boolean): void {
-    if (verbose) {
-      this.error(`Stream error: ${error.message}`, { exit: 0 });
-    } else {
-      this.error(`Connection error: ${error.message}`, { exit: 0 });
+  private formatTimestamp(timestamp: number | undefined, config: CloudWatchLogsTail): string {
+    if (!config.showTimestamp || !timestamp) return "";
+
+    const timestampString = new Date(timestamp).toISOString();
+    return config.noColor ? `[${timestampString}] ` : `\u001B[90m[${timestampString}]\u001B[0m `;
+  }
+
+  /**
+   * Format log stream name for log output
+   *
+   * @param logStreamName - Log stream name
+   * @param config - Command configuration
+   * @returns Formatted log stream string
+   * @internal
+   */
+  private formatLogStream(logStreamName: string | undefined, config: CloudWatchLogsTail): string {
+    if (!config.showLogStream || !logStreamName) return "";
+
+    return config.noColor ? `(${logStreamName}) ` : `\u001B[36m(${logStreamName})\u001B[0m `;
+  }
+
+  /**
+   * Format log message with appropriate coloring
+   *
+   * @param message - Log message
+   * @param noColor - Whether to disable coloring
+   * @returns Formatted message string
+   * @internal
+   */
+  private formatMessage(message: string, noColor: boolean): string {
+    if (noColor) return message;
+
+    return this.applyLogLevelColors(message);
+  }
+
+  /**
+   * Apply colors based on log level detection
+   *
+   * @param message - Log message
+   * @returns Colored message string
+   * @internal
+   */
+  private applyLogLevelColors(message: string): string {
+    if (message.includes("ERROR") || message.includes("FATAL")) {
+      return `\u001B[91m${message}\u001B[0m`; // Bright red
     }
+    if (message.includes("WARN")) {
+      return `\u001B[93m${message}\u001B[0m`; // Bright yellow
+    }
+    if (message.includes("INFO")) {
+      return `\u001B[94m${message}\u001B[0m`; // Bright blue
+    }
+    if (message.includes("DEBUG")) {
+      return `\u001B[90m${message}\u001B[0m`; // Dark gray
+    }
+    return message; // Default color
+  }
+
+  /**
+   * Handle stream error with verbose output
+   *
+   * @param error - Error that occurred during streaming
+   * @internal
+   */
+  private handleVerboseStreamError(error: Error): void {
+    this.error(`Stream error: ${error.message}`, { exit: 0 });
+  }
+
+  /**
+   * Handle stream error with quiet output
+   *
+   * @param error - Error that occurred during streaming
+   * @internal
+   */
+  private handleQuietStreamError(error: Error): void {
+    this.error(`Connection error: ${error.message}`, { exit: 0 });
   }
 
   /**
@@ -346,9 +427,29 @@ export default class CloudWatchLogsTailCommand extends Command {
    */
   private handleStreamClose(verbose: boolean): void {
     if (verbose) {
-      this.log("\nLive tail stream closed.");
+      this.handleVerboseStreamClose();
     }
   }
+
+  /**
+   * Handle stream closure with verbose output
+   *
+   * @internal
+   */
+  private handleVerboseStreamClose(): void {
+    this.log("\nLive tail stream closed.");
+  }
+
+  /**
+   * Handle graceful shutdown on interrupt signals
+   *
+   * @internal
+   */
+  private gracefulShutdown = (): void => {
+    this.log("\n\nReceived interrupt signal. Closing live tail stream...");
+    // eslint-disable-next-line unicorn/no-process-exit -- CLI app requires process.exit for clean shutdown
+    process.exit(0);
+  };
 
   /**
    * Set up graceful shutdown handling for CTRL+C
@@ -356,12 +457,7 @@ export default class CloudWatchLogsTailCommand extends Command {
    * @internal
    */
   private setupGracefulShutdown(): void {
-    const gracefulShutdown = () => {
-      this.log("\n\nReceived interrupt signal. Closing live tail stream...");
-      process.exit(0);
-    };
-
-    process.on("SIGINT", gracefulShutdown);
-    process.on("SIGTERM", gracefulShutdown);
+    process.on("SIGINT", this.gracefulShutdown);
+    process.on("SIGTERM", this.gracefulShutdown);
   }
 }

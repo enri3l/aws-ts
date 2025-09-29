@@ -107,8 +107,10 @@
     "@oclif/core": "4.5.4",
     "@oclif/plugin-help": "6.2.33",
     "@oclif/plugin-plugins": "5.4.47",
+    "@types/inquirer": "9.0.9",
     "enquirer": "2.4.1",
     "execa": "9.6.0",
+    "inquirer": "12.9.6",
     "listr2": "9.0.4",
     "ora": "9.0.0",
     "zod": "4.1.11"

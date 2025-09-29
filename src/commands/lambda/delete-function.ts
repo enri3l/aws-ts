@@ -6,6 +6,7 @@
  *
  */
 
+import type { DeleteFunctionCommandOutput } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
@@ -134,48 +135,14 @@ export default class LambdaDeleteFunctionCommand extends Command {
       });
 
       // Handle dry run mode
-      if (input.dryRun) {
-        this.log(`🔍 Dry Run: Would delete function '${input.functionName}'${input.qualifier ? ` (${input.qualifier})` : ""}`);
-
-        // Validate that the function exists
-        try {
-          await lambdaService.getFunctionConfiguration(
-            input.functionName,
-            {
-              ...(input.region && { region: input.region }),
-              ...(input.profile && { profile: input.profile }),
-            },
-            input.qualifier,
-          );
-          this.log(`✅ Function exists and can be deleted`);
-        } catch (error) {
-          this.log(`❌ Function validation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-        }
+      if (flags["dry-run"]) {
+        await this.handleDryRun(input, lambdaService);
         return;
       }
 
       // Confirmation prompt (unless force flag is used)
-      if (!input.force) {
-        const functionDisplayName = `${input.functionName}${input.qualifier ? ` (${input.qualifier})` : ""}`;
-
-        this.log(`⚠️  You are about to delete function: ${functionDisplayName}`);
-        this.log(`   Region: ${input.region || "default"}`);
-        this.log(`   Profile: ${input.profile || "default"}`);
-        this.log("");
-
-        const readline = await import("node:readline");
-        const rl = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout,
-        });
-
-        const confirmed = await new Promise<boolean>((resolve) => {
-          rl.question("Are you sure you want to delete this function? (y/N): ", (answer) => {
-            rl.close();
-            resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
-          });
-        });
-
+      if (!flags.force) {
+        const confirmed = await this.confirmDeletion(input);
         if (!confirmed) {
           this.log("❌ Deletion cancelled");
           return;
@@ -201,6 +168,70 @@ export default class LambdaDeleteFunctionCommand extends Command {
   }
 
   /**
+   * Handle dry run mode validation
+   *
+   * @param input - Validated input parameters
+   * @param lambdaService - Lambda service instance
+   * @internal
+   */
+  private async handleDryRun(
+    input: LambdaDeleteFunction,
+    lambdaService: LambdaService,
+  ): Promise<void> {
+    const qualifierText = input.qualifier ? ` (${input.qualifier})` : "";
+    this.log(`🔍 Dry Run: Would delete function '${input.functionName}'${qualifierText}`);
+
+    // Validate that the function exists
+    try {
+      await lambdaService.getFunctionConfiguration(
+        input.functionName,
+        {
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
+        },
+        input.qualifier,
+      );
+      this.log(`✅ Function exists and can be deleted`);
+    } catch (error) {
+      this.log(
+        `❌ Function validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Confirm deletion with user prompt
+   *
+   * @param input - Validated input parameters
+   * @returns Promise resolving to confirmation result
+   * @internal
+   */
+  private async confirmDeletion(input: LambdaDeleteFunction): Promise<boolean> {
+    const qualifierSuffix = input.qualifier ? ` (${input.qualifier})` : "";
+    const functionDisplayName = `${input.functionName}${qualifierSuffix}`;
+
+    this.log(`⚠️  You are about to delete function: ${functionDisplayName}`);
+    this.log(`   Region: ${input.region || "default"}`);
+    this.log(`   Profile: ${input.profile || "default"}`);
+    this.log("");
+
+    const readline = await import("node:readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+      rl.question("Are you sure you want to delete this function? (y/N): ", (answer) => {
+        rl.close();
+        resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+      });
+    });
+
+    return confirmed;
+  }
+
+  /**
    * Format and display the deletion result
    *
    * @param deletionResult - Deletion result to display
@@ -210,7 +241,7 @@ export default class LambdaDeleteFunctionCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    deletionResult: any,
+    deletionResult: DeleteFunctionCommandOutput,
     format: string,
     functionName: string,
   ): void {
@@ -227,11 +258,13 @@ export default class LambdaDeleteFunctionCommand extends Command {
           ["Operation", "DELETE_FUNCTION"],
         ];
 
-        deletionInfo.forEach(([key, value]) => {
+        for (const [key, value] of deletionInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
-        this.log("\n💡 Note: Function deletion is irreversible. All versions and aliases have been removed.");
+        this.log(
+          "\n💡 Note: Function deletion is irreversible. All versions and aliases have been removed.",
+        );
         break;
       }
       case "json": {

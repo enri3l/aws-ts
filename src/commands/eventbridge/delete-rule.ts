@@ -14,6 +14,18 @@ import { EventBridgeDeleteRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
 
 /**
+ * Rule deletion result for display formatting
+ *
+ * @internal
+ */
+interface RuleDeletionResult {
+  /**
+   * Indicates successful rule deletion
+   */
+  readonly success: boolean;
+}
+
+/**
  * EventBridge delete rule command for rule removal
  *
  * Deletes an EventBridge rule with optional confirmation and safety checks
@@ -113,7 +125,7 @@ export default class EventBridgeDeleteRuleCommand extends Command {
     try {
       // Validate input using Zod schema
       const input: EventBridgeDeleteRule = EventBridgeDeleteRuleSchema.parse({
-        ruleName: args.ruleName,
+        name: args.ruleName,
         eventBusName: flags["event-bus-name"],
         force: flags.force,
         dryRun: flags["dry-run"],
@@ -135,68 +147,117 @@ export default class EventBridgeDeleteRuleCommand extends Command {
 
       // Handle dry run mode
       if (input.dryRun) {
-        this.log(`🔍 Dry Run: Would delete rule '${input.ruleName}' on event bus '${input.eventBusName}'`);
-
-        // Validate that the rule exists
-        try {
-          await eventBridgeService.describeRule(
-            input.ruleName,
-            {
-              ...(input.region && { region: input.region }),
-              ...(input.profile && { profile: input.profile }),
-            },
-            input.eventBusName,
-          );
-          this.log(`✅ Rule exists and can be deleted`);
-        } catch (error) {
-          this.log(`❌ Rule validation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-        }
+        await this.handleDryRunMode(eventBridgeService, input);
         return;
       }
 
-      // Confirmation prompt (unless force flag is used)
+      // Handle confirmation flow
       if (!input.force) {
-        this.log(`⚠️  You are about to delete rule: ${input.ruleName}`);
-        this.log(`   Event Bus: ${input.eventBusName}`);
-        this.log(`   Region: ${input.region || "default"}`);
-        this.log(`   Profile: ${input.profile || "default"}`);
-        this.log("");
-
-        const readline = await import("node:readline");
-        const rl = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout,
-        });
-
-        const confirmed = await new Promise<boolean>((resolve) => {
-          rl.question("Are you sure you want to delete this rule? (y/N): ", (answer) => {
-            rl.close();
-            resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
-          });
-        });
-
+        const confirmed = await this.requestUserConfirmation(input);
         if (!confirmed) {
           this.log("❌ Deletion cancelled");
           return;
         }
       }
 
-      // Delete the EventBridge rule
-      const deletionResult = await eventBridgeService.deleteRule(
-        input.ruleName,
-        {
-          ...(input.region && { region: input.region }),
-          ...(input.profile && { profile: input.profile }),
-        },
-        input.eventBusName,
-      );
-
-      // Format output based on requested format
-      this.formatAndDisplayOutput(deletionResult, input.format, input.ruleName, input.eventBusName);
+      // Execute rule deletion
+      await this.executeRuleDeletion(eventBridgeService, input);
     } catch (error) {
       const formattedError = this.formatEventBridgeError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
     }
+  }
+
+  /**
+   * Handle dry run mode by validating rule existence
+   *
+   * @param eventBridgeService - EventBridge service instance
+   * @param input - Command input parameters
+   * @internal
+   */
+  private async handleDryRunMode(
+    eventBridgeService: EventBridgeService,
+    input: EventBridgeDeleteRule,
+  ): Promise<void> {
+    if (input.verbose) {
+      this.log(
+        `🔍 Verbose: Preparing to delete rule '${input.name}' on event bus '${input.eventBusName}'`,
+      );
+
+      // Validate that the rule exists
+      try {
+        await eventBridgeService.describeRule(
+          input.name,
+          {
+            ...(input.region && { region: input.region }),
+            ...(input.profile && { profile: input.profile }),
+          },
+          input.eventBusName,
+        );
+        this.log(`✅ Rule exists and can be deleted`);
+      } catch (error) {
+        this.log(
+          `❌ Rule validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Request user confirmation for rule deletion
+   *
+   * @param input - Command input parameters
+   * @returns Promise resolving to user confirmation result
+   * @internal
+   */
+  private async requestUserConfirmation(input: EventBridgeDeleteRule): Promise<boolean> {
+    this.log(`⚠️  You are about to delete rule: ${input.name}`);
+    this.log(`   Event Bus: ${input.eventBusName}`);
+    this.log(`   Region: ${input.region || "default"}`);
+    this.log(`   Profile: ${input.profile || "default"}`);
+    this.log("");
+
+    const readline = await import("node:readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    return new Promise<boolean>((resolve) => {
+      rl.question("Are you sure you want to delete this rule? (y/N): ", (answer) => {
+        rl.close();
+        resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+      });
+    });
+  }
+
+  /**
+   * Execute rule deletion and display results
+   *
+   * @param eventBridgeService - EventBridge service instance
+   * @param input - Command input parameters
+   * @internal
+   */
+  private async executeRuleDeletion(
+    eventBridgeService: EventBridgeService,
+    input: EventBridgeDeleteRule,
+  ): Promise<void> {
+    // Delete the EventBridge rule
+    await eventBridgeService.deleteRule(
+      {
+        name: input.name,
+        eventBusName: input.eventBusName,
+        force: input.force,
+      },
+      {
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
+      },
+    );
+
+    // Format output based on requested format
+    const deletionResult: RuleDeletionResult = { success: true };
+    this.formatAndDisplayOutput(deletionResult, input.format, input.name, input.eventBusName);
   }
 
   /**
@@ -210,7 +271,7 @@ export default class EventBridgeDeleteRuleCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    deletionResult: any,
+    deletionResult: RuleDeletionResult,
     format: string,
     ruleName: string,
     eventBusName: string,
@@ -229,11 +290,13 @@ export default class EventBridgeDeleteRuleCommand extends Command {
           ["Operation", "DELETE_RULE"],
         ];
 
-        deletionInfo.forEach(([key, value]) => {
+        for (const [key, value] of deletionInfo) {
           this.log(`  ${key}: ${value}`);
-        });
+        }
 
-        this.log("\n💡 Note: Rule deletion is irreversible. All associated targets have been removed.");
+        this.log(
+          "\n💡 Note: Rule deletion is irreversible. All associated targets have been removed.",
+        );
         break;
       }
       case "json": {

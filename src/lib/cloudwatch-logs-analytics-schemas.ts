@@ -7,7 +7,11 @@
  */
 
 import { z } from "zod";
-import { CloudWatchLogsConfigSchema, LogGroupNameSchema, TimeRangeSchema } from "./cloudwatch-logs-schemas.js";
+import {
+  CloudWatchLogsConfigSchema,
+  LogGroupNameSchema,
+  TimeRangeSchema,
+} from "./cloudwatch-logs-schemas.js";
 
 /**
  * Schema for pattern analysis command
@@ -38,7 +42,7 @@ export const CloudWatchLogsAnalyzePatternsSchema = CloudWatchLogsConfigSchema.ex
   /**
    * Sample size for pattern analysis
    */
-  sampleSize: z.number().int().min(100).max(10000).default(1000),
+  sampleSize: z.number().int().min(100).max(10_000).default(1000),
 
   /**
    * Include anomaly detection
@@ -70,17 +74,17 @@ export const CloudWatchLogsMetricsSchema = CloudWatchLogsConfigSchema.extend({
   /**
    * Type of metrics to extract
    */
-  metricType: z.enum(['error-rate', 'performance', 'volume', 'custom']).default('volume'),
+  metricType: z.enum(["error-rate", "performance", "volume", "custom"]).default("volume"),
 
   /**
    * Custom query for metric extraction (required when metricType is 'custom')
    */
-  customQuery: z.string().min(1).max(10000).optional(),
+  customQuery: z.string().min(1).max(10_000).optional(),
 
   /**
    * Time grouping for metrics
    */
-  groupBy: z.enum(['minute', 'hour', 'day']).default('hour'),
+  groupBy: z.enum(["minute", "hour", "day"]).default("hour"),
 
   /**
    * Error patterns to search for (for error-rate metrics)
@@ -139,12 +143,12 @@ export interface PatternWithStats extends LogPattern {
   /**
    * First occurrence time
    */
-  firstSeen: Date | null;
+  firstSeen: Date | undefined;
 
   /**
    * Last occurrence time
    */
-  lastSeen: Date | null;
+  lastSeen: Date | undefined;
 }
 
 /**
@@ -171,12 +175,12 @@ export interface PatternAnomaly {
   /**
    * Type of anomaly detected
    */
-  anomalyType: 'high-frequency' | 'low-frequency' | 'irregular-timing' | 'unusual-pattern';
+  anomalyType: "high-frequency" | "low-frequency" | "irregular-timing" | "unusual-pattern";
 
   /**
    * Severity level
    */
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
 
   /**
    * Human-readable description
@@ -233,7 +237,7 @@ export interface PatternAnalysisResult {
    */
   summary: {
     uniquePatterns: number;
-    topPattern: string | null;
+    topPattern: string | undefined;
     coveragePercentage: number;
     anomalyCount: number;
   };
@@ -273,7 +277,56 @@ export interface MetricSummary {
   /**
    * Overall trend direction
    */
-  trend: 'increasing' | 'decreasing' | 'stable';
+  trend: "increasing" | "decreasing" | "stable";
+}
+
+/**
+ * CloudWatch Logs metric data point
+ *
+ * @public
+ */
+export interface LogMetricDataPoint {
+  /**
+   * Timestamp for the data point
+   */
+  timestamp: string;
+
+  /**
+   * Metric value
+   */
+  value: number;
+
+  /**
+   * Additional metric fields from the query
+   */
+  fields?: Record<string, string | number>;
+
+  /**
+   * Time bucket for aggregated data
+   */
+  time_bucket?: string;
+
+  /**
+   * Error count for error-rate metrics
+   */
+  errors?: number;
+
+  /**
+   * Log volume for volume metrics
+   */
+  log_volume?: number;
+
+  /**
+   * Performance metrics
+   */
+  avg_performance?: number;
+  min_performance?: number;
+  max_performance?: number;
+
+  /**
+   * Allow any additional fields for custom metrics
+   */
+  [key: string]: unknown;
 }
 
 /**
@@ -290,7 +343,7 @@ export interface TrendAnalysis {
   /**
    * Trend direction
    */
-  direction: 'increasing' | 'decreasing' | 'stable';
+  direction: "increasing" | "decreasing" | "stable";
 
   /**
    * Magnitude of change (percentage)
@@ -300,7 +353,7 @@ export interface TrendAnalysis {
   /**
    * Confidence level in the trend
    */
-  confidence: 'low' | 'medium' | 'high';
+  confidence: "low" | "medium" | "high";
 
   /**
    * Human-readable description
@@ -322,7 +375,7 @@ export interface LogMetricsResult {
   /**
    * Type of metrics extracted
    */
-  metricType: 'error-rate' | 'performance' | 'volume' | 'custom';
+  metricType: "error-rate" | "performance" | "volume" | "custom";
 
   /**
    * Time range analyzed
@@ -340,7 +393,7 @@ export interface LogMetricsResult {
   /**
    * Extracted data points
    */
-  dataPoints: any[];
+  dataPoints: LogMetricDataPoint[];
 
   /**
    * Summary statistics

@@ -8,10 +8,10 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsQuery } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsQuerySchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { QueryResult } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 
@@ -24,40 +24,49 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
  * @public
  */
 export default class CloudWatchLogsQueryCommand extends Command {
-  static override readonly description = "Execute CloudWatch Logs Insights queries with advanced filtering";
+  static override readonly description =
+    "Execute CloudWatch Logs Insights queries with advanced filtering";
 
   static override readonly examples = [
     {
       description: "Execute a simple query for recent errors",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20'",
     },
     {
       description: "Query with custom time range (last 2 hours)",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --start-time '2 hours ago' --end-time 'now'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --start-time '2 hours ago' --end-time 'now'",
     },
     {
       description: "Query multiple log groups with JSON output",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/func1,/aws/lambda/func2 'fields @timestamp, @message | limit 50' --format json",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/func1,/aws/lambda/func2 'fields @timestamp, @message | limit 50' --format json",
     },
     {
       description: "OpenSearch PPL query for advanced analytics",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'source=table | where status=200 | stats count(*) by status' --query-language OpenSearchPPL",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'source=table | where status=200 | stats count(*) by status' --query-language OpenSearchPPL",
     },
     {
       description: "Query with specific time range (absolute dates)",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --start-time '2024-01-15T10:00:00Z' --end-time '2024-01-15T11:00:00Z'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --start-time '2024-01-15T10:00:00Z' --end-time '2024-01-15T11:00:00Z'",
     },
     {
       description: "Query with CSV output for analysis",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message, @requestId | limit 1000' --format csv",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message, @requestId | limit 1000' --format csv",
     },
     {
       description: "Query with custom timeout and caching disabled",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --timeout 30 --no-cache",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --timeout 30 --no-cache",
     },
     {
       description: "Verbose query execution with progress details",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --verbose",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function 'fields @timestamp, @message | limit 100' --verbose",
     },
   ];
 
@@ -118,7 +127,7 @@ export default class CloudWatchLogsQueryCommand extends Command {
     limit: Flags.integer({
       description: "Maximum number of results to return",
       min: 1,
-      max: 10000,
+      max: 10_000,
       default: 1000,
     }),
 
@@ -193,7 +202,9 @@ export default class CloudWatchLogsQueryCommand extends Command {
       });
 
       if (input.verbose) {
-        this.log(`Executing ${input.queryLanguage} query on ${input.logGroupNames.length} log group(s):`);
+        this.log(
+          `Executing ${input.queryLanguage} query on ${input.logGroupNames.length} log group(s):`,
+        );
         for (const logGroup of input.logGroupNames) {
           this.log(`  - ${logGroup}`);
         }
@@ -210,7 +221,7 @@ export default class CloudWatchLogsQueryCommand extends Command {
           queryLanguage: input.queryLanguage,
           startTime,
           endTime,
-          limit: input.limit,
+          ...(input.limit && { limit: input.limit }),
         },
         {
           ...(input.region && { region: input.region }),
@@ -235,10 +246,14 @@ export default class CloudWatchLogsQueryCommand extends Command {
    *
    * @param logGroupsArg - Comma-separated log group names
    * @returns Array of log group names
+   * @throws When no log groups provided or more than 20 log groups specified
    * @internal
    */
-  private parseLogGroupNames(logGroupsArg: string): string[] {
-    const logGroups = logGroupsArg.split(",").map(name => name.trim()).filter(name => name.length > 0);
+  private parseLogGroupNames(logGroupsArgument: string): string[] {
+    const logGroups = logGroupsArgument
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
 
     if (logGroups.length === 0) {
       throw new Error("At least one log group name is required");
@@ -257,11 +272,15 @@ export default class CloudWatchLogsQueryCommand extends Command {
    * @param startTimeStr - Start time string (relative or absolute)
    * @param endTimeStr - End time string (relative or absolute)
    * @returns Object with parsed start and end Date objects
+   * @throws When start time is not before end time or time range exceeds 7 days
    * @internal
    */
-  private parseTimeRange(startTimeStr: string, endTimeStr: string): { startTime: Date; endTime: Date } {
-    const endTime = this.parseTimeString(endTimeStr);
-    const startTime = this.parseTimeString(startTimeStr, endTime);
+  private parseTimeRange(
+    startTimeString: string,
+    endTimeString: string,
+  ): { startTime: Date; endTime: Date } {
+    const endTime = this.parseTimeString(endTimeString);
+    const startTime = this.parseTimeString(startTimeString, endTime);
 
     if (startTime >= endTime) {
       throw new Error("Start time must be before end time");
@@ -282,6 +301,7 @@ export default class CloudWatchLogsQueryCommand extends Command {
    * @param timeString - Time string to parse
    * @param referenceTime - Reference time for relative parsing (defaults to now)
    * @returns Parsed Date object
+   * @throws When invalid time format provided
    * @internal
    */
   private parseTimeString(timeString: string, referenceTime = new Date()): Date {
@@ -291,12 +311,12 @@ export default class CloudWatchLogsQueryCommand extends Command {
     }
 
     // Handle relative time formats
-    const relativeTimeRegex = /^(\d+)\s*(m|min|minutes?|h|hour|hours?|d|day|days?|w|week|weeks?)\s*ago$/i;
-    const match = timeString.match(relativeTimeRegex);
+    const relativeTimeRegex = /^(\d+)\s*([mhdw])\s*ago$/i;
+    const match = relativeTimeRegex.exec(timeString);
 
     if (match) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
+      const value = Number.parseInt(match[1]!, 10);
+      const unit = match[2]!.toLowerCase();
       const now = referenceTime;
 
       switch (unit.charAt(0)) {
@@ -320,9 +340,20 @@ export default class CloudWatchLogsQueryCommand extends Command {
 
     // Handle special keywords
     const specialKeywords: Record<string, Date> = {
-      "yesterday": new Date(referenceTime.getTime() - 24 * 60 * 60 * 1000),
-      "today": new Date(referenceTime.getFullYear(), referenceTime.getMonth(), referenceTime.getDate()),
-      "this morning": new Date(referenceTime.getFullYear(), referenceTime.getMonth(), referenceTime.getDate(), 9, 0, 0),
+      yesterday: new Date(referenceTime.getTime() - 24 * 60 * 60 * 1000),
+      today: new Date(
+        referenceTime.getFullYear(),
+        referenceTime.getMonth(),
+        referenceTime.getDate(),
+      ),
+      "this morning": new Date(
+        referenceTime.getFullYear(),
+        referenceTime.getMonth(),
+        referenceTime.getDate(),
+        9,
+        0,
+        0,
+      ),
     };
 
     const lowerTimeString = timeString.toLowerCase();
@@ -332,8 +363,10 @@ export default class CloudWatchLogsQueryCommand extends Command {
 
     // Handle absolute time (ISO 8601)
     const absoluteTime = new Date(timeString);
-    if (isNaN(absoluteTime.getTime())) {
-      throw new Error(`Invalid time format: ${timeString}. Use relative (e.g., '2h ago'), keywords (e.g., 'now', 'yesterday'), or ISO 8601 format.`);
+    if (Number.isNaN(absoluteTime.getTime())) {
+      throw new TypeError(
+        `Invalid time format: ${timeString}. Use relative (e.g., '2h ago'), keywords (e.g., 'now', 'yesterday'), or ISO 8601 format.`,
+      );
     }
 
     return absoluteTime;
@@ -346,6 +379,7 @@ export default class CloudWatchLogsQueryCommand extends Command {
    * @param format - Output format to use
    * @param showStatistics - Whether to include execution statistics
    * @param verbose - Whether verbose output is enabled
+   * @throws When query status is not "Complete"
    * @internal
    */
   private formatAndDisplayOutput(
@@ -374,34 +408,12 @@ export default class CloudWatchLogsQueryCommand extends Command {
       }
 
       case "json": {
-        const output = {
-          queryId: result.queryId,
-          status: result.status,
-          results: results.map(row =>
-            row.reduce((obj, field) => {
-              if (field.field && field.value !== undefined) {
-                obj[field.field] = field.value;
-              }
-              return obj;
-            }, {} as Record<string, string>)
-          ),
-          ...(showStatistics && result.statistics && { statistics: result.statistics }),
-          resultCount,
-        };
-        this.log(JSON.stringify(output, undefined, 2));
+        this.formatJsonOutput(result, results, resultCount, showStatistics);
         break;
       }
 
       case "jsonl": {
-        for (const row of results) {
-          const rowObject = row.reduce((obj, field) => {
-            if (field.field && field.value !== undefined) {
-              obj[field.field] = field.value;
-            }
-            return obj;
-          }, {} as Record<string, string>);
-          this.log(JSON.stringify(rowObject));
-        }
+        this.formatJsonlOutput(results);
         break;
       }
 
@@ -415,11 +427,99 @@ export default class CloudWatchLogsQueryCommand extends Command {
       }
     }
 
-    if (verbose && showStatistics && result.statistics) {
+    this.displayStatistics(result.statistics, verbose, showStatistics);
+  }
+
+  /**
+   * Format and display JSON output
+   *
+   * @param result - Query result with metadata
+   * @param results - Query results array
+   * @param resultCount - Number of results
+   * @param showStatistics - Whether to include statistics
+   * @internal
+   */
+  private formatJsonOutput(
+    result: QueryResult,
+    results: Array<Array<{ field?: string; value?: string }>>,
+    resultCount: number,
+    showStatistics: boolean,
+  ): void {
+    const output = {
+      queryId: result.queryId,
+      status: result.status,
+      results: this.convertResultsToObjects(results),
+      ...(showStatistics && result.statistics && { statistics: result.statistics }),
+      resultCount,
+    };
+    this.log(JSON.stringify(output, undefined, 2));
+  }
+
+  /**
+   * Format and display JSONL output
+   *
+   * @param results - Query results array
+   * @internal
+   */
+  private formatJsonlOutput(results: Array<Array<{ field?: string; value?: string }>>): void {
+    for (const row of results) {
+      const rowObject = this.convertRowToObject(row);
+      this.log(JSON.stringify(rowObject));
+    }
+  }
+
+  /**
+   * Convert query results to objects
+   *
+   * @param results - Query results array
+   * @returns Array of result objects
+   * @internal
+   */
+  private convertResultsToObjects(
+    results: Array<Array<{ field?: string; value?: string }>>,
+  ): Record<string, string>[] {
+    return results.map((row) => this.convertRowToObject(row));
+  }
+
+  /**
+   * Convert a single result row to object
+   *
+   * @param row - Result row array
+   * @returns Result object
+   * @internal
+   */
+  private convertRowToObject(
+    row: Array<{ field?: string; value?: string }>,
+  ): Record<string, string> {
+    const object: Record<string, string> = {};
+    for (const field of row) {
+      if (field.field && field.value !== undefined) {
+        object[field.field] = field.value;
+      }
+    }
+    return object;
+  }
+
+  /**
+   * Display query execution statistics
+   *
+   * @param statistics - Query statistics
+   * @param verbose - Whether verbose output is enabled
+   * @param showStatistics - Whether to show statistics
+   * @internal
+   */
+  private displayStatistics(
+    statistics:
+      | { recordsMatched?: number; recordsScanned?: number; bytesScanned?: number }
+      | undefined,
+    verbose: boolean,
+    showStatistics: boolean,
+  ): void {
+    if (verbose && showStatistics && statistics) {
       this.log(`\nQuery Statistics:`);
-      this.log(`  Records Matched: ${result.statistics.recordsMatched || 0}`);
-      this.log(`  Records Scanned: ${result.statistics.recordsScanned || 0}`);
-      this.log(`  Bytes Scanned: ${this.formatBytes(result.statistics.bytesScanned || 0)}`);
+      this.log(`  Records Matched: ${statistics.recordsMatched || 0}`);
+      this.log(`  Records Scanned: ${statistics.recordsScanned || 0}`);
+      this.log(`  Bytes Scanned: ${this.formatBytes(statistics.bytesScanned || 0)}`);
     }
   }
 
@@ -434,14 +534,18 @@ export default class CloudWatchLogsQueryCommand extends Command {
    */
   private displayTableFormat(
     results: Array<Array<{ field?: string; value?: string }>>,
-    statistics: { recordsMatched?: number; recordsScanned?: number; bytesScanned?: number } | undefined,
+    statistics:
+      | { recordsMatched?: number; recordsScanned?: number; bytesScanned?: number }
+      | undefined,
     showStatistics: boolean,
     verbose: boolean,
   ): void {
     if (results.length === 0) return;
 
     // Extract field names from first result
-    const fields = results[0].map(field => field.field || "unknown").filter(field => field !== "unknown");
+    const fields =
+      results[0]?.map((field) => field.field || "unknown").filter((field) => field !== "unknown") ||
+      [];
 
     if (fields.length === 0) {
       this.log("No fields found in query results.");
@@ -452,11 +556,11 @@ export default class CloudWatchLogsQueryCommand extends Command {
     const tableData = results.map((row, index) => {
       const rowData: Record<string, string> = { "#": (index + 1).toString() };
 
-      row.forEach(field => {
+      for (const field of row) {
         if (field.field && field.value !== undefined) {
           rowData[field.field] = field.value;
         }
-      });
+      }
 
       return rowData;
     });
@@ -464,12 +568,10 @@ export default class CloudWatchLogsQueryCommand extends Command {
     // Use DataProcessor for consistent table formatting
     const processor = new DataProcessor({
       format: DataFormat.CSV, // Use CSV format for table-like output
-      includeHeaders: true
+      includeHeaders: true,
     });
 
-    const output = processor.formatOutput(
-      tableData.map((item, index) => ({ data: item, index })),
-    );
+    const output = processor.formatOutput(tableData.map((item, index) => ({ data: item, index })));
 
     this.log(`Query Results (${results.length} records):\n`);
     this.log(output);
@@ -492,35 +594,32 @@ export default class CloudWatchLogsQueryCommand extends Command {
    */
   private displayCsvFormat(
     results: Array<Array<{ field?: string; value?: string }>>,
-    statistics: { recordsMatched?: number; recordsScanned?: number; bytesScanned?: number } | undefined,
+    statistics:
+      | { recordsMatched?: number; recordsScanned?: number; bytesScanned?: number }
+      | undefined,
     showStatistics: boolean,
   ): void {
     if (results.length === 0) return;
 
-    // Extract field names from first result
-    const fields = results[0].map(field => field.field || "unknown").filter(field => field !== "unknown");
-
     // Convert results to CSV data
-    const csvData = results.map(row => {
+    const csvData = results.map((row) => {
       const rowData: Record<string, string> = {};
 
-      row.forEach(field => {
+      for (const field of row) {
         if (field.field && field.value !== undefined) {
           rowData[field.field] = field.value;
         }
-      });
+      }
 
       return rowData;
     });
 
     const processor = new DataProcessor({
       format: DataFormat.CSV,
-      includeHeaders: true
+      includeHeaders: true,
     });
 
-    const output = processor.formatOutput(
-      csvData.map((item, index) => ({ data: item, index })),
-    );
+    const output = processor.formatOutput(csvData.map((item, index) => ({ data: item, index })));
     this.log(output);
 
     if (showStatistics && statistics) {
@@ -543,8 +642,8 @@ export default class CloudWatchLogsQueryCommand extends Command {
 
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }

@@ -8,23 +8,12 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsFilterEvents } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsFilterEventsSchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { FilterEventsResult, LogEvent } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
-
-/**
- * Filter criteria for complex filtering
- * @internal
- */
-interface FilterCriteria {
-  field?: string;
-  operator: "equals" | "contains" | "startswith" | "endswith" | "regex" | "exists" | "gt" | "lt" | "gte" | "lte";
-  value?: string | number;
-  logicalOperator?: "AND" | "OR" | "NOT";
-}
 
 /**
  * CloudWatch Logs filter events command for advanced filtering
@@ -35,7 +24,8 @@ interface FilterCriteria {
  * @public
  */
 export default class CloudWatchLogsFilterEventsCommand extends Command {
-  static override readonly description = "Advanced filtering of CloudWatch log events with complex expressions";
+  static override readonly description =
+    "Advanced filtering of CloudWatch log events with complex expressions";
 
   static override readonly examples = [
     {
@@ -44,31 +34,38 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
     },
     {
       description: "Filter events with JSON field extraction",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter '{ $.statusCode = 500 }'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter '{ $.statusCode = 500 }'",
     },
     {
       description: "Filter events with space-delimited pattern",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter '[ timestamp, request_id, ERROR ]'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter '[ timestamp, request_id, ERROR ]'",
     },
     {
       description: "Filter events with time range and specific streams",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'timeout' --start-time '2h ago' --log-streams 'stream1,stream2'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'timeout' --start-time '2h ago' --log-streams 'stream1,stream2'",
     },
     {
       description: "Filter with interleaved results and pagination",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'ERROR' --interleaved --limit 1000",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'ERROR' --interleaved --limit 1000",
     },
     {
       description: "Export filtered results to CSV",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'WARN' --format csv --output-file warnings.csv",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'WARN' --format csv --output-file warnings.csv",
     },
     {
       description: "Complex filter with multiple conditions",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter '{ ($.level = \"ERROR\") || ($.duration > 5000) }'",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter '{ ($.level = \"ERROR\") || ($.duration > 5000) }'",
     },
     {
       description: "Filter events from multiple log streams with pattern",
-      command: "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'database' --log-streams 'prod-*' --all-pages",
+      command:
+        "<%= config.bin %> <%= command.id %> /aws/lambda/my-function --filter 'database' --log-streams 'prod-*' --all-pages",
     },
   ];
 
@@ -135,12 +132,13 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
       char: "l",
       description: "Maximum number of events to return per page",
       min: 1,
-      max: 10000,
+      max: 10_000,
       default: 100,
     }),
 
     "all-pages": Flags.boolean({
-      description: "Retrieve all pages of results (ignores limit, may take time for large datasets)",
+      description:
+        "Retrieve all pages of results (ignores limit, may take time for large datasets)",
       default: false,
     }),
 
@@ -186,7 +184,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
 
       // Parse log stream names if provided
       const logStreamNames = flags["log-streams"]
-        ? flags["log-streams"].split(",").map(s => s.trim())
+        ? flags["log-streams"].split(",").map((s) => s.trim())
         : undefined;
 
       // Validate input using Zod schema
@@ -229,82 +227,23 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
       }
 
       // Execute filtering (with pagination if needed)
-      let allResults: LogEvent[] = [];
-      let totalEventsFound = 0;
-      let currentToken = input.nextToken;
-      let pageCount = 0;
-
-      do {
-        pageCount++;
-
-        if (input.verbose && pageCount > 1) {
-          this.log(`Fetching page ${pageCount}...`);
-        }
-
-        const result = await logsService.filterLogEvents(
-          {
-            logGroupName: input.logGroupName,
+      await (flags["all-pages"]
+        ? this.handleAllPagesExecution(
+            logsService,
+            input,
             logStreamNames,
-            filterPattern: input.filterPattern,
             startTime,
             endTime,
-            nextToken: currentToken,
-            limit: flags["all-pages"] ? 10000 : input.limit, // Use max limit for all-pages
-            interleaved: input.interleaved,
-          },
-          {
-            ...(input.region && { region: input.region }),
-            ...(input.profile && { profile: input.profile }),
-          },
-        );
-
-        allResults.push(...result.events);
-        totalEventsFound += result.events.length;
-        currentToken = result.nextToken;
-
-        // Show intermediate progress for large datasets
-        if (flags["all-pages"] && input.verbose && result.events.length > 0) {
-          this.log(`Found ${result.events.length} events in page ${pageCount} (total: ${totalEventsFound})`);
-        }
-
-        // Display single page results if not fetching all pages
-        if (!flags["all-pages"]) {
-          this.formatAndDisplayOutput(
-            result,
-            input.format,
-            flags["show-statistics"],
-            input.verbose,
-            flags["output-file"],
-          );
-
-          if (currentToken && input.verbose) {
-            this.log(`\nNext page available. Use --next-token="${currentToken}" to continue.`);
-          }
-          break;
-        }
-
-      } while (currentToken && flags["all-pages"]);
-
-      // Display all results if fetching all pages
-      if (flags["all-pages"]) {
-        const aggregatedResult: FilterEventsResult = {
-          events: allResults,
-          nextToken: currentToken,
-        };
-
-        this.formatAndDisplayOutput(
-          aggregatedResult,
-          input.format,
-          flags["show-statistics"],
-          input.verbose,
-          flags["output-file"],
-        );
-
-        if (input.verbose) {
-          this.log(`\nCompleted pagination: ${pageCount} pages, ${totalEventsFound} total events.`);
-        }
-      }
-
+            flags,
+          )
+        : this.handleSinglePageExecution(
+            logsService,
+            input,
+            logStreamNames,
+            startTime,
+            endTime,
+            flags,
+          ));
     } catch (error) {
       const formattedError = handleCloudWatchLogsCommandError(
         error,
@@ -316,16 +255,179 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
   }
 
   /**
+   * Handle all-pages execution with pagination
+   *
+   * @param logsService - CloudWatch Logs service instance
+   * @param input - Validated input parameters
+   * @param logStreamNames - Optional log stream names
+   * @param startTime - Start time for filtering
+   * @param endTime - End time for filtering
+   * @param flags - Command flags
+   * @returns Promise resolving when execution is complete
+   * @internal
+   */
+  private async handleAllPagesExecution(
+    logsService: CloudWatchLogsService,
+    input: CloudWatchLogsFilterEvents,
+    logStreamNames: string[] | undefined,
+    startTime: Date,
+    endTime: Date,
+    flags: Record<string, unknown>,
+  ): Promise<void> {
+    const result = await this.fetchAllPages(logsService, input, logStreamNames, startTime, endTime);
+
+    await this.formatAndDisplayOutput(
+      result.aggregatedResult,
+      input.format,
+      flags["show-statistics"] as boolean,
+      input.verbose,
+      flags["output-file"] as string | undefined,
+    );
+
+    if (input.verbose) {
+      this.log(
+        `\nCompleted pagination: ${result.pageCount} pages, ${result.totalEventsFound} total events.`,
+      );
+    }
+  }
+
+  /**
+   * Handle single-page execution
+   *
+   * @param logsService - CloudWatch Logs service instance
+   * @param input - Validated input parameters
+   * @param logStreamNames - Optional log stream names
+   * @param startTime - Start time for filtering
+   * @param endTime - End time for filtering
+   * @param flags - Command flags
+   * @returns Promise resolving when execution is complete
+   * @internal
+   */
+  private async handleSinglePageExecution(
+    logsService: CloudWatchLogsService,
+    input: CloudWatchLogsFilterEvents,
+    logStreamNames: string[] | undefined,
+    startTime: Date,
+    endTime: Date,
+    flags: Record<string, unknown>,
+  ): Promise<void> {
+    const result = await logsService.filterLogEvents(
+      {
+        logGroupName: input.logGroupName,
+        ...(logStreamNames && { logStreamNames }),
+        ...(input.filterPattern && { filterPattern: input.filterPattern }),
+        startTime,
+        endTime,
+        ...(input.nextToken && { nextToken: input.nextToken }),
+        ...(input.limit && { limit: input.limit }),
+        interleaved: input.interleaved,
+      },
+      {
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
+      },
+    );
+
+    await this.formatAndDisplayOutput(
+      result,
+      input.format,
+      flags["show-statistics"] as boolean,
+      input.verbose,
+      flags["output-file"] as string | undefined,
+    );
+
+    if (result.nextToken && input.verbose) {
+      this.log(`\nNext page available. Use --next-token="${result.nextToken}" to continue.`);
+    }
+  }
+
+  /**
+   * Fetch all pages of log events using pagination
+   *
+   * @param logsService - CloudWatch Logs service instance
+   * @param input - Validated input parameters
+   * @param logStreamNames - Optional log stream names
+   * @param startTime - Start time for filtering
+   * @param endTime - End time for filtering
+   * @param flags - Command flags
+   * @returns Promise resolving to aggregated results and metadata
+   * @internal
+   */
+  private async fetchAllPages(
+    logsService: CloudWatchLogsService,
+    input: CloudWatchLogsFilterEvents,
+    logStreamNames: string[] | undefined,
+    startTime: Date,
+    endTime: Date,
+  ): Promise<{
+    aggregatedResult: FilterEventsResult;
+    pageCount: number;
+    totalEventsFound: number;
+  }> {
+    const allResults: LogEvent[] = [];
+    let totalEventsFound = 0;
+    let currentToken = input.nextToken;
+    let pageCount = 0;
+
+    do {
+      pageCount++;
+
+      if (input.verbose && pageCount > 1) {
+        this.log(`Fetching page ${pageCount}...`);
+      }
+
+      const result = await logsService.filterLogEvents(
+        {
+          logGroupName: input.logGroupName,
+          ...(logStreamNames && { logStreamNames }),
+          ...(input.filterPattern && { filterPattern: input.filterPattern }),
+          startTime,
+          endTime,
+          ...(currentToken && { nextToken: currentToken }),
+          limit: 10_000, // Use large limit for all-pages mode
+          interleaved: input.interleaved,
+        },
+        {
+          ...(input.region && { region: input.region }),
+          ...(input.profile && { profile: input.profile }),
+        },
+      );
+
+      allResults.push(...result.events);
+      totalEventsFound += result.events.length;
+      currentToken = result.nextToken;
+
+      // Show intermediate progress for large datasets
+      if (input.verbose && result.events.length > 0) {
+        this.log(
+          `Found ${result.events.length} events in page ${pageCount} (total: ${totalEventsFound})`,
+        );
+      }
+    } while (currentToken);
+
+    const aggregatedResult: FilterEventsResult = {
+      events: allResults,
+      ...(currentToken && { nextToken: currentToken }),
+    };
+
+    return { aggregatedResult, pageCount, totalEventsFound };
+  }
+
+  /**
    * Parse time range from start and end time strings
    *
    * @param startTimeStr - Start time string
    * @param endTimeStr - End time string
    * @returns Parsed time range
+   * @throws When start time is not before end time
    * @internal
    */
-  private parseTimeRange(startTimeStr: string, endTimeStr: string): { startTime: Date; endTime: Date } {
-    const endTime = this.parseTimeString(endTimeStr);
-    const startTime = this.parseTimeString(startTimeStr, endTime);
+  private parseTimeRange(
+    startTimeString: string,
+    endTimeString: string,
+  ): { startTime: Date; endTime: Date } {
+    const endTime = this.parseTimeString(endTimeString);
+    const startTime = this.parseTimeString(startTimeString, endTime);
 
     if (startTime >= endTime) {
       throw new Error("Start time must be before end time");
@@ -340,6 +442,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
    * @param timeString - Time string
    * @param referenceTime - Reference time
    * @returns Parsed Date
+   * @throws When time format is invalid
    * @internal
    */
   private parseTimeString(timeString: string, referenceTime = new Date()): Date {
@@ -348,24 +451,32 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
     }
 
     const relativeTimeRegex = /^(\d+)\s*(m|min|minutes?|h|hour|hours?|d|day|days?)\s*ago$/i;
-    const match = timeString.match(relativeTimeRegex);
+    const match = relativeTimeRegex.exec(timeString);
 
     if (match) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
+      const value = Number.parseInt(match[1]!, 10);
+      const unit = match[2]!.toLowerCase();
       const now = referenceTime;
 
       switch (unit.charAt(0)) {
-        case "m": return new Date(now.getTime() - value * 60 * 1000);
-        case "h": return new Date(now.getTime() - value * 60 * 60 * 1000);
-        case "d": return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
-        default: throw new Error(`Unsupported time unit: ${unit}`);
+        case "m": {
+          return new Date(now.getTime() - value * 60 * 1000);
+        }
+        case "h": {
+          return new Date(now.getTime() - value * 60 * 60 * 1000);
+        }
+        case "d": {
+          return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
+        }
+        default: {
+          throw new Error(`Unsupported time unit: ${unit}`);
+        }
       }
     }
 
     const absoluteTime = new Date(timeString);
-    if (isNaN(absoluteTime.getTime())) {
-      throw new Error(`Invalid time format: ${timeString}`);
+    if (Number.isNaN(absoluteTime.getTime())) {
+      throw new TypeError(`Invalid time format: ${timeString}`);
     }
 
     return absoluteTime;
@@ -396,7 +507,9 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
       this.log("  Optimization: Works best with structured log formats");
     } else {
       this.log("  Type: Simple text filter");
-      this.log("  Optimization: Consider using JSON extraction for better performance on structured logs");
+      this.log(
+        "  Optimization: Consider using JSON extraction for better performance on structured logs",
+      );
     }
 
     // Check for logical operators
@@ -415,15 +528,16 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
    * @param showStatistics - Show statistics
    * @param verbose - Verbose output
    * @param outputFile - Optional output file
+   * @throws When file write operations fail
    * @internal
    */
-  private formatAndDisplayOutput(
+  private async formatAndDisplayOutput(
     result: FilterEventsResult,
     format: string,
     showStatistics: boolean,
     verbose: boolean,
     outputFile?: string,
-  ): void {
+  ): Promise<void> {
     const events = result.events;
 
     if (events.length === 0) {
@@ -440,7 +554,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
       }
       case "json": {
         const jsonOutput = {
-          events: events.map(event => ({
+          events: events.map((event) => ({
             timestamp: new Date(event.timestamp).toISOString(),
             message: event.message,
             logStreamName: event.logStreamName,
@@ -459,12 +573,16 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
         break;
       }
       case "jsonl": {
-        output = events.map(event => JSON.stringify({
-          timestamp: new Date(event.timestamp).toISOString(),
-          message: event.message,
-          logStreamName: event.logStreamName,
-          eventId: event.eventId,
-        })).join("\n");
+        output = events
+          .map((event) =>
+            JSON.stringify({
+              timestamp: new Date(event.timestamp).toISOString(),
+              message: event.message,
+              logStreamName: event.logStreamName,
+              eventId: event.eventId,
+            }),
+          )
+          .join("\n");
         break;
       }
       case "csv": {
@@ -481,7 +599,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
 
     // Save to file if requested
     if (outputFile) {
-      this.saveToFile(output, outputFile, verbose);
+      await this.saveToFile(output, outputFile, verbose);
     }
 
     // Show statistics
@@ -500,19 +618,25 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
    * @returns Formatted table output
    * @internal
    */
-  private formatTableOutput(events: LogEvent[], showStatistics: boolean, verbose: boolean, result: FilterEventsResult): string {
+  private formatTableOutput(
+    events: LogEvent[],
+    _showStatistics: boolean,
+    _verbose: boolean,
+    _result: FilterEventsResult,
+  ): string {
     const lines: string[] = [];
     lines.push(`\n📋 Filtered Events (${events.length} found):\n`);
 
-    for (let i = 0; i < events.length; i++) {
-      const event = events[i];
+    for (let index = 0; index < events.length; index++) {
+      const event = events[index];
+      if (!event) continue;
+
       const timestamp = new Date(event.timestamp).toISOString();
       const streamInfo = event.logStreamName ? ` (${event.logStreamName})` : "";
 
-      lines.push(`[${timestamp}]${streamInfo}`);
-      lines.push(`${event.message || ""}`);
+      lines.push(`[${timestamp}]${streamInfo}`, `${event.message || ""}`);
 
-      if (i < events.length - 1) {
+      if (index < events.length - 1) {
         lines.push(""); // Add spacing between events
       }
     }
@@ -528,7 +652,7 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
    * @internal
    */
   private formatCsvOutput(events: LogEvent[]): string {
-    const csvData = events.map(event => ({
+    const csvData = events.map((event) => ({
       Timestamp: new Date(event.timestamp).toISOString(),
       LogStreamName: event.logStreamName || "",
       Message: event.message || "",
@@ -537,12 +661,10 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
 
     const processor = new DataProcessor({
       format: DataFormat.CSV,
-      includeHeaders: true
+      includeHeaders: true,
     });
 
-    return processor.formatOutput(
-      csvData.map((item, index) => ({ data: item, index })),
-    );
+    return processor.formatOutput(csvData.map((item, index) => ({ data: item, index })));
   }
 
   /**
@@ -585,13 +707,15 @@ export default class CloudWatchLogsFilterEventsCommand extends Command {
   private async saveToFile(content: string, filePath: string, verbose: boolean): Promise<void> {
     try {
       const { promises: fs } = await import("node:fs");
-      await fs.writeFile(filePath, content, "utf-8");
+      await fs.writeFile(filePath, content, "utf8");
 
       if (verbose) {
         this.log(`\n💾 Results saved to: ${filePath}`);
       }
     } catch (error) {
-      this.log(`\n⚠️  Failed to save to file: ${error instanceof Error ? error.message : String(error)}`);
+      this.log(
+        `\n⚠️  Failed to save to file: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }

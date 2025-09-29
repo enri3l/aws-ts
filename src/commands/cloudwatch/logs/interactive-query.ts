@@ -8,8 +8,8 @@
 
 import { Command, Flags } from "@oclif/core";
 import { prompt } from "enquirer";
-import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { QueryResult } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 
@@ -33,7 +33,8 @@ interface QueryTemplate {
  * @public
  */
 export default class CloudWatchLogsInteractiveQueryCommand extends Command {
-  static override readonly description = "Interactive CloudWatch Logs query builder with templates and field discovery";
+  static override readonly description =
+    "Interactive CloudWatch Logs query builder with templates and field discovery";
 
   static override readonly examples = [
     {
@@ -42,7 +43,8 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
     },
     {
       description: "Start with specific log groups pre-selected",
-      command: "<%= config.bin %> <%= command.id %> --log-groups /aws/lambda/my-function,/aws/apigateway/my-api",
+      command:
+        "<%= config.bin %> <%= command.id %> --log-groups /aws/lambda/my-function,/aws/apigateway/my-api",
     },
     {
       description: "Start with a specific region and profile",
@@ -162,7 +164,6 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
         flags.profile,
         flags.verbose,
       );
-
     } catch (error) {
       const formattedError = handleCloudWatchLogsCommandError(
         error,
@@ -181,9 +182,13 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @param profile - AWS profile
    * @internal
    */
-  private async selectLogGroups(preSelectedGroups?: string, region?: string, profile?: string): Promise<void> {
+  private async selectLogGroups(
+    preSelectedGroups?: string,
+    region?: string,
+    profile?: string,
+  ): Promise<void> {
     if (preSelectedGroups) {
-      this.selectedLogGroups = preSelectedGroups.split(",").map(g => g.trim());
+      this.selectedLogGroups = preSelectedGroups.split(",").map((g) => g.trim());
       this.log(`Using pre-selected log groups: ${this.selectedLogGroups.join(", ")}\n`);
       return;
     }
@@ -197,8 +202,8 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
         undefined,
         50, // Limit to first 50 groups for performance
       );
-      this.availableLogGroups = result.items.map(group => group.logGroupName);
-    } catch (error) {
+      this.availableLogGroups = result.items.map((group) => group.logGroupName);
+    } catch {
       this.log("⚠️  Unable to fetch log groups. You can enter them manually.");
       this.availableLogGroups = [];
     }
@@ -208,11 +213,14 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
         type: "multiselect",
         name: "logGroupSelection",
         message: "Select log groups to query:",
-        choices: this.availableLogGroups.slice(0, 20).map(group => ({
+        choices: this.availableLogGroups.slice(0, 20).map((group) => ({
           name: group,
           value: group,
         })),
-        validate: (selected: string[]) => selected.length > 0 || "Please select at least one log group",
+        validate: (value: string) => {
+          const selected = Array.isArray(value) ? value : [value];
+          return selected.length > 0 || "Please select at least one log group";
+        },
       });
       this.selectedLogGroups = logGroupSelection;
     } else {
@@ -220,9 +228,10 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
         type: "input",
         name: "manualLogGroups",
         message: "Enter log group names (comma-separated):",
-        validate: (input: string) => input.trim().length > 0 || "Please enter at least one log group",
+        validate: (input: string) =>
+          input.trim().length > 0 || "Please enter at least one log group",
       });
-      this.selectedLogGroups = manualLogGroups.split(",").map(g => g.trim());
+      this.selectedLogGroups = manualLogGroups.split(",").map((g) => g.trim());
     }
 
     this.log(`Selected log groups: ${this.selectedLogGroups.join(", ")}\n`);
@@ -235,7 +244,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @param profile - AWS profile
    * @internal
    */
-  private async discoverFields(region?: string, profile?: string): Promise<void> {
+  private async discoverFields(_region?: string, _profile?: string): Promise<void> {
     this.log("🔍 Step 2: Field Discovery");
 
     const { discoverFields } = await prompt<{ discoverFields: boolean }>({
@@ -256,7 +265,13 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
     this.log("  @timestamp, @message, @requestId, @duration, @billedDuration");
     this.log("  @type, @logStream, @log, @ptr\n");
 
-    this.discoveredFields = ["@timestamp", "@message", "@requestId", "@duration", "@billedDuration"];
+    this.discoveredFields = [
+      "@timestamp",
+      "@message",
+      "@requestId",
+      "@duration",
+      "@billedDuration",
+    ];
   }
 
   /**
@@ -292,7 +307,10 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @returns Selected query and time range
    * @internal
    */
-  private async useQueryTemplate(): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
+  private async useQueryTemplate(): Promise<{
+    query: string;
+    timeRange: { startTime: Date; endTime: Date };
+  }> {
     this.log("📝 Step 4: Select Query Template");
 
     const templates = this.getQueryTemplates();
@@ -301,7 +319,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       type: "select",
       name: "selectedTemplate",
       message: "Choose a query template:",
-      choices: templates.map(template => ({
+      choices: templates.map((template) => ({
         name: `${template.name} - ${template.description}`,
         value: template,
       })),
@@ -323,14 +341,14 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @returns Built query and time range
    * @internal
    */
-  private async buildCustomQuery(queryLanguage: string): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
+  private async buildCustomQuery(
+    queryLanguage: string,
+  ): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
     this.log(`📝 Step 4: Build Custom ${queryLanguage} Query`);
 
-    if (queryLanguage === "CloudWatchLogsInsights") {
-      return this.buildLogsInsightsQuery();
-    } else {
-      return this.buildAdvancedQuery(queryLanguage);
-    }
+    return queryLanguage === "CloudWatchLogsInsights"
+      ? this.buildLogsInsightsQuery()
+      : this.buildAdvancedQuery(queryLanguage);
   }
 
   /**
@@ -339,8 +357,11 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @returns Built query and time range
    * @internal
    */
-  private async buildLogsInsightsQuery(): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
-    let queryParts: string[] = [];
+  private async buildLogsInsightsQuery(): Promise<{
+    query: string;
+    timeRange: { startTime: Date; endTime: Date };
+  }> {
+    const queryParts: string[] = [];
 
     // Fields selection
     const { fields } = await prompt<{ fields: string }>({
@@ -405,7 +426,10 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       name: "limit",
       message: "Number of results to return:",
       initial: 100,
-      validate: (value: number) => value > 0 && value <= 10000 || "Please enter a number between 1 and 10000",
+      validate: (value: string) => {
+        const number_ = Number(value);
+        return (number_ > 0 && number_ <= 10_000) || "Please enter a number between 1 and 10000";
+      },
     });
     queryParts.push(`limit ${limit}`);
 
@@ -424,7 +448,9 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @returns Built query and time range
    * @internal
    */
-  private async buildAdvancedQuery(queryLanguage: string): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
+  private async buildAdvancedQuery(
+    queryLanguage: string,
+  ): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
     const { customQuery } = await prompt<{ customQuery: string }>({
       type: "input",
       name: "customQuery",
@@ -483,7 +509,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
         type: "input",
         name: "startTimeStr",
         message: "Enter start time (ISO 8601 format):",
-        initial: new Date(Date.now() - 3600000).toISOString(),
+        initial: new Date(Date.now() - 3_600_000).toISOString(),
       });
 
       const { endTimeStr } = await prompt<{ endTimeStr: string }>({
@@ -535,27 +561,25 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       return;
     }
 
-    try {
-      const result = await this.logsService.executeQuery(
-        {
-          logGroupNames: this.selectedLogGroups,
-          query,
-          queryLanguage: queryLanguage as "CloudWatchLogsInsights" | "OpenSearchPPL" | "OpenSearchSQL",
-          startTime: timeRange.startTime,
-          endTime: timeRange.endTime,
-          limit: 1000,
-        },
-        {
-          ...(region && { region }),
-          ...(profile && { profile }),
-        },
-      );
+    const result = await this.logsService.executeQuery(
+      {
+        logGroupNames: this.selectedLogGroups,
+        query,
+        queryLanguage: queryLanguage as
+          | "CloudWatchLogsInsights"
+          | "OpenSearchPPL"
+          | "OpenSearchSQL",
+        startTime: timeRange.startTime,
+        endTime: timeRange.endTime,
+        limit: 1000,
+      },
+      {
+        ...(region && { region }),
+        ...(profile && { profile }),
+      },
+    );
 
-      this.displayQueryResults(result, outputFormat, verbose);
-
-    } catch (error) {
-      throw error;
-    }
+    this.displayQueryResults(result, outputFormat, verbose);
   }
 
   /**
@@ -582,20 +606,20 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
 
     // Display results using the same logic as the query command
     if (format === "table" && results.length > 0) {
-      const fields = results[0].map(field => field.field || "unknown").filter(field => field !== "unknown");
-      const tableData = results.slice(0, 20).map((row, index) => { // Limit to first 20 for readability
+      const tableData = results.slice(0, 20).map((row, index) => {
+        // Limit to first 20 for readability
         const rowData: Record<string, string> = { "#": (index + 1).toString() };
-        row.forEach(field => {
+        for (const field of row) {
           if (field.field && field.value !== undefined) {
             rowData[field.field] = field.value;
           }
-        });
+        }
         return rowData;
       });
 
       const processor = new DataProcessor({
         format: DataFormat.CSV,
-        includeHeaders: true
+        includeHeaders: true,
       });
 
       const output = processor.formatOutput(
@@ -609,7 +633,9 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       }
     } else {
       // For other formats, just show a summary
-      this.log(`Results available in ${format} format. Use the regular query command to see full output.`);
+      this.log(
+        `Results available in ${format} format. Use the regular query command to see full output.`,
+      );
     }
 
     if (verbose && result.statistics) {
@@ -631,13 +657,15 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       {
         name: "Recent Errors",
         description: "Find recent error messages",
-        query: "fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 50",
+        query:
+          "fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 50",
         category: "errors",
       },
       {
         name: "High Duration Requests",
         description: "Find requests with high duration",
-        query: "fields @timestamp, @message, @duration | filter @duration > 1000 | sort @duration desc | limit 20",
+        query:
+          "fields @timestamp, @message, @duration | filter @duration > 1000 | sort @duration desc | limit 20",
         category: "performance",
       },
       {
@@ -649,19 +677,22 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
       {
         name: "Error Rate Analysis",
         description: "Calculate error rate over time",
-        query: "fields @timestamp, @message | filter @message like /ERROR/ or @message like /WARN/ | stats count(*) by bin(5m) | sort @timestamp",
+        query:
+          "fields @timestamp, @message | filter @message like /ERROR/ or @message like /WARN/ | stats count(*) by bin(5m) | sort @timestamp",
         category: "errors",
       },
       {
         name: "Top Request IDs",
         description: "Find most frequent request IDs",
-        query: "fields @timestamp, @requestId | stats count() as requestCount by @requestId | sort requestCount desc | limit 10",
+        query:
+          "fields @timestamp, @requestId | stats count() as requestCount by @requestId | sort requestCount desc | limit 10",
         category: "general",
       },
       {
         name: "Memory Usage Patterns",
         description: "Analyze memory usage in Lambda logs",
-        query: "fields @timestamp, @message | filter @message like /Memory/ | sort @timestamp desc | limit 50",
+        query:
+          "fields @timestamp, @message | filter @message like /Memory/ | sort @timestamp desc | limit 50",
         category: "performance",
       },
     ];
@@ -673,17 +704,26 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
    * @param relativeTime - Relative time string
    * @param referenceTime - Reference time
    * @returns Parsed Date
+   * @throws When an unsupported time unit is provided
    * @internal
    */
   private parseRelativeTime(relativeTime: string, referenceTime: Date): Date {
-    const value = parseInt(relativeTime.slice(0, -1), 10);
+    const value = Number.parseInt(relativeTime.slice(0, -1), 10);
     const unit = relativeTime.slice(-1);
 
     switch (unit) {
-      case "m": return new Date(referenceTime.getTime() - value * 60 * 1000);
-      case "h": return new Date(referenceTime.getTime() - value * 60 * 60 * 1000);
-      case "d": return new Date(referenceTime.getTime() - value * 24 * 60 * 60 * 1000);
-      default: throw new Error(`Unsupported time unit: ${unit}`);
+      case "m": {
+        return new Date(referenceTime.getTime() - value * 60 * 1000);
+      }
+      case "h": {
+        return new Date(referenceTime.getTime() - value * 60 * 60 * 1000);
+      }
+      case "d": {
+        return new Date(referenceTime.getTime() - value * 24 * 60 * 60 * 1000);
+      }
+      default: {
+        throw new Error(`Unsupported time unit: ${unit}`);
+      }
     }
   }
 
@@ -699,8 +739,8 @@ export default class CloudWatchLogsInteractiveQueryCommand extends Command {
 
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }

@@ -277,7 +277,6 @@ export class DoctorService {
     stage: CheckStage,
     // Results parameter reserved for future stage-specific context updates
     // Currently unused but part of the method signature for future extensibility
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _results: Map<string, CheckResult>,
   ): void {
     switch (stage) {

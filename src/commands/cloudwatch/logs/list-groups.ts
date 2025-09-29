@@ -7,11 +7,14 @@
  */
 
 import { Command, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsListGroups } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsListGroupsSchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
-import { CloudWatchLogsService, type LogGroupDescription } from "../../../services/cloudwatch-logs-service.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import {
+  CloudWatchLogsService,
+  type LogGroupDescription,
+} from "../../../services/cloudwatch-logs-service.js";
 
 /**
  * CloudWatch Logs list groups command for discovering available log groups
@@ -186,7 +189,7 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
     orderBy: string,
     descending: boolean,
   ): LogGroupDescription[] {
-    const sorted = [...logGroups].sort((a, b) => {
+    const sorted = [...logGroups].toSorted((a, b) => {
       switch (orderBy) {
         case "LogStreamName": {
           return a.logGroupName.localeCompare(b.logGroupName);
@@ -202,7 +205,7 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
       }
     });
 
-    return descending ? sorted.reverse() : sorted;
+    return descending ? sorted.toReversed() : sorted;
   }
 
   /**
@@ -227,13 +230,13 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
           "Log Group Name": group.logGroupName,
           "Retention (days)": group.retentionInDays ?? "Never expires",
           "Stored Bytes": group.storedBytes ? this.formatBytes(group.storedBytes) : "Unknown",
-          "Created": group.creationTime ? group.creationTime.toISOString().split("T")[0] : "Unknown",
+          Created: group.creationTime ? group.creationTime.toISOString().split("T")[0] : "Unknown",
         }));
 
         // Use DataProcessor for consistent table formatting
         const processor = new DataProcessor({
           format: DataFormat.CSV,
-          includeHeaders: true
+          includeHeaders: true,
         });
         const output = processor.formatOutput(
           tableData.map((item, index) => ({ data: item, index })),
@@ -244,7 +247,7 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
 
       case "json": {
         const output = {
-          logGroups: logGroups.map(group => ({
+          logGroups: logGroups.map((group) => ({
             logGroupName: group.logGroupName,
             logGroupArn: group.logGroupArn,
             creationTime: group.creationTime?.toISOString(),
@@ -262,16 +265,18 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
 
       case "jsonl": {
         for (const group of logGroups) {
-          this.log(JSON.stringify({
-            logGroupName: group.logGroupName,
-            logGroupArn: group.logGroupArn,
-            creationTime: group.creationTime?.toISOString(),
-            retentionInDays: group.retentionInDays,
-            metricFilterCount: group.metricFilterCount,
-            storedBytes: group.storedBytes,
-            kmsKeyId: group.kmsKeyId,
-            dataProtectionStatus: group.dataProtectionStatus,
-          }));
+          this.log(
+            JSON.stringify({
+              logGroupName: group.logGroupName,
+              logGroupArn: group.logGroupArn,
+              creationTime: group.creationTime?.toISOString(),
+              retentionInDays: group.retentionInDays,
+              metricFilterCount: group.metricFilterCount,
+              storedBytes: group.storedBytes,
+              kmsKeyId: group.kmsKeyId,
+              dataProtectionStatus: group.dataProtectionStatus,
+            }),
+          );
         }
         break;
       }
@@ -287,7 +292,7 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
             "Metric Filter Count": "Metric Filter Count",
             "Stored Bytes": "Stored Bytes",
             "KMS Key ID": "KMS Key ID",
-            "Data Protection Status": "Data Protection Status"
+            "Data Protection Status": "Data Protection Status",
           }, // Header row
           ...logGroups.map((group) => ({
             "Log Group Name": group.logGroupName,
@@ -297,13 +302,13 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
             "Metric Filter Count": group.metricFilterCount?.toString() ?? "",
             "Stored Bytes": group.storedBytes?.toString() ?? "",
             "KMS Key ID": group.kmsKeyId ?? "",
-            "Data Protection Status": group.dataProtectionStatus ?? ""
+            "Data Protection Status": group.dataProtectionStatus ?? "",
           })),
         ];
 
         const processor = new DataProcessor({
           format: DataFormat.CSV,
-          includeHeaders: true
+          includeHeaders: true,
         });
         const output = processor.formatOutput(
           csvData.map((item, index) => ({ data: item, index })),
@@ -330,8 +335,8 @@ export default class CloudWatchLogsListGroupsCommand extends Command {
 
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }

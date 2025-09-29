@@ -7,15 +7,44 @@
  */
 
 import { Args, Command, Flags } from "@oclif/core";
-import { promises as fs } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
 import { prompt } from "enquirer";
-import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { promises as fs } from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
+import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { SavedQuery } from "../../../lib/cloudwatch-logs-schemas.js";
 import { SavedQuerySchema } from "../../../lib/cloudwatch-logs-schemas.js";
-import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
+import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+
+/**
+ * CloudWatch Logs query result structure
+ * @internal
+ */
+interface CloudWatchQueryResult {
+  status: string;
+  results?: Array<Array<{ field?: string; value?: string }>>;
+  statistics?: {
+    recordsMatched?: number;
+    recordsScanned?: number;
+    bytesScanned?: number;
+  };
+}
+
+/**
+ * Query result field structure
+ * @internal
+ */
+interface QueryResultField {
+  field?: string;
+  value?: string;
+}
+
+/**
+ * Import file structure for saved queries
+ * @internal
+ */
+type ImportFile = { queries: unknown[] } | unknown[];
 
 /**
  * Saved queries storage manager
@@ -26,8 +55,8 @@ class SavedQueriesStorage {
   private readonly storageFile: string;
 
   constructor() {
-    this.storageDir = join(homedir(), ".aws-ts");
-    this.storageFile = join(this.storageDir, "saved-queries.json");
+    this.storageDir = path.join(homedir(), ".aws-ts");
+    this.storageFile = path.join(this.storageDir, "saved-queries.json");
   }
 
   /**
@@ -43,13 +72,15 @@ class SavedQueriesStorage {
 
   /**
    * Load saved queries from storage
+   *
+   * @returns Promise resolving to array of saved queries
    */
   async loadQueries(): Promise<SavedQuery[]> {
     try {
       await this.ensureStorageDir();
-      const data = await fs.readFile(this.storageFile, "utf-8");
+      const data = await fs.readFile(this.storageFile, "utf8");
       const queries = JSON.parse(data) as SavedQuery[];
-      return queries.map(query => SavedQuerySchema.parse(query));
+      return queries.map((query) => SavedQuerySchema.parse(query));
     } catch {
       return [];
     }
@@ -70,7 +101,7 @@ class SavedQueriesStorage {
     const queries = await this.loadQueries();
 
     // Remove existing query with same name
-    const filteredQueries = queries.filter(q => q.name !== query.name);
+    const filteredQueries = queries.filter((q) => q.name !== query.name);
     filteredQueries.push(query);
 
     await this.saveQueries(filteredQueries);
@@ -78,11 +109,13 @@ class SavedQueriesStorage {
 
   /**
    * Remove a query by name
+   *
+   * @returns Promise resolving to true if query was found and removed, false otherwise
    */
   async removeQuery(name: string): Promise<boolean> {
     const queries = await this.loadQueries();
     const initialLength = queries.length;
-    const filteredQueries = queries.filter(q => q.name !== name);
+    const filteredQueries = queries.filter((q) => q.name !== name);
 
     if (filteredQueries.length === initialLength) {
       return false; // Query not found
@@ -97,7 +130,7 @@ class SavedQueriesStorage {
    */
   async updateQueryUsage(name: string): Promise<void> {
     const queries = await this.loadQueries();
-    const query = queries.find(q => q.name === name);
+    const query = queries.find((q) => q.name === name);
 
     if (query) {
       query.lastUsedAt = new Date().toISOString();
@@ -125,7 +158,8 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
     },
     {
       description: "Save a new query",
-      command: "<%= config.bin %> <%= command.id %> save error-analysis 'fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 50'",
+      command:
+        "<%= config.bin %> <%= command.id %> save error-analysis 'fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 50'",
     },
     {
       description: "Run a saved query",
@@ -149,7 +183,8 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
     },
     {
       description: "Save query with description",
-      command: "<%= config.bin %> <%= command.id %> save performance-check 'fields @duration | filter @duration > 1000' --description 'Find slow requests over 1 second'",
+      command:
+        "<%= config.bin %> <%= command.id %> save performance-check 'fields @duration | filter @duration > 1000' --description 'Find slow requests over 1 second'",
     },
   ];
 
@@ -373,11 +408,13 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
     const savedQuery: SavedQuery = {
       name,
       query: queryString,
-      queryLanguage: (queryLanguage as "CloudWatchLogsInsights" | "OpenSearchPPL" | "OpenSearchSQL") || "CloudWatchLogsInsights",
+      queryLanguage:
+        (queryLanguage as "CloudWatchLogsInsights" | "OpenSearchPPL" | "OpenSearchSQL") ||
+        "CloudWatchLogsInsights",
       createdAt: new Date().toISOString(),
       usageCount: 0,
       ...(description && { description }),
-      ...(logGroups && { defaultLogGroups: logGroups.split(",").map(g => g.trim()) }),
+      ...(logGroups && { defaultLogGroups: logGroups.split(",").map((g) => g.trim()) }),
     };
 
     // Validate the saved query
@@ -418,7 +455,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
     verbose?: boolean,
   ): Promise<void> {
     const queries = await this.storage.loadQueries();
-    const savedQuery = queries.find(q => q.name === name);
+    const savedQuery = queries.find((q) => q.name === name);
 
     if (!savedQuery) {
       this.error(`Saved query '${name}' not found.`, { exit: 1 });
@@ -427,11 +464,14 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
     // Determine log groups to use
     let logGroupNames: string[];
     if (logGroupsOverride) {
-      logGroupNames = logGroupsOverride.split(",").map(g => g.trim());
+      logGroupNames = logGroupsOverride.split(",").map((g) => g.trim());
     } else if (savedQuery.defaultLogGroups && savedQuery.defaultLogGroups.length > 0) {
       logGroupNames = savedQuery.defaultLogGroups;
     } else {
-      this.error(`No log groups specified. Provide log groups as argument or set default log groups when saving the query.`, { exit: 1 });
+      this.error(
+        `No log groups specified. Provide log groups as argument or set default log groups when saving the query.`,
+        { exit: 1 },
+      );
     }
 
     // Parse time range
@@ -442,13 +482,15 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
       this.log(`  Query: ${savedQuery.query}`);
       this.log(`  Language: ${savedQuery.queryLanguage}`);
       this.log(`  Log groups: ${logGroupNames.join(", ")}`);
-      this.log(`  Time range: ${timeRange.startTime.toISOString()} to ${timeRange.endTime.toISOString()}`);
+      this.log(
+        `  Time range: ${timeRange.startTime.toISOString()} to ${timeRange.endTime.toISOString()}`,
+      );
       this.log("");
     }
 
     // Create service and execute query
     const logsService = new CloudWatchLogsService({
-      enableDebugLogging: verbose,
+      enableDebugLogging: !!verbose,
       enableProgressIndicators: true,
       clientConfig: {
         ...(region && { region }),
@@ -487,7 +529,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
    */
   private async deleteQuery(name: string, verbose: boolean): Promise<void> {
     const queries = await this.storage.loadQueries();
-    const query = queries.find(q => q.name === name);
+    const query = queries.find((q) => q.name === name);
 
     if (!query) {
       this.error(`Saved query '${name}' not found.`, { exit: 1 });
@@ -562,45 +604,100 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
    */
   private async importQueries(filePath: string, verbose: boolean): Promise<void> {
     try {
-      const data = await fs.readFile(filePath, "utf-8");
-      const importData = JSON.parse(data);
+      const data = await fs.readFile(filePath, "utf8");
+      const importData: ImportFile = JSON.parse(data) as ImportFile;
 
-      const queries = importData.queries || importData; // Support both formats
+      const queries =
+        "queries" in importData && Array.isArray(importData.queries)
+          ? importData.queries
+          : importData;
+
       if (!Array.isArray(queries)) {
-        throw new Error("Invalid import file format. Expected array of queries.");
+        throw new TypeError("Invalid import file format. Expected array of queries.");
       }
 
       // Validate each query
-      const validQueries: SavedQuery[] = [];
-      for (const query of queries) {
-        try {
-          validQueries.push(SavedQuerySchema.parse(query));
-        } catch (error) {
-          this.log(`⚠️  Skipping invalid query '${query.name || "unknown"}': ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
+      const validQueries = this.validateImportedQueries(queries);
 
       if (validQueries.length === 0) {
         this.error("No valid queries found in import file.", { exit: 1 });
       }
 
       // Import queries (will overwrite existing queries with same names)
-      for (const query of validQueries) {
-        await this.storage.addQuery(query);
-      }
-
-      if (verbose) {
-        this.log(`Imported ${validQueries.length} queries from '${filePath}'.`);
-        this.log("Imported queries:");
-        for (const query of validQueries) {
-          this.log(`  - ${query.name}: ${query.description || "No description"}`);
-        }
-      } else {
-        this.log(`Imported ${validQueries.length} queries from '${filePath}'.`);
-      }
-
+      await this.importValidatedQueries(validQueries);
+      this.displayImportResults(validQueries, filePath, verbose);
     } catch (error) {
-      this.error(`Failed to import queries: ${error instanceof Error ? error.message : String(error)}`, { exit: 1 });
+      this.error(
+        `Failed to import queries: ${error instanceof Error ? error.message : String(error)}`,
+        { exit: 1 },
+      );
+    }
+  }
+
+  /**
+   * Validate imported queries against schema
+   *
+   * @param queries - Raw query data to validate
+   * @returns Array of valid SavedQuery objects
+   * @internal
+   */
+  private validateImportedQueries(queries: unknown[]): SavedQuery[] {
+    const validQueries: SavedQuery[] = [];
+    for (const query of queries) {
+      try {
+        validQueries.push(SavedQuerySchema.parse(query));
+      } catch (error) {
+        this.log(
+          `⚠️  Skipping invalid query '${(query as { name?: string }).name || "unknown"}': ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    return validQueries;
+  }
+
+  /**
+   * Import validated queries to storage
+   *
+   * @param validQueries - Validated queries to import
+   * @returns Promise resolving when all queries are imported
+   * @internal
+   */
+  private async importValidatedQueries(validQueries: SavedQuery[]): Promise<void> {
+    for (const query of validQueries) {
+      await this.storage.addQuery(query);
+    }
+  }
+
+  /**
+   * Display import results to user
+   *
+   * @param validQueries - Successfully imported queries
+   * @param filePath - Import file path
+   * @param verbose - Whether to show detailed output
+   * @internal
+   */
+  private displayImportResults(
+    validQueries: SavedQuery[],
+    filePath: string,
+    verbose: boolean,
+  ): void {
+    this.log(`Imported ${validQueries.length} queries from '${filePath}'.`);
+
+    if (verbose) {
+      this.displayImportedQueryDetails(validQueries);
+    }
+  }
+
+  /**
+   * Display detailed list of imported queries
+   *
+   * @param validQueries - Successfully imported queries
+   * @internal
+   */
+  private displayImportedQueryDetails(validQueries: SavedQuery[]): void {
+    this.log("Imported queries:");
+    for (const query of validQueries) {
+      this.log(`  - ${query.name}: ${query.description || "No description"}`);
     }
   }
 
@@ -614,22 +711,20 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
   private displayQueriesTable(queries: SavedQuery[], verbose: boolean): void {
     const tableData = queries.map((query, index) => ({
       "#": index + 1,
-      "Name": query.name,
-      "Description": query.description || "No description",
-      "Language": query.queryLanguage,
+      Name: query.name,
+      Description: query.description || "No description",
+      Language: query.queryLanguage,
       "Usage Count": query.usageCount,
       "Last Used": query.lastUsedAt ? new Date(query.lastUsedAt).toLocaleDateString() : "Never",
-      "Created": new Date(query.createdAt).toLocaleDateString(),
+      Created: new Date(query.createdAt).toLocaleDateString(),
     }));
 
     const processor = new DataProcessor({
       format: DataFormat.CSV,
-      includeHeaders: true
+      includeHeaders: true,
     });
 
-    const output = processor.formatOutput(
-      tableData.map((item, index) => ({ data: item, index })),
-    );
+    const output = processor.formatOutput(tableData.map((item, index) => ({ data: item, index })));
 
     this.log(`Saved Queries (${queries.length} total):\n`);
     this.log(output);
@@ -653,7 +748,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
    * @internal
    */
   private displayQueriesCsv(queries: SavedQuery[]): void {
-    const csvData = queries.map(query => ({
+    const csvData = queries.map((query) => ({
       Name: query.name,
       Description: query.description || "",
       Query: query.query,
@@ -666,12 +761,10 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
 
     const processor = new DataProcessor({
       format: DataFormat.CSV,
-      includeHeaders: true
+      includeHeaders: true,
     });
 
-    const output = processor.formatOutput(
-      csvData.map((item, index) => ({ data: item, index })),
-    );
+    const output = processor.formatOutput(csvData.map((item, index) => ({ data: item, index })));
     this.log(output);
   }
 
@@ -682,7 +775,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
    * @param verbose - Verbose output
    * @internal
    */
-  private displayQueryResults(result: any, verbose?: boolean): void {
+  private displayQueryResults(result: CloudWatchQueryResult, verbose?: boolean): void {
     if (result.status !== "Complete") {
       this.error(`Query failed with status: ${result.status}`, { exit: 1 });
     }
@@ -697,24 +790,23 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
 
     // Display first 10 results for quick preview
     if (results.length > 0) {
-      const fields = results[0].map((field: any) => field.field || "unknown").filter((field: string) => field !== "unknown");
-      const tableData = results.slice(0, 10).map((row: any, index: number) => {
+      const tableData = results.slice(0, 10).map((row: QueryResultField[], index: number) => {
         const rowData: Record<string, string> = { "#": (index + 1).toString() };
-        row.forEach((field: any) => {
+        for (const field of row) {
           if (field.field && field.value !== undefined) {
             rowData[field.field] = field.value;
           }
-        });
+        }
         return rowData;
       });
 
       const processor = new DataProcessor({
         format: DataFormat.CSV,
-        includeHeaders: true
+        includeHeaders: true,
       });
 
       const output = processor.formatOutput(
-        tableData.map((item, index) => ({ data: item, index })),
+        tableData.map((item: Record<string, unknown>, index: number) => ({ data: item, index })),
       );
 
       this.log(output);
@@ -738,11 +830,15 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
    * @param startTimeStr - Start time string
    * @param endTimeStr - End time string
    * @returns Parsed time range
+   * @throws When time string format is invalid
    * @internal
    */
-  private parseTimeRange(startTimeStr: string, endTimeStr: string): { startTime: Date; endTime: Date } {
-    const endTime = this.parseTimeString(endTimeStr);
-    const startTime = this.parseTimeString(startTimeStr, endTime);
+  private parseTimeRange(
+    startTimeString: string,
+    endTimeString: string,
+  ): { startTime: Date; endTime: Date } {
+    const endTime = this.parseTimeString(endTimeString);
+    const startTime = this.parseTimeString(startTimeString, endTime);
 
     if (startTime >= endTime) {
       throw new Error("Start time must be before end time");
@@ -757,6 +853,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
    * @param timeString - Time string
    * @param referenceTime - Reference time
    * @returns Parsed Date
+   * @throws When time string format is invalid or unsupported
    * @internal
    */
   private parseTimeString(timeString: string, referenceTime = new Date()): Date {
@@ -765,24 +862,32 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
     }
 
     const relativeTimeRegex = /^(\d+)\s*(m|min|minutes?|h|hour|hours?|d|day|days?)\s*ago$/i;
-    const match = timeString.match(relativeTimeRegex);
+    const match = relativeTimeRegex.exec(timeString);
 
     if (match) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
+      const value = Number.parseInt(match[1]!, 10);
+      const unit = match[2]!.toLowerCase();
       const now = referenceTime;
 
       switch (unit.charAt(0)) {
-        case "m": return new Date(now.getTime() - value * 60 * 1000);
-        case "h": return new Date(now.getTime() - value * 60 * 60 * 1000);
-        case "d": return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
-        default: throw new Error(`Unsupported time unit: ${unit}`);
+        case "m": {
+          return new Date(now.getTime() - value * 60 * 1000);
+        }
+        case "h": {
+          return new Date(now.getTime() - value * 60 * 60 * 1000);
+        }
+        case "d": {
+          return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
+        }
+        default: {
+          throw new Error(`Unsupported time unit: ${unit}`);
+        }
       }
     }
 
     const absoluteTime = new Date(timeString);
-    if (isNaN(absoluteTime.getTime())) {
-      throw new Error(`Invalid time format: ${timeString}`);
+    if (Number.isNaN(absoluteTime.getTime())) {
+      throw new TypeError(`Invalid time format: ${timeString}`);
     }
 
     return absoluteTime;
@@ -800,8 +905,8 @@ export default class CloudWatchLogsSavedQueriesCommand extends Command {
 
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }

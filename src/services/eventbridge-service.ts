@@ -28,9 +28,9 @@ import {
   type ListTargetsByRuleRequest,
   type PutRuleRequest,
   type PutTargetsRequest,
-  type PutTargetsResult,
+  type PutTargetsResponse,
   type RemoveTargetsRequest,
-  type RemoveTargetsResult,
+  type RemoveTargetsResponse,
   type Rule,
   type Target,
 } from "@aws-sdk/client-eventbridge";
@@ -317,16 +317,18 @@ export class EventBridgeService {
    */
   async listRules(
     config: AwsClientConfig = {},
-    params: Partial<ListRulesRequest> = {},
+    parameters: Partial<ListRulesRequest> = {},
   ): Promise<EventBridgePaginatedResult<Rule>> {
-    const eventBusName = params.EventBusName || "default";
-    const spinner = this.createSpinner(`Listing EventBridge rules on event bus '${eventBusName}'...`);
+    const eventBusName = parameters.EventBusName || "default";
+    const spinner = this.createSpinner(
+      `Listing EventBridge rules on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
       const command = new ListRulesCommand({
         EventBusName: eventBusName,
-        ...params,
+        ...parameters,
       });
 
       const response: ListRulesResponse = await client.send(command);
@@ -335,7 +337,7 @@ export class EventBridgeService {
       spinner.succeed(`Found ${rules.length} EventBridge rules on event bus '${eventBusName}'`);
       return {
         items: rules,
-        nextToken: response.NextToken,
+        ...(response.NextToken && { nextToken: response.NextToken }),
       };
     } catch (error) {
       spinner.fail("Failed to list rules");
@@ -362,7 +364,9 @@ export class EventBridgeService {
     config: AwsClientConfig = {},
     eventBusName = "default",
   ): Promise<Rule> {
-    const spinner = this.createSpinner(`Describing rule '${ruleName}' on event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Describing rule '${ruleName}' on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
@@ -400,7 +404,9 @@ export class EventBridgeService {
     config: AwsClientConfig = {},
   ): Promise<{ ruleArn?: string }> {
     const eventBusName = parameters.eventBusName || "default";
-    const spinner = this.createSpinner(`Creating/updating rule '${parameters.name}' on event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Creating/updating rule '${parameters.name}' on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
@@ -418,7 +424,7 @@ export class EventBridgeService {
       const response = await client.send(command);
 
       spinner.succeed(`Rule '${parameters.name}' created/updated successfully`);
-      return { ruleArn: response.RuleArn };
+      return { ...(response.RuleArn && { ruleArn: response.RuleArn }) };
     } catch (error) {
       spinner.fail(`Failed to create/update rule '${parameters.name}'`);
       throw new ServiceError(
@@ -444,7 +450,9 @@ export class EventBridgeService {
     config: AwsClientConfig = {},
   ): Promise<void> {
     const eventBusName = parameters.eventBusName || "default";
-    const spinner = this.createSpinner(`Deleting rule '${parameters.name}' from event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Deleting rule '${parameters.name}' from event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
@@ -483,7 +491,9 @@ export class EventBridgeService {
     config: AwsClientConfig = {},
     eventBusName = "default",
   ): Promise<void> {
-    const spinner = this.createSpinner(`Enabling rule '${ruleName}' on event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Enabling rule '${ruleName}' on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
@@ -521,7 +531,9 @@ export class EventBridgeService {
     config: AwsClientConfig = {},
     eventBusName = "default",
   ): Promise<void> {
-    const spinner = this.createSpinner(`Disabling rule '${ruleName}' on event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Disabling rule '${ruleName}' on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
@@ -563,7 +575,9 @@ export class EventBridgeService {
     nextToken?: string,
     limit?: number,
   ): Promise<EventBridgePaginatedResult<Target>> {
-    const spinner = this.createSpinner(`Listing targets for rule '${ruleName}' on event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Listing targets for rule '${ruleName}' on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
@@ -580,7 +594,7 @@ export class EventBridgeService {
       spinner.succeed(`Found ${targets.length} targets for rule '${ruleName}'`);
       return {
         items: targets,
-        nextToken: response.NextToken,
+        ...(response.NextToken && { nextToken: response.NextToken }),
       };
     } catch (error) {
       spinner.fail(`Failed to list targets for rule '${ruleName}'`);
@@ -605,25 +619,56 @@ export class EventBridgeService {
   async putTargets(
     parameters: EventBridgePutTargetsParameters,
     config: AwsClientConfig = {},
-  ): Promise<PutTargetsResult> {
+  ): Promise<PutTargetsResponse> {
     const eventBusName = parameters.eventBusName || "default";
-    const spinner = this.createSpinner(`Adding/updating ${parameters.targets.length} targets for rule '${parameters.rule}' on event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Adding/updating ${parameters.targets.length} targets for rule '${parameters.rule}' on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
       const command = new PutTargetsCommand({
         Rule: parameters.rule,
         EventBusName: eventBusName,
-        Targets: parameters.targets as any[], // Type assertion needed due to SDK complexity
+        Targets: parameters.targets.map((target) => ({
+          Id: target.id,
+          Arn: target.arn,
+          ...(target.roleArn && { RoleArn: target.roleArn }),
+          ...(target.input && { Input: target.input }),
+          ...(target.inputPath && { InputPath: target.inputPath }),
+          ...(target.inputTransformer && {
+            InputTransformer: {
+              InputTemplate: target.inputTransformer.inputTemplate,
+              ...(target.inputTransformer.inputPathsMap && {
+                InputPathsMap: target.inputTransformer.inputPathsMap,
+              }),
+            },
+          }),
+          ...(target.kinesisParameters && {
+            KinesisParameters: { PartitionKeyPath: target.kinesisParameters.partitionKeyPath },
+          }),
+          ...(target.runCommandParameters && {
+            RunCommandParameters: {
+              RunCommandTargets: target.runCommandParameters.runCommandTargets.map((rct) => ({
+                Key: rct.key,
+                Values: rct.values,
+              })),
+            },
+          }),
+        })),
       } as PutTargetsRequest);
 
       const response = await client.send(command);
 
-      const successCount = (response.FailedEntryCount || 0) === 0 ? parameters.targets.length :
-        parameters.targets.length - (response.FailedEntryCount || 0);
+      const successCount =
+        (response.FailedEntryCount || 0) === 0
+          ? parameters.targets.length
+          : parameters.targets.length - (response.FailedEntryCount || 0);
 
       if (response.FailedEntryCount && response.FailedEntryCount > 0) {
-        spinner.warn(`${successCount}/${parameters.targets.length} targets configured successfully`);
+        spinner.warn(
+          `${successCount}/${parameters.targets.length} targets configured successfully`,
+        );
       } else {
         spinner.succeed(`All ${parameters.targets.length} targets configured successfully`);
       }
@@ -652,9 +697,11 @@ export class EventBridgeService {
   async removeTargets(
     parameters: EventBridgeRemoveTargetsParameters,
     config: AwsClientConfig = {},
-  ): Promise<RemoveTargetsResult> {
+  ): Promise<RemoveTargetsResponse> {
     const eventBusName = parameters.eventBusName || "default";
-    const spinner = this.createSpinner(`Removing ${parameters.ids.length} targets from rule '${parameters.rule}' on event bus '${eventBusName}'...`);
+    const spinner = this.createSpinner(
+      `Removing ${parameters.ids.length} targets from rule '${parameters.rule}' on event bus '${eventBusName}'...`,
+    );
 
     try {
       const client = await this.getEventBridgeClient(config);
@@ -667,8 +714,10 @@ export class EventBridgeService {
 
       const response = await client.send(command);
 
-      const successCount = (response.FailedEntryCount || 0) === 0 ? parameters.ids.length :
-        parameters.ids.length - (response.FailedEntryCount || 0);
+      const successCount =
+        (response.FailedEntryCount || 0) === 0
+          ? parameters.ids.length
+          : parameters.ids.length - (response.FailedEntryCount || 0);
 
       if (response.FailedEntryCount && response.FailedEntryCount > 0) {
         spinner.warn(`${successCount}/${parameters.ids.length} targets removed successfully`);

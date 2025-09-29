@@ -6,12 +6,25 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
+import { Args, Command, Flags, type Interfaces } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaCreateFunction } from "../../lib/lambda-schemas.js";
 import { LambdaCreateFunctionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+
+/**
+ * Extended function configuration with index signature for data processing
+ *
+ * @internal
+ */
+interface ExtendedFunctionConfiguration extends FunctionConfiguration {
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * Lambda create function command for function creation
@@ -27,27 +40,33 @@ export default class LambdaCreateFunctionCommand extends Command {
   static override readonly examples = [
     {
       description: "Create function from ZIP file",
-      command: "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip",
     },
     {
       description: "Create function from S3 bucket",
-      command: "<%= config.bin %> <%= command.id %> my-function --runtime python3.9 --role arn:aws:iam::123456789012:role/lambda-role --handler lambda_function.lambda_handler --s3-bucket my-bucket --s3-key function.zip",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --runtime python3.9 --role arn:aws:iam::123456789012:role/lambda-role --handler lambda_function.lambda_handler --s3-bucket my-bucket --s3-key function.zip",
     },
     {
       description: "Create function with environment variables",
-      command: '<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --environment \'{"Variables":{"ENV":"production","DEBUG":"false"}}\'',
+      command:
+        '<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --environment \'{"Variables":{"ENV":"production","DEBUG":"false"}}\'',
     },
     {
       description: "Create function with VPC configuration",
-      command: "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --vpc-subnet-ids subnet-12345 --vpc-security-group-ids sg-12345",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --vpc-subnet-ids subnet-12345 --vpc-security-group-ids sg-12345",
     },
     {
       description: "Create function with custom memory and timeout",
-      command: "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --memory-size 512 --timeout 30",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --memory-size 512 --timeout 30",
     },
     {
       description: "Create function with layers",
-      command: "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --layers arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1",
+      command:
+        "<%= config.bin %> <%= command.id %> my-function --runtime nodejs18.x --role arn:aws:iam::123456789012:role/lambda-role --handler index.handler --zip-file fileb://function.zip --layers arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1",
     },
   ];
 
@@ -83,9 +102,22 @@ export default class LambdaCreateFunctionCommand extends Command {
       description: "Function runtime",
       required: true,
       options: [
-        "nodejs18.x", "nodejs20.x", "python3.9", "python3.10", "python3.11", "python3.12",
-        "java8.al2", "java11", "java17", "java21", "dotnet6", "dotnet8",
-        "go1.x", "ruby3.2", "provided.al2", "provided.al2023"
+        "nodejs18.x",
+        "nodejs20.x",
+        "python3.9",
+        "python3.10",
+        "python3.11",
+        "python3.12",
+        "java8.al2",
+        "java11",
+        "java17",
+        "java21",
+        "dotnet6",
+        "dotnet8",
+        "go1.x",
+        "ruby3.2",
+        "provided.al2",
+        "provided.al2023",
       ],
       helpValue: "RUNTIME",
     }),
@@ -130,7 +162,7 @@ export default class LambdaCreateFunctionCommand extends Command {
     "memory-size": Flags.integer({
       description: "Memory size in MB (128-10240)",
       min: 128,
-      max: 10240,
+      max: 10_240,
       helpValue: "MB",
     }),
 
@@ -232,32 +264,7 @@ export default class LambdaCreateFunctionCommand extends Command {
       });
 
       // Create the Lambda function
-      const functionConfig = await lambdaService.createFunction(
-        {
-          functionName: input.functionName,
-          runtime: input.runtime,
-          role: input.role,
-          handler: input.handler,
-          zipFile: input.zipFile,
-          s3Bucket: input.s3Bucket,
-          s3Key: input.s3Key,
-          s3ObjectVersion: input.s3ObjectVersion,
-          description: input.description,
-          memorySize: input.memorySize,
-          timeout: input.timeout,
-          environment: input.environment,
-          vpcSubnetIds: input.vpcSubnetIds,
-          vpcSecurityGroupIds: input.vpcSecurityGroupIds,
-          layers: input.layers,
-          deadLetterTargetArn: input.deadLetterTargetArn,
-          kmsKeyArn: input.kmsKeyArn,
-          publish: input.publish,
-        },
-        {
-          ...(input.region && { region: input.region }),
-          ...(input.profile && { profile: input.profile }),
-        },
-      );
+      const functionConfig = await this.executeFunctionCreation(lambdaService, input, flags);
 
       // Format output based on requested format
       this.formatAndDisplayOutput(functionConfig, input.format, input.functionName);
@@ -265,6 +272,62 @@ export default class LambdaCreateFunctionCommand extends Command {
       const formattedError = this.formatLambdaError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
     }
+  }
+
+  /**
+   * Execute function creation with the Lambda service
+   *
+   * @param lambdaService - Lambda service instance
+   * @param input - Validated input parameters
+   * @param flags - Command flags
+   * @returns Promise resolving to function configuration
+   * @internal
+   */
+  private async executeFunctionCreation(
+    lambdaService: LambdaService,
+    input: LambdaCreateFunction,
+    flags: Interfaces.InferredFlags<typeof LambdaCreateFunctionCommand.flags>,
+  ): Promise<FunctionConfiguration> {
+    return lambdaService.createFunction(
+      {
+        functionName: input.functionName,
+        runtime: input.runtime,
+        role: input.role,
+        handler: input.handler,
+        code: {
+          ...(flags["zip-file"] && {
+            zipFile: new Uint8Array(Buffer.from(flags["zip-file"], "base64")),
+          }),
+          ...(flags["s3-bucket"] && { s3Bucket: flags["s3-bucket"] }),
+          ...(flags["s3-key"] && { s3Key: flags["s3-key"] }),
+          ...(flags["s3-object-version"] && { s3ObjectVersion: flags["s3-object-version"] }),
+        },
+        ...(input.description && { description: input.description }),
+        ...(input.memorySize && { memorySize: input.memorySize }),
+        ...(input.timeout && { timeout: input.timeout }),
+        ...(input.environment &&
+          input.environment.variables && {
+            environment: {
+              variables: input.environment.variables,
+            },
+          }),
+        ...(flags["vpc-subnet-ids"] &&
+          flags["vpc-security-group-ids"] && {
+            vpcConfig: {
+              subnetIds: flags["vpc-subnet-ids"],
+              securityGroupIds: flags["vpc-security-group-ids"],
+            },
+          }),
+        ...(flags["dead-letter-target-arn"] && {
+          deadLetterConfig: { targetArn: flags["dead-letter-target-arn"] },
+        }),
+        ...(input.tags && { tags: input.tags }),
+      },
+      {
+        ...(input.region && { region: input.region }),
+        ...(input.profile && { profile: input.profile }),
+      },
+    );
   }
 
   /**
@@ -277,121 +340,53 @@ export default class LambdaCreateFunctionCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    functionConfig: any,
+    functionConfig: FunctionConfiguration,
     format: string,
     functionName: string,
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Function Created: ${functionName}\n`);
-
-        // Basic Configuration
-        this.log("📋 Function Details:");
-        const basicConfig = [
-          ["Function Name", functionConfig?.FunctionName || "N/A"],
-          ["Function ARN", functionConfig?.FunctionArn || "N/A"],
-          ["Runtime", functionConfig?.Runtime || "N/A"],
-          ["Handler", functionConfig?.Handler || "N/A"],
-          ["Description", functionConfig?.Description || "No description"],
-          ["State", functionConfig?.State || "N/A"],
-          ["Version", functionConfig?.Version || "N/A"],
-          ["Code Size", `${functionConfig?.CodeSize || 0} bytes`],
-          ["Code SHA256", functionConfig?.CodeSha256 || "N/A"],
-        ];
-
-        basicConfig.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Resource Configuration
-        this.log("\n⚙️  Resource Configuration:");
-        const resourceConfig = [
-          ["Memory Size", `${functionConfig?.MemorySize || 0} MB`],
-          ["Timeout", `${functionConfig?.Timeout || 0} seconds`],
-          ["Ephemeral Storage", `${functionConfig?.EphemeralStorage?.Size || 512} MB`],
-          ["Package Type", functionConfig?.PackageType || "Zip"],
-        ];
-
-        resourceConfig.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // IAM Role
-        this.log("\n🔐 IAM Configuration:");
-        this.log(`  Role: ${functionConfig?.Role || "N/A"}`);
-
-        // VPC Configuration
-        if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
-          this.log("\n🌐 VPC Configuration:");
-          this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
-          this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") || "None"}`);
-          this.log(`  Security Groups: ${functionConfig.VpcConfig.SecurityGroupIds?.join(", ") || "None"}`);
-        }
-
-        // Environment Variables
-        if (functionConfig?.Environment?.Variables && Object.keys(functionConfig.Environment.Variables).length > 0) {
-          this.log("\n🌍 Environment Variables:");
-          Object.entries(functionConfig.Environment.Variables).forEach(([key, value]) => {
-            this.log(`  ${key}: ${value}`);
-          });
-        }
-
-        // Layers
-        if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
-          this.log("\n📦 Layers:");
-          functionConfig.Layers.forEach((layer: any, index: number) => {
-            this.log(`  ${index + 1}. ${layer.Arn}`);
-          });
-        }
-
-        // Dead Letter Configuration
-        if (functionConfig?.DeadLetterConfig?.TargetArn) {
-          this.log("\n☠️  Dead Letter Configuration:");
-          this.log(`  Target ARN: ${functionConfig.DeadLetterConfig.TargetArn}`);
-        }
-
-        // KMS Configuration
-        if (functionConfig?.KMSKeyArn) {
-          this.log("\n🔒 Encryption:");
-          this.log(`  KMS Key: ${functionConfig.KMSKeyArn}`);
-        }
-
+        this.displayTableFormat(functionConfig, functionName);
         break;
       }
       case "json": {
         const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "jsonl": {
         const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: functionConfig, index: 0 }]);
+        const output = processor.formatOutput([
+          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
+        ]);
         this.log(output);
         break;
       }
       case "csv": {
         // Flatten function configuration for CSV output
         const flattenedData = {
-          FunctionName: functionConfig?.FunctionName || "",
-          FunctionArn: functionConfig?.FunctionArn || "",
-          Runtime: functionConfig?.Runtime || "",
-          Role: functionConfig?.Role || "",
-          Handler: functionConfig?.Handler || "",
-          CodeSize: functionConfig?.CodeSize || 0,
-          Description: functionConfig?.Description || "",
-          Timeout: functionConfig?.Timeout || 0,
-          MemorySize: functionConfig?.MemorySize || 0,
-          CodeSha256: functionConfig?.CodeSha256 || "",
-          Version: functionConfig?.Version || "",
-          State: functionConfig?.State || "",
-          PackageType: functionConfig?.PackageType || "",
-          EphemeralStorageSize: functionConfig?.EphemeralStorage?.Size || 512,
-          VpcId: functionConfig?.VpcConfig?.VpcId || "",
-          LayerCount: functionConfig?.Layers?.length || 0,
-          HasDeadLetterConfig: functionConfig?.DeadLetterConfig?.TargetArn ? "true" : "false",
-          HasKMSKey: functionConfig?.KMSKeyArn ? "true" : "false",
-          EnvironmentVariableCount: Object.keys(functionConfig?.Environment?.Variables || {}).length,
+          FunctionName: functionConfig.FunctionName ?? "",
+          FunctionArn: functionConfig.FunctionArn ?? "",
+          Runtime: functionConfig.Runtime ?? "",
+          Role: functionConfig.Role ?? "",
+          Handler: functionConfig.Handler ?? "",
+          CodeSize: functionConfig.CodeSize ?? 0,
+          Description: functionConfig.Description ?? "",
+          Timeout: functionConfig.Timeout ?? 0,
+          MemorySize: functionConfig.MemorySize ?? 0,
+          CodeSha256: functionConfig.CodeSha256 ?? "",
+          Version: functionConfig.Version ?? "",
+          State: functionConfig.State ?? "",
+          PackageType: functionConfig.PackageType ?? "",
+          EphemeralStorageSize: functionConfig.EphemeralStorage?.Size ?? 512,
+          VpcId: functionConfig.VpcConfig?.VpcId ?? "",
+          LayerCount: functionConfig.Layers?.length ?? 0,
+          HasDeadLetterConfig: functionConfig.DeadLetterConfig?.TargetArn ? "true" : "false",
+          HasKMSKey: functionConfig.KMSKeyArn ? "true" : "false",
+          EnvironmentVariableCount: Object.keys(functionConfig.Environment?.Variables ?? {}).length,
         };
 
         const processor = new DataProcessor({ format: DataFormat.CSV });
@@ -403,6 +398,95 @@ export default class LambdaCreateFunctionCommand extends Command {
         throw new Error(`Unsupported output format: ${format}`);
       }
     }
+  }
+
+  /**
+   * Display function configuration in table format
+   *
+   * @param functionConfig - Function configuration to display
+   * @param functionName - Function name for display
+   * @internal
+   */
+  private displayTableFormat(functionConfig: FunctionConfiguration, functionName: string): void {
+    this.log(`✅ Function Created: ${functionName}\n`);
+
+    // Basic Configuration
+    this.log("📋 Function Details:");
+    const basicConfig = [
+      ["Function Name", functionConfig.FunctionName ?? "N/A"],
+      ["Function ARN", functionConfig.FunctionArn ?? "N/A"],
+      ["Runtime", functionConfig.Runtime ?? "N/A"],
+      ["Handler", functionConfig.Handler ?? "N/A"],
+      ["Description", functionConfig.Description ?? "No description"],
+      ["State", functionConfig.State ?? "N/A"],
+      ["Version", functionConfig.Version ?? "N/A"],
+      ["Code Size", `${functionConfig.CodeSize ?? 0} bytes`],
+      ["Code SHA256", functionConfig.CodeSha256 ?? "N/A"],
+    ];
+
+    for (const [key, value] of basicConfig) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // Resource Configuration
+    this.log("\n⚙️  Resource Configuration:");
+    const resourceConfig = [
+      ["Memory Size", `${functionConfig.MemorySize ?? 0} MB`],
+      ["Timeout", `${functionConfig.Timeout ?? 0} seconds`],
+      ["Ephemeral Storage", `${functionConfig.EphemeralStorage?.Size ?? 512} MB`],
+      ["Package Type", functionConfig.PackageType ?? "Zip"],
+    ];
+
+    for (const [key, value] of resourceConfig) {
+      this.log(`  ${key}: ${value}`);
+    }
+
+    // IAM Role
+    this.log("\n🔐 IAM Configuration:");
+    this.log(`  Role: ${functionConfig.Role ?? "N/A"}`);
+
+    // VPC Configuration
+    if (functionConfig?.VpcConfig && functionConfig.VpcConfig.VpcId) {
+      this.log("\n🌐 VPC Configuration:");
+      this.log(`  VPC ID: ${functionConfig.VpcConfig.VpcId}`);
+      this.log(`  Subnets: ${functionConfig.VpcConfig.SubnetIds?.join(", ") ?? "None"}`);
+      this.log(
+        `  Security Groups: ${functionConfig.VpcConfig.SecurityGroupIds?.join(", ") ?? "None"}`,
+      );
+    }
+
+    // Environment Variables
+    if (
+      functionConfig?.Environment?.Variables &&
+      Object.keys(functionConfig.Environment.Variables).length > 0
+    ) {
+      this.log("\n🌍 Environment Variables:");
+      for (const [key, value] of Object.entries(functionConfig.Environment.Variables)) {
+        this.log(`  ${key}: ${value}`);
+      }
+    }
+
+    // Layers
+    if (functionConfig?.Layers && functionConfig.Layers.length > 0) {
+      this.log("\n📦 Layers:");
+      for (const [index, layer] of functionConfig.Layers.entries()) {
+        this.log(`  ${index + 1}. ${layer.Arn ?? "N/A"}`);
+      }
+    }
+
+    // Dead Letter Configuration
+    if (functionConfig?.DeadLetterConfig?.TargetArn) {
+      this.log("\n☠️  Dead Letter Configuration:");
+      this.log(`  Target ARN: ${functionConfig.DeadLetterConfig.TargetArn}`);
+    }
+
+    // KMS Configuration
+    if (functionConfig?.KMSKeyArn) {
+      this.log("\n🔒 Encryption:");
+      this.log(`  KMS Key: ${functionConfig.KMSKeyArn}`);
+    }
+
+    this.log("\n💡 Note: Your function is now ready to be invoked using the Lambda service.");
   }
 
   /**

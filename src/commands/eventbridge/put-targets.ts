@@ -6,12 +6,140 @@
  *
  */
 
+import type { Target } from "@aws-sdk/client-eventbridge";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgePutTargets } from "../../lib/eventbridge-schemas.js";
 import { EventBridgePutTargetsSchema } from "../../lib/eventbridge-schemas.js";
-import { EventBridgeService } from "../../services/eventbridge-service.js";
+import {
+  EventBridgeService,
+  type EventBridgeTargetParameters,
+} from "../../services/eventbridge-service.js";
+
+/**
+ * Input target configuration for transformation
+ *
+ * @internal
+ */
+interface InputTargetConfig {
+  /**
+   * Target identifier
+   */
+  readonly id: string;
+
+  /**
+   * Target ARN
+   */
+  readonly arn: string;
+
+  /**
+   * IAM role ARN for target execution
+   */
+  readonly roleArn?: string | undefined;
+
+  /**
+   * Static input for the target
+   */
+  readonly input?: string | undefined;
+
+  /**
+   * JSONPath for input transformation
+   */
+  readonly inputPath?: string | undefined;
+
+  /**
+   * Input transformer configuration
+   */
+  readonly inputTransformer?:
+    | {
+        /**
+         * Input template for transformation
+         */
+        readonly inputTemplate: string;
+
+        /**
+         * Input paths mapping
+         */
+        readonly inputPathsMap?: Record<string, string> | undefined;
+      }
+    | undefined;
+
+  /**
+   * Retry policy configuration
+   */
+  readonly retryPolicy?:
+    | {
+        /**
+         * Maximum retry attempts
+         */
+        readonly maximumRetryAttempts?: number | undefined;
+
+        /**
+         * Maximum event age in seconds
+         */
+        readonly maximumEventAgeInSeconds?: number | undefined;
+      }
+    | undefined;
+
+  /**
+   * Dead letter queue configuration
+   */
+  readonly deadLetterConfig?:
+    | {
+        /**
+         * Dead letter queue ARN
+         */
+        readonly arn?: string | undefined;
+      }
+    | undefined;
+}
+
+/**
+ * Put targets result from EventBridge service
+ *
+ * @internal
+ */
+interface PutTargetsResult {
+  /**
+   * Indicates if this was an update operation
+   */
+  readonly isUpdate?: boolean;
+
+  /**
+   * Number of targets processed
+   */
+  readonly targetCount?: number;
+
+  /**
+   * Number of successful operations
+   */
+  readonly successCount?: number;
+
+  /**
+   * Number of failed operations
+   */
+  readonly failureCount?: number;
+
+  /**
+   * Array of successfully processed targets
+   */
+  readonly targets?: Target[];
+
+  /**
+   * Array of failed target entries
+   */
+  failedEntries?: Array<{
+    readonly TargetId?: string;
+    readonly ErrorCode?: string;
+    readonly ErrorMessage?: string;
+  }>;
+
+  /**
+   * Index signature for data processing compatibility
+   */
+  [key: string]: unknown;
+}
 
 /**
  * EventBridge put targets command for target management
@@ -27,27 +155,32 @@ export default class EventBridgePutTargetsCommand extends Command {
   static override readonly examples = [
     {
       description: "Add Lambda function target",
-      command: "<%= config.bin %> <%= command.id %> my-rule lambda-target --target-arn arn:aws:lambda:us-east-1:123456789012:function:MyFunction",
+      command:
+        "<%= config.bin %> <%= command.id %> my-rule lambda-target --target-arn arn:aws:lambda:us-east-1:123456789012:function:MyFunction",
     },
     {
       description: "Add SQS queue target with input transformation",
-      command: '<%= config.bin %> <%= command.id %> my-rule sqs-target --target-arn arn:aws:sqs:us-east-1:123456789012:MyQueue --input-transformer \'{"inputPathsMap":{"timestamp":"$.time"},"inputTemplate":"{\\"timestamp\\":\\"<timestamp>\\"}"}\'',
+      command: String.raw`<%= config.bin %> <%= command.id %> my-rule sqs-target --target-arn arn:aws:sqs:us-east-1:123456789012:MyQueue --input-transformer '{"inputPathsMap":{"timestamp":"$.time"},"inputTemplate":"{\"timestamp\":\"<timestamp>\"}"}'`,
     },
     {
       description: "Add SNS topic target with static input",
-      command: '<%= config.bin %> <%= command.id %> my-rule sns-target --target-arn arn:aws:sns:us-east-1:123456789012:MyTopic --input \'{"message":"Alert triggered"}\'',
+      command:
+        '<%= config.bin %> <%= command.id %> my-rule sns-target --target-arn arn:aws:sns:us-east-1:123456789012:MyTopic --input \'{"message":"Alert triggered"}\'',
     },
     {
       description: "Add target with role and retry policy",
-      command: "<%= config.bin %> <%= command.id %> my-rule kinesis-target --target-arn arn:aws:kinesis:us-east-1:123456789012:stream/MyStream --role-arn arn:aws:iam::123456789012:role/EventBridgeRole --retry-policy max-retry-attempts=3,max-event-age-seconds=3600",
+      command:
+        "<%= config.bin %> <%= command.id %> my-rule kinesis-target --target-arn arn:aws:kinesis:us-east-1:123456789012:stream/MyStream --role-arn arn:aws:iam::123456789012:role/EventBridgeRole --retry-policy max-retry-attempts=3,max-event-age-seconds=3600",
     },
     {
       description: "Add target on custom event bus",
-      command: "<%= config.bin %> <%= command.id %> my-rule custom-target --target-arn arn:aws:lambda:us-east-1:123456789012:function:Handler --event-bus-name custom-bus",
+      command:
+        "<%= config.bin %> <%= command.id %> my-rule custom-target --target-arn arn:aws:lambda:us-east-1:123456789012:function:Handler --event-bus-name custom-bus",
     },
     {
       description: "Add target with dead letter queue",
-      command: "<%= config.bin %> <%= command.id %> my-rule dlq-target --target-arn arn:aws:lambda:us-east-1:123456789012:function:Handler --dead-letter-arn arn:aws:sqs:us-east-1:123456789012:DeadLetterQueue",
+      command:
+        "<%= config.bin %> <%= command.id %> my-rule dlq-target --target-arn arn:aws:lambda:us-east-1:123456789012:function:Handler --dead-letter-arn arn:aws:sqs:us-east-1:123456789012:DeadLetterQueue",
     },
     {
       description: "Add multiple targets from JSON file",
@@ -189,19 +322,11 @@ export default class EventBridgePutTargetsCommand extends Command {
       });
 
       // Add targets to the rule
-      const putTargetsResult = await eventBridgeService.putTargets(
+      const putTargetsResponse = await eventBridgeService.putTargets(
         {
-          ruleName: input.ruleName,
+          rule: input.rule,
           eventBusName: input.eventBusName,
-          targetId: input.targetId,
-          targetArn: input.targetArn,
-          roleArn: input.roleArn,
-          input: input.input,
-          inputPath: input.inputPath,
-          inputTransformer: input.inputTransformer,
-          retryPolicy: input.retryPolicy,
-          deadLetterArn: input.deadLetterArn,
-          targetsFile: input.targetsFile,
+          targets: input.targets.map((target) => this.transformTargetToAws(target)),
         },
         {
           ...(input.region && { region: input.region }),
@@ -209,12 +334,112 @@ export default class EventBridgePutTargetsCommand extends Command {
         },
       );
 
+      // Convert to our custom result format
+      const putTargetsResult: PutTargetsResult = {
+        isUpdate: false, // This is always a put operation
+        targetCount: input.targets.length,
+        successCount: input.targets.length - (putTargetsResponse.FailedEntryCount || 0),
+        failureCount: putTargetsResponse.FailedEntryCount || 0,
+        targets: input.targets.map((target) => this.transformTargetForDisplay(target)),
+      };
+
+      // Add failedEntries only if there are actual failures (exactOptionalPropertyTypes compliance)
+      if (putTargetsResponse.FailedEntries && putTargetsResponse.FailedEntries.length > 0) {
+        putTargetsResult.failedEntries = putTargetsResponse.FailedEntries.map((entry) => {
+          const result: {
+            readonly TargetId?: string;
+            readonly ErrorCode?: string;
+            readonly ErrorMessage?: string;
+          } = {};
+          if (entry.TargetId !== undefined) {
+            (result as { TargetId?: string }).TargetId = entry.TargetId;
+          }
+          if (entry.ErrorCode !== undefined) {
+            (result as { ErrorCode?: string }).ErrorCode = entry.ErrorCode;
+          }
+          if (entry.ErrorMessage !== undefined) {
+            (result as { ErrorMessage?: string }).ErrorMessage = entry.ErrorMessage;
+          }
+          return result;
+        });
+      }
+
       // Format output based on requested format
-      this.formatAndDisplayOutput(putTargetsResult, input.format, input.ruleName, input.eventBusName);
+      this.formatAndDisplayOutput(putTargetsResult, input.format, input.rule, input.eventBusName);
     } catch (error) {
       const formattedError = this.formatEventBridgeError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
     }
+  }
+
+  /**
+   * Transform input target to AWS SDK target format
+   *
+   * @param target - Input target configuration
+   * @returns Transformed target for AWS SDK
+   * @internal
+   */
+  private transformTargetToAws(target: InputTargetConfig): EventBridgeTargetParameters {
+    const result: EventBridgeTargetParameters = {
+      id: target.id,
+      arn: target.arn,
+    };
+
+    // Add optional properties only if they are defined (exactOptionalPropertyTypes compliance)
+    if (target.roleArn !== undefined) {
+      result.roleArn = target.roleArn;
+    }
+    if (target.input !== undefined) {
+      result.input = target.input;
+    }
+    if (target.inputPath !== undefined) {
+      result.inputPath = target.inputPath;
+    }
+    if (target.inputTransformer !== undefined) {
+      result.inputTransformer = {
+        inputTemplate: target.inputTransformer.inputTemplate,
+      };
+      if (target.inputTransformer.inputPathsMap !== undefined) {
+        result.inputTransformer.inputPathsMap = target.inputTransformer.inputPathsMap;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Transform input target config to AWS Target for display
+   *
+   * @param target - Input target configuration
+   * @returns Transformed target for display
+   * @internal
+   */
+  private transformTargetForDisplay(target: InputTargetConfig): Target {
+    const result: Target = {
+      Id: target.id,
+      Arn: target.arn,
+    };
+
+    // Add optional properties only if they are defined
+    if (target.roleArn !== undefined) {
+      result.RoleArn = target.roleArn;
+    }
+    if (target.input !== undefined) {
+      result.Input = target.input;
+    }
+    if (target.inputPath !== undefined) {
+      result.InputPath = target.inputPath;
+    }
+    if (target.inputTransformer !== undefined) {
+      result.InputTransformer = {
+        InputTemplate: target.inputTransformer.inputTemplate,
+      };
+      if (target.inputTransformer.inputPathsMap !== undefined) {
+        result.InputTransformer.InputPathsMap = target.inputTransformer.inputPathsMap;
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -228,109 +453,206 @@ export default class EventBridgePutTargetsCommand extends Command {
    * @internal
    */
   private formatAndDisplayOutput(
-    putTargetsResult: any,
+    putTargetsResult: PutTargetsResult,
     format: string,
     ruleName: string,
     eventBusName: string,
   ): void {
     switch (format) {
       case "table": {
-        this.log(`✅ Targets ${putTargetsResult.isUpdate ? "Updated" : "Added"} for rule: ${ruleName}\n`);
-
-        // Operation Summary
-        this.log("📋 Operation Summary:");
-        const operationInfo = [
-          ["Rule Name", ruleName],
-          ["Event Bus", eventBusName],
-          ["Operation", putTargetsResult.isUpdate ? "UPDATE_TARGETS" : "ADD_TARGETS"],
-          ["Targets Processed", putTargetsResult.targetCount || 1],
-          ["Successful", putTargetsResult.successCount || 0],
-          ["Failed", putTargetsResult.failureCount || 0],
-        ];
-
-        operationInfo.forEach(([key, value]) => {
-          this.log(`  ${key}: ${value}`);
-        });
-
-        // Target Details
-        if (putTargetsResult.targets && putTargetsResult.targets.length > 0) {
-          this.log("\n🎯 Target Details:");
-          putTargetsResult.targets.forEach((target: any, index: number) => {
-            this.log(`\n${index + 1}. Target ID: ${target.Id}`);
-            this.log(`   ARN: ${target.Arn}`);
-
-            if (target.RoleArn) {
-              this.log(`   Role: ${target.RoleArn}`);
-            }
-
-            if (target.Input) {
-              this.log(`   Static Input: Configured`);
-            }
-
-            if (target.InputPath) {
-              this.log(`   Input Path: ${target.InputPath}`);
-            }
-
-            if (target.InputTransformer) {
-              this.log(`   Input Transformer: Configured`);
-            }
-
-            if (target.RetryPolicy) {
-              this.log(`   Retry Policy: ${target.RetryPolicy.MaximumRetryAttempts || 0} attempts, ${target.RetryPolicy.MaximumEventAgeInSeconds || 0}s max age`);
-            }
-
-            if (target.DeadLetterConfig) {
-              this.log(`   Dead Letter Queue: ${target.DeadLetterConfig.Arn}`);
-            }
-          });
-        }
-
-        // Failure Details
-        if (putTargetsResult.failedEntries && putTargetsResult.failedEntries.length > 0) {
-          this.log("\n❌ Failed Targets:");
-          putTargetsResult.failedEntries.forEach((failure: any, index: number) => {
-            this.log(`${index + 1}. Target ID: ${failure.TargetId}`);
-            this.log(`   Error Code: ${failure.ErrorCode}`);
-            this.log(`   Error Message: ${failure.ErrorMessage}`);
-          });
-        }
-
+        this.displayTableFormat(putTargetsResult, ruleName, eventBusName);
         break;
       }
       case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: putTargetsResult, index: 0 }]);
-        this.log(output);
+        this.displayJsonFormat(putTargetsResult);
         break;
       }
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: putTargetsResult, index: 0 }]);
-        this.log(output);
+        this.displayJsonlFormat(putTargetsResult);
         break;
       }
       case "csv": {
-        // Flatten put targets result for CSV output
-        const flattenedData = {
-          RuleName: ruleName,
-          EventBusName: eventBusName,
-          Operation: putTargetsResult.isUpdate ? "UPDATE_TARGETS" : "ADD_TARGETS",
-          TargetsProcessed: putTargetsResult.targetCount || 1,
-          SuccessCount: putTargetsResult.successCount || 0,
-          FailureCount: putTargetsResult.failureCount || 0,
-          HasFailures: putTargetsResult.failureCount > 0 ? "true" : "false",
-          Timestamp: new Date().toISOString(),
-        };
-
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
-        this.log(output);
+        this.displayCsvFormat(putTargetsResult, ruleName, eventBusName);
         break;
       }
       default: {
         throw new Error(`Unsupported output format: ${format}`);
       }
     }
+  }
+
+  /**
+   * Display put targets result in table format
+   *
+   * @param putTargetsResult - Put targets result to display
+   * @param ruleName - Rule name for display
+   * @param eventBusName - Event bus name for display
+   * @internal
+   */
+  private displayTableFormat(
+    putTargetsResult: PutTargetsResult,
+    ruleName: string,
+    eventBusName: string,
+  ): void {
+    this.log(
+      `✅ Targets ${putTargetsResult.isUpdate ? "Updated" : "Added"} for rule: ${ruleName}\n`,
+    );
+
+    this.displayOperationSummary(putTargetsResult, ruleName, eventBusName);
+    this.displayTargetDetails(putTargetsResult);
+    this.displayFailureDetails(putTargetsResult);
+  }
+
+  /**
+   * Display operation summary section
+   *
+   * @param putTargetsResult - Put targets result to display
+   * @param ruleName - Rule name for display
+   * @param eventBusName - Event bus name for display
+   * @internal
+   */
+  private displayOperationSummary(
+    putTargetsResult: PutTargetsResult,
+    ruleName: string,
+    eventBusName: string,
+  ): void {
+    this.log("📋 Operation Summary:");
+    const operationInfo = [
+      ["Rule Name", ruleName],
+      ["Event Bus", eventBusName],
+      ["Operation", putTargetsResult.isUpdate ? "UPDATE_TARGETS" : "ADD_TARGETS"],
+      ["Targets Processed", putTargetsResult.targetCount ?? 1],
+      ["Successful", putTargetsResult.successCount ?? 0],
+      ["Failed", putTargetsResult.failureCount ?? 0],
+    ];
+
+    for (const [key, value] of operationInfo) {
+      this.log(`  ${key}: ${value}`);
+    }
+  }
+
+  /**
+   * Display target details section
+   *
+   * @param putTargetsResult - Put targets result to display
+   * @internal
+   */
+  private displayTargetDetails(putTargetsResult: PutTargetsResult): void {
+    if (putTargetsResult.targets && putTargetsResult.targets.length > 0) {
+      this.log("\n🎯 Target Details:");
+      for (const [index, target] of putTargetsResult.targets.entries()) {
+        this.displaySingleTarget(target, index + 1);
+      }
+    }
+  }
+
+  /**
+   * Display details for a single target
+   *
+   * @param target - Target to display
+   * @param index - Target index for display
+   * @internal
+   */
+  private displaySingleTarget(target: Target, index: number): void {
+    this.log(`\n${index}. Target ID: ${target.Id ?? "N/A"}`);
+    this.log(`   ARN: ${target.Arn ?? "N/A"}`);
+
+    if (target.RoleArn) {
+      this.log(`   Role: ${target.RoleArn}`);
+    }
+
+    if (target.Input) {
+      this.log(`   Static Input: Configured`);
+    }
+
+    if (target.InputPath) {
+      this.log(`   Input Path: ${target.InputPath}`);
+    }
+
+    if (target.InputTransformer) {
+      this.log(`   Input Transformer: Configured`);
+    }
+
+    if (target.RetryPolicy) {
+      this.log(
+        `   Retry Policy: ${target.RetryPolicy.MaximumRetryAttempts ?? 0} attempts, ${target.RetryPolicy.MaximumEventAgeInSeconds ?? 0}s max age`,
+      );
+    }
+
+    if (target.DeadLetterConfig) {
+      this.log(`   Dead Letter Queue: ${target.DeadLetterConfig.Arn ?? "N/A"}`);
+    }
+  }
+
+  /**
+   * Display failure details section
+   *
+   * @param putTargetsResult - Put targets result to display
+   * @internal
+   */
+  private displayFailureDetails(putTargetsResult: PutTargetsResult): void {
+    if (putTargetsResult.failedEntries && putTargetsResult.failedEntries.length > 0) {
+      this.log("\n❌ Failed Targets:");
+      for (const [index, failure] of putTargetsResult.failedEntries.entries()) {
+        this.log(`${index + 1}. Target ID: ${failure.TargetId ?? "N/A"}`);
+        this.log(`   Error Code: ${failure.ErrorCode ?? "N/A"}`);
+        this.log(`   Error Message: ${failure.ErrorMessage ?? "N/A"}`);
+      }
+    }
+  }
+
+  /**
+   * Display put targets result in JSON format
+   *
+   * @param putTargetsResult - Put targets result to display
+   * @internal
+   */
+  private displayJsonFormat(putTargetsResult: PutTargetsResult): void {
+    const processor = new DataProcessor({ format: DataFormat.JSON });
+    const output = processor.formatOutput([{ data: putTargetsResult, index: 0 }]);
+    this.log(output);
+  }
+
+  /**
+   * Display put targets result in JSONL format
+   *
+   * @param putTargetsResult - Put targets result to display
+   * @internal
+   */
+  private displayJsonlFormat(putTargetsResult: PutTargetsResult): void {
+    const processor = new DataProcessor({ format: DataFormat.JSONL });
+    const output = processor.formatOutput([{ data: putTargetsResult, index: 0 }]);
+    this.log(output);
+  }
+
+  /**
+   * Display put targets result in CSV format
+   *
+   * @param putTargetsResult - Put targets result to display
+   * @param ruleName - Rule name for display
+   * @param eventBusName - Event bus name for display
+   * @internal
+   */
+  private displayCsvFormat(
+    putTargetsResult: PutTargetsResult,
+    ruleName: string,
+    eventBusName: string,
+  ): void {
+    // Flatten put targets result for CSV output
+    const flattenedData = {
+      RuleName: ruleName,
+      EventBusName: eventBusName,
+      Operation: putTargetsResult.isUpdate ? "UPDATE_TARGETS" : "ADD_TARGETS",
+      TargetsProcessed: putTargetsResult.targetCount ?? 1,
+      SuccessCount: putTargetsResult.successCount ?? 0,
+      FailureCount: putTargetsResult.failureCount ?? 0,
+      HasFailures: (putTargetsResult.failureCount ?? 0) > 0 ? "true" : "false",
+      Timestamp: new Date().toISOString(),
+    };
+
+    const processor = new DataProcessor({ format: DataFormat.CSV });
+    const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
+    this.log(output);
   }
 
   /**
