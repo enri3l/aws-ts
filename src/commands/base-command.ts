@@ -428,3 +428,10 @@ export abstract class BaseCommand extends Command {
     }
   }
 }
+/**
+ * Hidden default export to prevent base-command from appearing in help
+ * @internal
+ */
+export default abstract class BaseCommandHidden extends BaseCommand {
+  static override readonly hidden = true;
+}
