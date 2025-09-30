@@ -77,6 +77,7 @@ export default tseslint.config(
             "author",
             "private",
             "typeParam",
+            "module",
           ],
         },
       ],
