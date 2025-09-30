@@ -25,7 +25,6 @@ import {
   type DomainName as V2DomainName,
   type Integration as V2Integration,
 } from "@aws-sdk/client-apigatewayv2";
-import ora from "ora";
 import {
   ApiConfigurationError,
   ApiDiscoveryError,
@@ -33,54 +32,16 @@ import {
   ApiTypeDetectionError,
 } from "../lib/apigw-errors.js";
 import { detectApiType, type ApiType, type UnifiedApi } from "../lib/apigw-schemas.js";
-import { ServiceError } from "../lib/errors.js";
-import { CredentialService, type AwsClientConfig } from "./credential-service.js";
-
-/**
- * Spinner interface for progress indicators
- * @internal
- */
-interface SpinnerInterface {
-  text: string;
-  succeed: (message?: string) => void;
-  fail: (message?: string) => void;
-  warn: (message?: string) => void;
-}
+import { BaseAwsService, type BaseServiceOptions } from "../lib/base-aws-service.js";
+import { retryWithBackoff } from "../lib/retry.js";
+import type { AwsClientConfig } from "./credential-service.js";
 
 /**
  * Configuration options for API Gateway service
  *
  * @public
  */
-export interface ApiGwServiceOptions {
-  /**
-   * Credential service configuration
-   */
-  credentialService?: {
-    defaultRegion?: string;
-    defaultProfile?: string;
-    enableDebugLogging?: boolean;
-  };
-
-  /**
-   * Enable debug logging for API Gateway operations
-   */
-  enableDebugLogging?: boolean;
-
-  /**
-   * Enable progress indicators for long-running operations
-   */
-  enableProgressIndicators?: boolean;
-
-  /**
-   * API Gateway client configuration overrides
-   */
-  clientConfig?: {
-    region?: string;
-    profile?: string;
-    endpoint?: string;
-  };
-}
+export type ApiGwServiceOptions = BaseServiceOptions;
 
 /**
  * API Gateway API description for REST APIs
@@ -259,10 +220,7 @@ export interface PaginatedApiResult {
  *
  * @public
  */
-export class ApiGwService {
-  private readonly credentialService: CredentialService;
-  private readonly options: ApiGwServiceOptions;
-  private restApiClientCache = new Map<string, APIGatewayClient>();
+export class ApiGwService extends BaseAwsService<APIGatewayClient> {
   private v2ApiClientCache = new Map<string, ApiGatewayV2Client>();
 
   /**
@@ -271,40 +229,7 @@ export class ApiGwService {
    * @param options - Configuration options for the service
    */
   constructor(options: ApiGwServiceOptions = {}) {
-    this.options = {
-      ...options,
-      enableProgressIndicators:
-        options.enableProgressIndicators ??
-        (process.env.NODE_ENV !== "test" && !process.env.CI && !process.env.VITEST),
-    };
-
-    this.credentialService = new CredentialService({
-      enableDebugLogging: options.enableDebugLogging ?? false,
-      ...options.credentialService,
-    });
-  }
-
-  /**
-   * Get REST API Gateway client with caching
-   *
-   * @param config - Client configuration options
-   * @returns REST API Gateway client instance
-   * @internal
-   */
-  private async getRestApiClient(config: AwsClientConfig = {}): Promise<APIGatewayClient> {
-    const cacheKey = `${config.region || "default"}-${config.profile || "default"}`;
-
-    if (!this.restApiClientCache.has(cacheKey)) {
-      const clientConfig = {
-        ...config,
-        ...this.options.clientConfig,
-      };
-
-      const client = await this.credentialService.createClient(APIGatewayClient, clientConfig);
-      this.restApiClientCache.set(cacheKey, client);
-    }
-
-    return this.restApiClientCache.get(cacheKey)!;
+    super(APIGatewayClient, options);
   }
 
   /**
@@ -315,37 +240,16 @@ export class ApiGwService {
    * @internal
    */
   private async getV2ApiClient(config: AwsClientConfig = {}): Promise<ApiGatewayV2Client> {
-    const cacheKey = `v2-${config.region || "default"}-${config.profile || "default"}`;
+    const sanitizedRegion = (config.region || "default").replaceAll(/[^\w-]/g, "_");
+    const sanitizedProfile = (config.profile || "default").replaceAll(/[^\w-]/g, "_");
+    const cacheKey = `v2-${sanitizedRegion}-${sanitizedProfile}`;
 
     if (!this.v2ApiClientCache.has(cacheKey)) {
-      const clientConfig = {
-        ...config,
-        ...this.options.clientConfig,
-      };
-
-      const client = await this.credentialService.createClient(ApiGatewayV2Client, clientConfig);
+      const client = await this.credentialService.createClient(ApiGatewayV2Client, config);
       this.v2ApiClientCache.set(cacheKey, client);
     }
 
     return this.v2ApiClientCache.get(cacheKey)!;
-  }
-
-  /**
-   * Create a progress spinner if enabled
-   *
-   * @param text - Initial spinner text
-   * @returns Spinner instance or mock object
-   * @internal
-   */
-  private createSpinner(text: string): SpinnerInterface {
-    return (this.options.enableProgressIndicators ?? true)
-      ? ora(text).start()
-      : {
-          text,
-          succeed: () => {},
-          fail: () => {},
-          warn: () => {},
-        };
   }
 
   /**
@@ -361,7 +265,7 @@ export class ApiGwService {
     parameters: ApiListingParameters = {},
   ): Promise<UnifiedApi[]> {
     try {
-      const client = await this.getRestApiClient(config);
+      const client = await this.getClient(config);
       const { GetRestApisCommand } = await import("@aws-sdk/client-api-gateway");
 
       const command = new GetRestApisCommand({
@@ -369,7 +273,9 @@ export class ApiGwService {
         position: parameters.position,
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const restApis = response.items || [];
 
       return restApis.map(
@@ -416,7 +322,9 @@ export class ApiGwService {
         NextToken: parameters.position,
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const apis = response.Items || [];
 
       return apis
@@ -464,7 +372,9 @@ export class ApiGwService {
         NextToken: parameters.position,
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const apis = response.Items || [];
 
       return apis
@@ -549,10 +459,10 @@ export class ApiGwService {
         throw error;
       }
 
-      throw new ServiceError(
+      throw new ApiDiscoveryError(
         `Failed to list API Gateway APIs: ${error instanceof Error ? error.message : String(error)}`,
-        "APIGateway",
         "list-apis",
+        undefined,
         error,
       );
     }
@@ -679,10 +589,13 @@ export class ApiGwService {
   ): Promise<ApiDescription> {
     switch (apiType) {
       case "rest": {
-        const client = await this.getRestApiClient(config);
+        const client = await this.getClient(config);
         const { GetRestApiCommand } = await import("@aws-sdk/client-api-gateway");
 
-        const response = await client.send(new GetRestApiCommand({ restApiId: apiId }));
+        const response = await retryWithBackoff(
+          () => client.send(new GetRestApiCommand({ restApiId: apiId })),
+          { maxAttempts: 3 },
+        );
 
         return {
           id: response.id!,
@@ -704,7 +617,10 @@ export class ApiGwService {
         const client = await this.getV2ApiClient(config);
         const { GetApiCommand } = await import("@aws-sdk/client-apigatewayv2");
 
-        const response = await client.send(new GetApiCommand({ ApiId: apiId }));
+        const response = await retryWithBackoff(
+          () => client.send(new GetApiCommand({ ApiId: apiId })),
+          { maxAttempts: 3 },
+        );
 
         return {
           apiId: response.ApiId!,
@@ -736,7 +652,10 @@ export class ApiGwService {
         const client = await this.getV2ApiClient(config);
         const { GetApiCommand } = await import("@aws-sdk/client-apigatewayv2");
 
-        const response = await client.send(new GetApiCommand({ ApiId: apiId }));
+        const response = await retryWithBackoff(
+          () => client.send(new GetApiCommand({ ApiId: apiId })),
+          { maxAttempts: 3 },
+        );
 
         return {
           apiId: response.ApiId!,
@@ -946,10 +865,13 @@ export class ApiGwService {
   ): Promise<StageConfiguration[]> {
     switch (apiType) {
       case "rest": {
-        const client = await this.getRestApiClient(config);
+        const client = await this.getClient(config);
         const { GetStagesCommand } = await import("@aws-sdk/client-api-gateway");
 
-        const response = await client.send(new GetStagesCommand({ restApiId: apiId }));
+        const response = await retryWithBackoff(
+          () => client.send(new GetStagesCommand({ restApiId: apiId })),
+          { maxAttempts: 3 },
+        );
 
         return (response.item || []).map(
           (stage): StageConfiguration => ({
@@ -971,7 +893,10 @@ export class ApiGwService {
         const client = await this.getV2ApiClient(config);
         const { GetStagesCommand } = await import("@aws-sdk/client-apigatewayv2");
 
-        const response = await client.send(new GetStagesCommand({ ApiId: apiId }));
+        const response = await retryWithBackoff(
+          () => client.send(new GetStagesCommand({ ApiId: apiId })),
+          { maxAttempts: 3 },
+        );
 
         return (response.Items || []).map(
           (stage): StageConfiguration => ({
@@ -1014,10 +939,13 @@ export class ApiGwService {
     apiId: string,
     config: AwsClientConfig = {},
   ): Promise<Resource[]> {
-    const client = await this.getRestApiClient(config);
+    const client = await this.getClient(config);
     const { GetResourcesCommand } = await import("@aws-sdk/client-api-gateway");
 
-    const response = await client.send(new GetResourcesCommand({ restApiId: apiId }));
+    const response = await retryWithBackoff(
+      () => client.send(new GetResourcesCommand({ restApiId: apiId })),
+      { maxAttempts: 3 },
+    );
     return response.items || [];
   }
 
@@ -1033,7 +961,10 @@ export class ApiGwService {
     const client = await this.getV2ApiClient(config);
     const { GetRoutesCommand } = await import("@aws-sdk/client-apigatewayv2");
 
-    const response = await client.send(new GetRoutesCommand({ ApiId: apiId }));
+    const response = await retryWithBackoff(
+      () => client.send(new GetRoutesCommand({ ApiId: apiId })),
+      { maxAttempts: 3 },
+    );
     return response.Items || [];
   }
 
@@ -1052,7 +983,10 @@ export class ApiGwService {
     const client = await this.getV2ApiClient(config);
     const { GetIntegrationsCommand } = await import("@aws-sdk/client-apigatewayv2");
 
-    const response = await client.send(new GetIntegrationsCommand({ ApiId: apiId }));
+    const response = await retryWithBackoff(
+      () => client.send(new GetIntegrationsCommand({ ApiId: apiId })),
+      { maxAttempts: 3 },
+    );
     return response.Items || [];
   }
 }

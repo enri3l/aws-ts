@@ -7,7 +7,7 @@
  *
  */
 
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, paginateListTables } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
   GetCommand,
@@ -16,55 +16,23 @@ import {
   ScanCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import ora from "ora";
-import { ServiceError } from "../lib/errors.js";
-import { CredentialService, type AwsClientConfig } from "./credential-service.js";
-
-/**
- * Spinner interface for progress indicators
- * @internal
- */
-interface SpinnerInterface {
-  text: string;
-  succeed: (message?: string) => void;
-  fail: (message?: string) => void;
-  warn: (message?: string) => void;
-}
+import { BaseAwsService, type BaseServiceOptions } from "../lib/base-aws-service.js";
+import {
+  DynamoDBError,
+  DynamoDBQueryError,
+  ItemError,
+  ScanError,
+  TableError,
+} from "../lib/dynamodb-errors.js";
+import { retryWithBackoff } from "../lib/retry.js";
+import type { AwsClientConfig } from "./credential-service.js";
 
 /**
  * Configuration options for DynamoDB service
  *
  * @public
  */
-export interface DynamoDBServiceOptions {
-  /**
-   * Credential service configuration
-   */
-  credentialService?: {
-    defaultRegion?: string;
-    defaultProfile?: string;
-    enableDebugLogging?: boolean;
-  };
-
-  /**
-   * Enable debug logging for DynamoDB operations
-   */
-  enableDebugLogging?: boolean;
-
-  /**
-   * Enable progress indicators for long-running operations
-   */
-  enableProgressIndicators?: boolean;
-
-  /**
-   * DynamoDB client configuration overrides
-   */
-  clientConfig?: {
-    region?: string;
-    profile?: string;
-    endpoint?: string;
-  };
-}
+export type DynamoDBServiceOptions = BaseServiceOptions;
 
 /**
  * DynamoDB table description
@@ -205,10 +173,7 @@ export interface PaginatedResult<T = Record<string, unknown>> {
  *
  * @public
  */
-export class DynamoDBService {
-  private readonly credentialService: CredentialService;
-  private readonly options: DynamoDBServiceOptions;
-  private clientCache = new Map<string, DynamoDBClient>();
+export class DynamoDBService extends BaseAwsService<DynamoDBClient> {
   private docClientCache = new Map<string, DynamoDBDocumentClient>();
 
   /**
@@ -217,40 +182,7 @@ export class DynamoDBService {
    * @param options - Configuration options for the service
    */
   constructor(options: DynamoDBServiceOptions = {}) {
-    this.options = {
-      ...options,
-      enableProgressIndicators:
-        options.enableProgressIndicators ??
-        (process.env.NODE_ENV !== "test" && !process.env.CI && !process.env.VITEST),
-    };
-
-    this.credentialService = new CredentialService({
-      enableDebugLogging: options.enableDebugLogging ?? false,
-      ...options.credentialService,
-    });
-  }
-
-  /**
-   * Get DynamoDB client with caching
-   *
-   * @param config - Client configuration options
-   * @returns DynamoDB client instance
-   * @internal
-   */
-  private async getDynamoDBClient(config: AwsClientConfig = {}): Promise<DynamoDBClient> {
-    const cacheKey = `${config.region || "default"}-${config.profile || "default"}`;
-
-    if (!this.clientCache.has(cacheKey)) {
-      const clientConfig = {
-        ...config,
-        ...this.options.clientConfig,
-      };
-
-      const client = await this.credentialService.createClient(DynamoDBClient, clientConfig);
-      this.clientCache.set(cacheKey, client);
-    }
-
-    return this.clientCache.get(cacheKey)!;
+    super(DynamoDBClient, options);
   }
 
   /**
@@ -264,7 +196,7 @@ export class DynamoDBService {
     const cacheKey = `doc-${config.region || "default"}-${config.profile || "default"}`;
 
     if (!this.docClientCache.has(cacheKey)) {
-      const dynamoClient = await this.getDynamoDBClient(config);
+      const dynamoClient = await this.getClient(config);
       const documentClient = DynamoDBDocumentClient.from(dynamoClient, {
         marshallOptions: {
           removeUndefinedValues: true,
@@ -281,48 +213,58 @@ export class DynamoDBService {
   }
 
   /**
-   * Create a progress spinner if enabled
-   *
-   * @param text - Initial spinner text
-   * @returns Spinner instance or mock object
-   * @internal
-   */
-  private createSpinner(text: string): SpinnerInterface {
-    return (this.options.enableProgressIndicators ?? true)
-      ? ora(text).start()
-      : {
-          text,
-          succeed: () => {},
-          fail: () => {},
-          warn: () => {},
-        };
-  }
-
-  /**
-   * List all DynamoDB tables
+   * List all DynamoDB tables using AWS SDK v3 native pagination
    *
    * @param config - Client configuration options
+   * @param limit - Maximum number of table names to return
+   * @param exclusiveStartTableName - Pagination token (optional, for backwards compatibility)
    * @returns Promise resolving to array of table names
    * @throws When table listing fails
+   *
+   * @remarks
+   * Uses AWS SDK v3's built-in async iterator pagination pattern. Fetches all
+   * pages unless limit is specified.
    */
-  async listTables(config: AwsClientConfig = {}): Promise<string[]> {
+  async listTables(
+    config: AwsClientConfig = {},
+    limit?: number,
+    exclusiveStartTableName?: string,
+  ): Promise<string[]> {
     const spinner = this.createSpinner("Listing DynamoDB tables...");
 
     try {
-      const client = await this.getDynamoDBClient(config);
-      const { ListTablesCommand } = await import("@aws-sdk/client-dynamodb");
+      const client = await this.getClient(config);
+      const allTables: string[] = [];
+      let pageCount = 0;
 
-      const response = await client.send(new ListTablesCommand({}));
-      const tables = response.TableNames || [];
+      // Use AWS SDK v3 native paginator with async iterator
+      const paginatorConfig = limit ? { client, pageSize: limit } : { client };
+      const paginator = paginateListTables(paginatorConfig, {
+        ...(limit && { Limit: limit }),
+        ...(exclusiveStartTableName && { ExclusiveStartTableName: exclusiveStartTableName }),
+      });
 
-      spinner.succeed(`Found ${tables.length} DynamoDB tables`);
-      return tables;
+      for await (const page of paginator) {
+        pageCount++;
+        const tables = page.TableNames || [];
+        allTables.push(...tables);
+
+        spinner.text = `Loading DynamoDB tables... (${allTables.length} so far, ${pageCount} page${pageCount === 1 ? "" : "s"})`;
+
+        // Stop if we've reached limit
+        if (limit && allTables.length >= limit) {
+          break;
+        }
+      }
+
+      spinner.succeed(`Found ${allTables.length} DynamoDB tables`);
+      return allTables;
     } catch (error) {
       spinner.fail("Failed to list tables");
-      throw new ServiceError(
+      throw new DynamoDBError(
         `Failed to list DynamoDB tables: ${error instanceof Error ? error.message : String(error)}`,
-        "DynamoDB",
         "list-tables",
+        undefined,
         error,
       );
     }
@@ -340,16 +282,22 @@ export class DynamoDBService {
     const spinner = this.createSpinner(`Describing table '${tableName}'...`);
 
     try {
-      const client = await this.getDynamoDBClient(config);
+      const client = await this.getClient(config);
       const { DescribeTableCommand } = await import("@aws-sdk/client-dynamodb");
 
-      const response = await client.send(new DescribeTableCommand({ TableName: tableName }));
+      const response = await retryWithBackoff(
+        () => client.send(new DescribeTableCommand({ TableName: tableName })),
+        {
+          maxAttempts: 3,
+          onRetry: (error, attempt, _delay) => {
+            spinner.text = `Retrying describe table (attempt ${attempt})...`;
+          },
+        },
+      );
       const table = response.Table;
 
       if (!table) {
-        throw new ServiceError(`Table '${tableName}' not found`, "DynamoDB", "describe-table", {
-          tableName,
-        });
+        throw new TableError(`Table '${tableName}' not found`, tableName, "describe-table");
       }
 
       const description: TableDescription = {
@@ -405,12 +353,12 @@ export class DynamoDBService {
       return description;
     } catch (error) {
       spinner.fail(`Failed to describe table '${tableName}'`);
-      throw new ServiceError(
+      throw new TableError(
         `Failed to describe table '${tableName}': ${error instanceof Error ? error.message : String(error)}`,
-        "DynamoDB",
+        tableName,
         "describe-table",
-        error,
-        { tableName },
+        undefined,
+        { cause: error },
       );
     }
   }
@@ -443,7 +391,12 @@ export class DynamoDBService {
         ScanIndexForward: parameters.scanIndexForward,
       });
 
-      const response = await documentClient.send(command);
+      const response = await retryWithBackoff(() => documentClient.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying query (attempt ${attempt})...`;
+        },
+      });
 
       const result: PaginatedResult = {
         items: response.Items || [],
@@ -456,12 +409,12 @@ export class DynamoDBService {
       return result;
     } catch (error) {
       spinner.fail(`Failed to query table '${parameters.tableName}'`);
-      throw new ServiceError(
+      throw new DynamoDBQueryError(
         `Failed to query table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
-        "DynamoDB",
-        "query",
+        parameters.tableName,
+        parameters.indexName,
+        parameters.keyConditionExpression,
         error,
-        { tableName: parameters.tableName, indexName: parameters.indexName },
       );
     }
   }
@@ -494,7 +447,12 @@ export class DynamoDBService {
         TotalSegments: parameters.totalSegments,
       });
 
-      const response = await documentClient.send(command);
+      const response = await retryWithBackoff(() => documentClient.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying scan (attempt ${attempt})...`;
+        },
+      });
 
       const result: PaginatedResult = {
         items: response.Items || [],
@@ -507,12 +465,12 @@ export class DynamoDBService {
       return result;
     } catch (error) {
       spinner.fail(`Failed to scan table '${parameters.tableName}'`);
-      throw new ServiceError(
+      throw new ScanError(
         `Failed to scan table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
-        "DynamoDB",
-        "scan",
+        parameters.tableName,
+        parameters.indexName,
+        parameters.filterExpression,
         error,
-        { tableName: parameters.tableName, indexName: parameters.indexName },
       );
     }
   }
@@ -542,7 +500,12 @@ export class DynamoDBService {
         ConsistentRead: parameters.consistentRead,
       });
 
-      const response = await documentClient.send(command);
+      const response = await retryWithBackoff(() => documentClient.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying get item (attempt ${attempt})...`;
+        },
+      });
 
       if (response.Item) {
         spinner.succeed("Item retrieved successfully");
@@ -553,12 +516,13 @@ export class DynamoDBService {
       }
     } catch (error) {
       spinner.fail(`Failed to get item from table '${parameters.tableName}'`);
-      throw new ServiceError(
+      throw new ItemError(
         `Failed to get item from table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
-        "DynamoDB",
+        parameters.tableName,
         "get-item",
+        parameters.key,
+        undefined,
         error,
-        { tableName: parameters.tableName, key: parameters.key },
       );
     }
   }
@@ -589,18 +553,24 @@ export class DynamoDBService {
         ReturnValues: parameters.returnValues,
       });
 
-      const response = await documentClient.send(command);
+      const response = await retryWithBackoff(() => documentClient.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying put item (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed("Item saved successfully");
       return response.Attributes;
     } catch (error) {
       spinner.fail(`Failed to put item to table '${parameters.tableName}'`);
-      throw new ServiceError(
+      throw new ItemError(
         `Failed to put item to table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
-        "DynamoDB",
+        parameters.tableName,
         "put-item",
+        undefined,
+        parameters.conditionExpression,
         error,
-        { tableName: parameters.tableName },
       );
     }
   }
@@ -632,18 +602,24 @@ export class DynamoDBService {
         ReturnValues: parameters.returnValues,
       });
 
-      const response = await documentClient.send(command);
+      const response = await retryWithBackoff(() => documentClient.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying update item (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed("Item updated successfully");
       return response.Attributes;
     } catch (error) {
       spinner.fail(`Failed to update item in table '${parameters.tableName}'`);
-      throw new ServiceError(
+      throw new ItemError(
         `Failed to update item in table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
-        "DynamoDB",
+        parameters.tableName,
         "update-item",
+        parameters.key,
+        parameters.conditionExpression,
         error,
-        { tableName: parameters.tableName, key: parameters.key },
       );
     }
   }
@@ -652,12 +628,8 @@ export class DynamoDBService {
    * Clear client caches (useful for testing or configuration changes)
    *
    */
-  clearClientCache(): void {
-    this.clientCache.clear();
+  override clearClientCache(): void {
+    super.clearClientCache();
     this.docClientCache.clear();
-
-    if (this.options.enableDebugLogging) {
-      console.debug("Cleared DynamoDB client caches");
-    }
   }
 }

@@ -16,13 +16,13 @@ import {
   DescribeServicesCommand,
   DescribeTasksCommand,
   ECSClient,
-  ListClustersCommand,
-  ListServicesCommand,
-  ListTasksCommand,
   RunTaskCommand,
   StopTaskCommand,
   UpdateClusterCommand,
   UpdateServiceCommand,
+  paginateListClusters,
+  paginateListServices,
+  paginateListTasks,
   type Cluster,
   type Container,
   type CreateClusterRequest,
@@ -37,55 +37,33 @@ import {
   type UpdateClusterRequest,
   type UpdateServiceRequest,
 } from "@aws-sdk/client-ecs";
-import ora from "ora";
-import { ServiceError } from "../lib/errors.js";
-import { CredentialService, type AwsClientConfig } from "./credential-service.js";
+import {
+  BaseAwsService,
+  type BaseServiceOptions,
+  type SpinnerInterface,
+} from "../lib/base-aws-service.js";
+import { ClusterError, ECSServiceError, TaskError } from "../lib/ecs-errors.js";
+import { retryWithBackoff } from "../lib/retry.js";
+import type { AwsClientConfig } from "./credential-service.js";
 
 /**
- * Spinner interface for progress indicators
- * @internal
+ * ECS launch type
+ * @public
  */
-interface SpinnerInterface {
-  text: string;
-  succeed: (message?: string) => void;
-  fail: (message?: string) => void;
-  warn: (message?: string) => void;
-}
+type LaunchType = "EC2" | "FARGATE" | "EXTERNAL";
+
+/**
+ * ECS scheduling strategy
+ * @public
+ */
+type SchedulingStrategy = "REPLICA" | "DAEMON";
 
 /**
  * Configuration options for ECS service
  *
  * @public
  */
-export interface ECSServiceOptions {
-  /**
-   * Credential service configuration
-   */
-  credentialService?: {
-    defaultRegion?: string;
-    defaultProfile?: string;
-    enableDebugLogging?: boolean;
-  };
-
-  /**
-   * Enable debug logging for ECS operations
-   */
-  enableDebugLogging?: boolean;
-
-  /**
-   * Enable progress indicators for long-running operations
-   */
-  enableProgressIndicators?: boolean;
-
-  /**
-   * ECS client configuration overrides
-   */
-  clientConfig?: {
-    region?: string;
-    profile?: string;
-    endpoint?: string;
-  };
-}
+export type ECSServiceOptions = BaseServiceOptions;
 
 /**
  * ECS cluster description
@@ -278,69 +256,14 @@ export interface RunTaskResult {
  *
  * @public
  */
-export class ECSService {
-  private readonly credentialService: CredentialService;
-  private readonly options: ECSServiceOptions;
-  private clientCache = new Map<string, ECSClient>();
-
+export class ECSService extends BaseAwsService<ECSClient> {
   /**
    * Create a new ECS service instance
    *
    * @param options - Configuration options for the service
    */
   constructor(options: ECSServiceOptions = {}) {
-    this.options = {
-      ...options,
-      enableProgressIndicators:
-        options.enableProgressIndicators ??
-        (process.env.NODE_ENV !== "test" && !process.env.CI && !process.env.VITEST),
-    };
-
-    this.credentialService = new CredentialService({
-      enableDebugLogging: options.enableDebugLogging ?? false,
-      ...options.credentialService,
-    });
-  }
-
-  /**
-   * Get ECS client with caching
-   *
-   * @param config - Client configuration options
-   * @returns ECS client instance
-   * @internal
-   */
-  private async getECSClient(config: AwsClientConfig = {}): Promise<ECSClient> {
-    const cacheKey = `${config.region || "default"}-${config.profile || "default"}`;
-
-    if (!this.clientCache.has(cacheKey)) {
-      const clientConfig = {
-        ...config,
-        ...this.options.clientConfig,
-      };
-
-      const client = await this.credentialService.createClient(ECSClient, clientConfig);
-      this.clientCache.set(cacheKey, client);
-    }
-
-    return this.clientCache.get(cacheKey)!;
-  }
-
-  /**
-   * Create a progress spinner if enabled
-   *
-   * @param text - Initial spinner text
-   * @returns Spinner instance or mock object
-   * @internal
-   */
-  private createSpinner(text: string): SpinnerInterface {
-    return (this.options.enableProgressIndicators ?? true)
-      ? ora(text).start()
-      : {
-          text,
-          succeed: () => {},
-          fail: () => {},
-          warn: () => {},
-        };
+    super(ECSClient, options);
   }
 
   /**
@@ -351,7 +274,7 @@ export class ECSService {
    *
    * @param config - Client configuration options
    * @returns Promise resolving to array of cluster names
-   * @throws ServiceError - When cluster listing fails due to credentials, permissions, or API errors
+   * @throws ClusterError - When cluster listing fails due to credentials, permissions, or API errors
    *
    * @example
    * ```typescript
@@ -371,21 +294,30 @@ export class ECSService {
     const spinner = this.createSpinner("Listing ECS clusters...");
 
     try {
-      const client = await this.getECSClient(config);
-      const command = new ListClustersCommand({});
+      const client = await this.getClient(config);
+      const allClusterArns: string[] = [];
+      let pageCount = 0;
 
-      const response = await client.send(command);
-      const clusters = response.clusterArns || [];
+      // Use AWS SDK v3 native paginator with async iterator
+      const paginator = paginateListClusters({ client }, {});
 
-      const clusterNames = clusters.map((arn) => arn.split("/").pop() || arn);
+      for await (const page of paginator) {
+        pageCount++;
+        const arns = page.clusterArns || [];
+        allClusterArns.push(...arns);
 
-      spinner.succeed(`Found ${clusters.length} ECS clusters`);
+        spinner.text = `Loading ECS clusters... (${allClusterArns.length} so far, ${pageCount} page${pageCount === 1 ? "" : "s"})`;
+      }
+
+      const clusterNames = allClusterArns.map((arn) => arn.split("/").pop() || arn);
+
+      spinner.succeed(`Found ${allClusterArns.length} ECS clusters`);
       return clusterNames;
     } catch (error) {
       spinner.fail("Failed to list clusters");
-      throw new ServiceError(
+      throw new ClusterError(
         `Failed to list ECS clusters: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        undefined,
         "list-clusters",
         error,
       );
@@ -401,7 +333,7 @@ export class ECSService {
    * @param clusterNames - Names of clusters to describe
    * @param config - Client configuration options
    * @returns Promise resolving to array of cluster descriptions
-   * @throws ServiceError - When cluster description fails
+   * @throws ClusterError - When cluster description fails
    *
    * @example
    * ```typescript
@@ -422,13 +354,20 @@ export class ECSService {
     const spinner = this.createSpinner(`Describing ${clusterNames.length} ECS clusters...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new DescribeClustersCommand({
         clusters: clusterNames,
         include: ["ATTACHMENTS", "CONFIGURATIONS", "SETTINGS", "STATISTICS", "TAGS"],
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          if (this.options.enableDebugLogging) {
+            spinner.text = `Retrying describe clusters (attempt ${attempt})...`;
+          }
+        },
+      });
       const clusters = response.clusters || [];
 
       const descriptions: ClusterDescription[] = clusters.map((cluster: Cluster) =>
@@ -439,9 +378,9 @@ export class ECSService {
       return descriptions;
     } catch (error) {
       spinner.fail(`Failed to describe clusters`);
-      throw new ServiceError(
+      throw new ClusterError(
         `Failed to describe ECS clusters: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        undefined,
         "describe-clusters",
         error,
         { clusterNames },
@@ -464,10 +403,17 @@ export class ECSService {
     const spinner = this.createSpinner(`Creating ECS cluster '${parameters.clusterName}'...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new CreateClusterCommand(parameters);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          if (this.options.enableDebugLogging) {
+            spinner.text = `Retrying create cluster (attempt ${attempt})...`;
+          }
+        },
+      });
       const cluster = response.cluster!;
 
       const description: ClusterDescription = {
@@ -484,12 +430,11 @@ export class ECSService {
       return description;
     } catch (error) {
       spinner.fail(`Failed to create cluster '${parameters.clusterName}'`);
-      throw new ServiceError(
+      throw new ClusterError(
         `Failed to create ECS cluster '${parameters.clusterName}': ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        parameters.clusterName,
         "create-cluster",
         error,
-        { clusterName: parameters.clusterName },
       );
     }
   }
@@ -509,10 +454,12 @@ export class ECSService {
     const spinner = this.createSpinner(`Updating ECS cluster '${parameters.cluster}'...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new UpdateClusterCommand(parameters);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const cluster = response.cluster!;
 
       const description: ClusterDescription = {
@@ -529,12 +476,11 @@ export class ECSService {
       return description;
     } catch (error) {
       spinner.fail(`Failed to update cluster '${parameters.cluster}'`);
-      throw new ServiceError(
+      throw new ClusterError(
         `Failed to update ECS cluster '${parameters.cluster}': ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        parameters.cluster,
         "update-cluster",
         error,
-        { clusterName: parameters.cluster },
       );
     }
   }
@@ -550,20 +496,21 @@ export class ECSService {
     const spinner = this.createSpinner(`Deleting ECS cluster '${clusterName}'...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new DeleteClusterCommand({ cluster: clusterName });
 
-      await client.send(command);
+      await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
 
       spinner.succeed(`Deleted ECS cluster '${clusterName}'`);
     } catch (error) {
       spinner.fail(`Failed to delete cluster '${clusterName}'`);
-      throw new ServiceError(
+      throw new ClusterError(
         `Failed to delete ECS cluster '${clusterName}': ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        clusterName,
         "delete-cluster",
         error,
-        { clusterName },
       );
     }
   }
@@ -577,7 +524,7 @@ export class ECSService {
    * @param options - List options including cluster, launchType, schedulingStrategy, and maxResults
    * @param config - Client configuration options
    * @returns Promise resolving to array of service ARNs
-   * @throws ServiceError - When service listing fails
+   * @throws ECSServiceError - When service listing fails
    *
    * @example List all services in a cluster
    * ```typescript
@@ -599,8 +546,8 @@ export class ECSService {
   async listServices(
     options: {
       cluster?: string;
-      launchType?: "EC2" | "FARGATE" | "EXTERNAL";
-      schedulingStrategy?: "REPLICA" | "DAEMON";
+      launchType?: LaunchType;
+      schedulingStrategy?: SchedulingStrategy;
       maxResults?: number;
     } = {},
     config: AwsClientConfig = {},
@@ -612,27 +559,44 @@ export class ECSService {
     );
 
     try {
-      const client = await this.getECSClient(config);
-      const command = new ListServicesCommand({
+      const client = await this.getClient(config);
+      const allServiceArns: string[] = [];
+      let pageCount = 0;
+
+      // Use AWS SDK v3 native paginator with async iterator
+      const paginatorConfig = options.maxResults
+        ? { client, pageSize: options.maxResults }
+        : { client };
+      const paginator = paginateListServices(paginatorConfig, {
         ...(options.cluster && { cluster: options.cluster }),
         ...(options.launchType && { launchType: options.launchType }),
         ...(options.schedulingStrategy && { schedulingStrategy: options.schedulingStrategy }),
         ...(options.maxResults && { maxResults: options.maxResults }),
       });
 
-      const response = await client.send(command);
-      const services = response.serviceArns || [];
+      for await (const page of paginator) {
+        pageCount++;
+        const arns = page.serviceArns || [];
+        allServiceArns.push(...arns);
 
-      spinner.succeed(`Found ${services.length} ECS services`);
-      return services;
+        spinner.text = `Loading ECS services... (${allServiceArns.length} so far, ${pageCount} page${pageCount === 1 ? "" : "s"})`;
+
+        // Stop if we've reached maxResults limit
+        if (options.maxResults && allServiceArns.length >= options.maxResults) {
+          break;
+        }
+      }
+
+      spinner.succeed(`Found ${allServiceArns.length} ECS services`);
+      return allServiceArns;
     } catch (error) {
       spinner.fail("Failed to list services");
-      throw new ServiceError(
+      throw new ECSServiceError(
         `Failed to list ECS services: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        undefined,
+        options.cluster,
         "list-services",
         error,
-        { clusterName: options.cluster },
       );
     }
   }
@@ -654,14 +618,16 @@ export class ECSService {
     const spinner = this.createSpinner(`Describing ${serviceNames.length} ECS services...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new DescribeServicesCommand({
         services: serviceNames,
         ...(options.cluster && { cluster: options.cluster }),
         ...(options.include && { include: options.include }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const services = response.services || [];
 
       const descriptions: ServiceDescription[] = services.map((service: Service) => ({
@@ -745,12 +711,12 @@ export class ECSService {
       return descriptions;
     } catch (error) {
       spinner.fail("Failed to describe services");
-      throw new ServiceError(
+      throw new ECSServiceError(
         `Failed to describe ECS services: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        serviceNames.join(", "),
+        options.cluster,
         "describe-services",
         error,
-        { serviceNames, clusterName: options.cluster },
       );
     }
   }
@@ -770,10 +736,12 @@ export class ECSService {
     const spinner = this.createSpinner(`Creating ECS service '${parameters.serviceName}'...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new CreateServiceCommand(parameters);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const service = response.service!;
 
       const description: ServiceDescription = {
@@ -791,12 +759,12 @@ export class ECSService {
       return description;
     } catch (error) {
       spinner.fail(`Failed to create service '${parameters.serviceName}'`);
-      throw new ServiceError(
+      throw new ECSServiceError(
         `Failed to create ECS service '${parameters.serviceName}': ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        parameters.serviceName,
+        parameters.cluster,
         "create-service",
         error,
-        { serviceName: parameters.serviceName, clusterName: parameters.cluster },
       );
     }
   }
@@ -816,10 +784,12 @@ export class ECSService {
     const spinner = this.createSpinner(`Updating ECS service '${parameters.service}'...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new UpdateServiceCommand(parameters);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const service = response.service!;
 
       const description: ServiceDescription = {
@@ -837,12 +807,12 @@ export class ECSService {
       return description;
     } catch (error) {
       spinner.fail(`Failed to update service '${parameters.service}'`);
-      throw new ServiceError(
+      throw new ECSServiceError(
         `Failed to update ECS service '${parameters.service}': ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        parameters.service,
+        parameters.cluster,
         "update-service",
         error,
-        { serviceName: parameters.service, clusterName: parameters.cluster },
       );
     }
   }
@@ -863,24 +833,26 @@ export class ECSService {
     const spinner = this.createSpinner(`Deleting ECS service '${serviceName}'...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new DeleteServiceCommand({
         service: serviceName,
         ...(options.cluster && { cluster: options.cluster }),
         ...(options.force !== undefined && { force: options.force }),
       });
 
-      await client.send(command);
+      await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
 
       spinner.succeed(`Deleted ECS service '${serviceName}'`);
     } catch (error) {
       spinner.fail(`Failed to delete service '${serviceName}'`);
-      throw new ServiceError(
+      throw new ECSServiceError(
         `Failed to delete ECS service '${serviceName}': ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        serviceName,
+        options.cluster,
         "delete-service",
         error,
-        { serviceName, clusterName: options.cluster },
       );
     }
   }
@@ -910,28 +882,15 @@ export class ECSService {
     const spinner = this.createSpinner(spinnerMessage);
 
     try {
-      const client = await this.getECSClient(config);
-      const command = new ListTasksCommand({
-        ...(options.cluster && { cluster: options.cluster }),
-        ...(options.serviceName && { serviceName: options.serviceName }),
-        ...(options.family && { family: options.family }),
-        ...(options.containerInstance && { containerInstance: options.containerInstance }),
-        ...(options.desiredStatus && { desiredStatus: options.desiredStatus }),
-        ...(options.launchType && { launchType: options.launchType }),
-        ...(options.startedBy && { startedBy: options.startedBy }),
-        ...(options.maxResults && { maxResults: options.maxResults }),
-      });
-
-      const response = await client.send(command);
-      const tasks = response.taskArns || [];
-
-      spinner.succeed(`Found ${tasks.length} ECS tasks`);
-      return tasks;
+      const client = await this.getClient(config);
+      const allTaskArns = await this.fetchAllTasks(client, options, spinner);
+      spinner.succeed(`Found ${allTaskArns.length} ECS tasks`);
+      return allTaskArns;
     } catch (error) {
       spinner.fail("Failed to list tasks");
-      throw new ServiceError(
+      throw new TaskError(
         `Failed to list ECS tasks: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        undefined,
         "list-tasks",
         error,
         { clusterName: options.cluster, serviceName: options.serviceName },
@@ -956,14 +915,16 @@ export class ECSService {
     const spinner = this.createSpinner(`Describing ${taskArns.length} ECS tasks...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new DescribeTasksCommand({
         tasks: taskArns,
         ...(options.cluster && { cluster: options.cluster }),
         ...(options.include && { include: options.include }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const tasks = response.tasks || [];
 
       const descriptions: TaskDescription[] = tasks.map((task: Task) =>
@@ -974,12 +935,12 @@ export class ECSService {
       return descriptions;
     } catch (error) {
       spinner.fail("Failed to describe tasks");
-      throw new ServiceError(
+      throw new TaskError(
         `Failed to describe ECS tasks: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        taskArns.join(", "),
         "describe-tasks",
         error,
-        { taskArns, clusterName: options.cluster },
+        { clusterName: options.cluster },
       );
     }
   }
@@ -1001,10 +962,12 @@ export class ECSService {
     );
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new RunTaskCommand(parameters);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
 
       const result: RunTaskResult = {
         tasks: (response.tasks || []).map((task: Task) => ({
@@ -1036,9 +999,9 @@ export class ECSService {
       return result;
     } catch (error) {
       spinner.fail(`Failed to run task with definition '${parameters.taskDefinition}'`);
-      throw new ServiceError(
+      throw new TaskError(
         `Failed to run ECS task: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        undefined,
         "run-task",
         error,
         { taskDefinition: parameters.taskDefinition, clusterName: parameters.cluster },
@@ -1063,14 +1026,16 @@ export class ECSService {
     const spinner = this.createSpinner(`Stopping ECS task '${taskArn.split("/").pop()}'...`);
 
     try {
-      const client = await this.getECSClient(config);
+      const client = await this.getClient(config);
       const command = new StopTaskCommand({
         task: taskArn,
         ...(options.cluster && { cluster: options.cluster }),
         ...(options.reason && { reason: options.reason }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+      });
       const task = response.task!;
 
       const description: TaskDescription = this.buildTaskDescription(task);
@@ -1079,12 +1044,12 @@ export class ECSService {
       return description;
     } catch (error) {
       spinner.fail(`Failed to stop task '${taskArn.split("/").pop()}'`);
-      throw new ServiceError(
+      throw new TaskError(
         `Failed to stop ECS task: ${error instanceof Error ? error.message : String(error)}`,
-        "ECS",
+        taskArn,
         "stop-task",
         error,
-        { taskArn, clusterName: options.cluster },
+        { clusterName: options.cluster },
       );
     }
   }
@@ -1551,6 +1516,63 @@ export class ECSService {
   }
 
   /**
+   * Fetch all task ARNs with pagination
+   *
+   * @param client - ECS client instance
+   * @param options - List tasks options
+   * @param spinner - Progress spinner
+   * @returns Promise resolving to array of task ARNs
+   * @internal
+   */
+  private async fetchAllTasks(
+    client: ECSClient,
+    options: {
+      cluster?: string;
+      serviceName?: string;
+      family?: string;
+      containerInstance?: string;
+      desiredStatus?: "RUNNING" | "PENDING" | "STOPPED";
+      launchType?: "EC2" | "FARGATE" | "EXTERNAL";
+      startedBy?: string;
+      maxResults?: number;
+    },
+    spinner: SpinnerInterface,
+  ): Promise<string[]> {
+    const allTaskArns: string[] = [];
+    let pageCount = 0;
+
+    // Use AWS SDK v3 native paginator with async iterator
+    const paginatorConfig = options.maxResults
+      ? { client, pageSize: options.maxResults }
+      : { client };
+    const paginator = paginateListTasks(paginatorConfig, {
+      ...(options.cluster && { cluster: options.cluster }),
+      ...(options.serviceName && { serviceName: options.serviceName }),
+      ...(options.family && { family: options.family }),
+      ...(options.containerInstance && { containerInstance: options.containerInstance }),
+      ...(options.desiredStatus && { desiredStatus: options.desiredStatus }),
+      ...(options.launchType && { launchType: options.launchType }),
+      ...(options.startedBy && { startedBy: options.startedBy }),
+      ...(options.maxResults && { maxResults: options.maxResults }),
+    });
+
+    for await (const page of paginator) {
+      pageCount++;
+      const arns = page.taskArns || [];
+      allTaskArns.push(...arns);
+
+      spinner.text = `Loading ECS tasks... (${allTaskArns.length} so far, ${pageCount} page${pageCount === 1 ? "" : "s"})`;
+
+      // Stop if we've reached maxResults limit
+      if (options.maxResults && allTaskArns.length >= options.maxResults) {
+        break;
+      }
+    }
+
+    return allTaskArns;
+  }
+
+  /**
    * Build spinner message for list tasks operation
    *
    * @param options - List tasks options
@@ -1576,17 +1598,5 @@ export class ECSService {
     }
 
     return `${message}...`;
-  }
-
-  /**
-   * Clear client caches (useful for testing or configuration changes)
-   *
-   */
-  clearClientCache(): void {
-    this.clientCache.clear();
-
-    if (this.options.enableDebugLogging) {
-      console.debug("Cleared ECS client caches");
-    }
   }
 }

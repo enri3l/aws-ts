@@ -34,55 +34,17 @@ import {
   type Rule,
   type Target,
 } from "@aws-sdk/client-eventbridge";
-import ora from "ora";
-import { ServiceError } from "../lib/errors.js";
-import { CredentialService, type AwsClientConfig } from "./credential-service.js";
-
-/**
- * Spinner interface for progress indicators
- * @internal
- */
-interface SpinnerInterface {
-  text: string;
-  succeed: (message?: string) => void;
-  fail: (message?: string) => void;
-  warn: (message?: string) => void;
-}
+import { BaseAwsService, type BaseServiceOptions } from "../lib/base-aws-service.js";
+import { RuleError, TargetError } from "../lib/eventbridge-errors.js";
+import { retryWithBackoff } from "../lib/retry.js";
+import type { AwsClientConfig } from "./credential-service.js";
 
 /**
  * Configuration options for EventBridge service
  *
  * @public
  */
-export interface EventBridgeServiceOptions {
-  /**
-   * Credential service configuration
-   */
-  credentialService?: {
-    defaultRegion?: string;
-    defaultProfile?: string;
-    enableDebugLogging?: boolean;
-  };
-
-  /**
-   * Enable debug logging for EventBridge operations
-   */
-  enableDebugLogging?: boolean;
-
-  /**
-   * Enable progress indicators for long-running operations
-   */
-  enableProgressIndicators?: boolean;
-
-  /**
-   * EventBridge client configuration overrides
-   */
-  clientConfig?: {
-    region?: string;
-    profile?: string;
-    endpoint?: string;
-  };
-}
+export type EventBridgeServiceOptions = BaseServiceOptions;
 
 /**
  * EventBridge rule creation/update parameters
@@ -242,69 +204,14 @@ export interface EventBridgePaginatedResult<T> {
  *
  * @public
  */
-export class EventBridgeService {
-  private readonly credentialService: CredentialService;
-  private readonly options: EventBridgeServiceOptions;
-  private clientCache = new Map<string, EventBridgeClient>();
-
+export class EventBridgeService extends BaseAwsService<EventBridgeClient> {
   /**
    * Create a new EventBridge service instance
    *
    * @param options - Configuration options for the service
    */
   constructor(options: EventBridgeServiceOptions = {}) {
-    this.options = {
-      ...options,
-      enableProgressIndicators:
-        options.enableProgressIndicators ??
-        (process.env.NODE_ENV !== "test" && !process.env.CI && !process.env.VITEST),
-    };
-
-    this.credentialService = new CredentialService({
-      enableDebugLogging: options.enableDebugLogging ?? false,
-      ...options.credentialService,
-    });
-  }
-
-  /**
-   * Get EventBridge client with caching
-   *
-   * @param config - Client configuration options
-   * @returns EventBridge client instance
-   * @internal
-   */
-  private async getEventBridgeClient(config: AwsClientConfig = {}): Promise<EventBridgeClient> {
-    const cacheKey = `${config.region || "default"}-${config.profile || "default"}`;
-
-    if (!this.clientCache.has(cacheKey)) {
-      const clientConfig = {
-        ...config,
-        ...this.options.clientConfig,
-      };
-
-      const client = await this.credentialService.createClient(EventBridgeClient, clientConfig);
-      this.clientCache.set(cacheKey, client);
-    }
-
-    return this.clientCache.get(cacheKey)!;
-  }
-
-  /**
-   * Create a progress spinner if enabled
-   *
-   * @param text - Initial spinner text
-   * @returns Spinner instance or mock object
-   * @internal
-   */
-  private createSpinner(text: string): SpinnerInterface {
-    return (this.options.enableProgressIndicators ?? true)
-      ? ora(text).start()
-      : {
-          text,
-          succeed: () => {},
-          fail: () => {},
-          warn: () => {},
-        };
+    super(EventBridgeClient, options);
   }
 
   /**
@@ -325,26 +232,46 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
-      const command = new ListRulesCommand({
-        EventBusName: eventBusName,
-        ...parameters,
-      });
+      const client = await this.getClient(config);
 
-      const response: ListRulesResponse = await client.send(command);
-      const rules = response.Rules || [];
+      const allRules: Rule[] = [];
+      let nextToken: string | undefined = parameters.NextToken;
 
-      spinner.succeed(`Found ${rules.length} EventBridge rules on event bus '${eventBusName}'`);
+      // Handle pagination - fetch all pages unless Limit is specified
+      do {
+        const command = new ListRulesCommand({
+          EventBusName: eventBusName,
+          ...parameters,
+          ...(nextToken && { NextToken: nextToken }),
+        });
+
+        const response: ListRulesResponse = await retryWithBackoff(() => client.send(command), {
+          maxAttempts: 3,
+          onRetry: (error, attempt, _delay) => {
+            spinner.text = `Retrying list rules (attempt ${attempt})...`;
+          },
+        });
+
+        allRules.push(...(response.Rules || []));
+        nextToken = response.NextToken;
+
+        if (nextToken && !parameters.Limit) {
+          spinner.text = `Loading more rules... (${allRules.length} so far)`;
+        }
+      } while (nextToken && !parameters.Limit);
+
+      spinner.succeed(`Found ${allRules.length} EventBridge rules on event bus '${eventBusName}'`);
       return {
-        items: rules,
-        ...(response.NextToken && { nextToken: response.NextToken }),
+        items: allRules,
+        ...(nextToken && { nextToken }),
       };
     } catch (error) {
       spinner.fail("Failed to list rules");
-      throw new ServiceError(
+      throw new RuleError(
         `Failed to list EventBridge rules: ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        undefined,
         "list-rules",
+        eventBusName,
         error,
       );
     }
@@ -369,24 +296,29 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new DescribeRuleCommand({
         Name: ruleName,
         EventBusName: eventBusName,
       } as DescribeRuleRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying describe rule (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Retrieved details for rule '${ruleName}'`);
       return response;
     } catch (error) {
       spinner.fail(`Failed to describe rule '${ruleName}'`);
-      throw new ServiceError(
+      throw new RuleError(
         `Failed to describe rule '${ruleName}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        ruleName,
         "describe-rule",
+        eventBusName,
         error,
-        { ruleName, eventBusName },
       );
     }
   }
@@ -409,7 +341,7 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new PutRuleCommand({
         Name: parameters.name,
         EventBusName: eventBusName,
@@ -421,18 +353,23 @@ export class EventBridgeService {
         Tags: parameters.tags,
       } as PutRuleRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying put rule (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Rule '${parameters.name}' created/updated successfully`);
       return { ...(response.RuleArn && { ruleArn: response.RuleArn }) };
     } catch (error) {
       spinner.fail(`Failed to create/update rule '${parameters.name}'`);
-      throw new ServiceError(
+      throw new RuleError(
         `Failed to put rule '${parameters.name}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        parameters.name,
         "put-rule",
+        eventBusName,
         error,
-        { ruleName: parameters.name, eventBusName },
       );
     }
   }
@@ -455,24 +392,29 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new DeleteRuleCommand({
         Name: parameters.name,
         EventBusName: eventBusName,
         Force: parameters.force,
       } as DeleteRuleRequest);
 
-      await client.send(command);
+      await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying delete rule (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Rule '${parameters.name}' deleted successfully`);
     } catch (error) {
       spinner.fail(`Failed to delete rule '${parameters.name}'`);
-      throw new ServiceError(
+      throw new RuleError(
         `Failed to delete rule '${parameters.name}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        parameters.name,
         "delete-rule",
+        eventBusName,
         error,
-        { ruleName: parameters.name, eventBusName },
       );
     }
   }
@@ -496,23 +438,28 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new EnableRuleCommand({
         Name: ruleName,
         EventBusName: eventBusName,
       } as EnableRuleRequest);
 
-      await client.send(command);
+      await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying enable rule (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Rule '${ruleName}' enabled successfully`);
     } catch (error) {
       spinner.fail(`Failed to enable rule '${ruleName}'`);
-      throw new ServiceError(
+      throw new RuleError(
         `Failed to enable rule '${ruleName}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        ruleName,
         "enable-rule",
+        eventBusName,
         error,
-        { ruleName, eventBusName },
       );
     }
   }
@@ -536,23 +483,28 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new DisableRuleCommand({
         Name: ruleName,
         EventBusName: eventBusName,
       } as DisableRuleRequest);
 
-      await client.send(command);
+      await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying disable rule (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Rule '${ruleName}' disabled successfully`);
     } catch (error) {
       spinner.fail(`Failed to disable rule '${ruleName}'`);
-      throw new ServiceError(
+      throw new RuleError(
         `Failed to disable rule '${ruleName}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        ruleName,
         "disable-rule",
+        eventBusName,
         error,
-        { ruleName, eventBusName },
       );
     }
   }
@@ -580,7 +532,7 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new ListTargetsByRuleCommand({
         Rule: ruleName,
         EventBusName: eventBusName,
@@ -588,7 +540,12 @@ export class EventBridgeService {
         Limit: limit,
       } as ListTargetsByRuleRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying list targets (attempt ${attempt})...`;
+        },
+      });
       const targets = response.Targets || [];
 
       spinner.succeed(`Found ${targets.length} targets for rule '${ruleName}'`);
@@ -598,12 +555,13 @@ export class EventBridgeService {
       };
     } catch (error) {
       spinner.fail(`Failed to list targets for rule '${ruleName}'`);
-      throw new ServiceError(
+      throw new TargetError(
         `Failed to list targets for rule '${ruleName}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        ruleName,
+        undefined,
+        undefined,
         "list-targets-by-rule",
-        error,
-        { ruleName, eventBusName },
+        { eventBusName },
       );
     }
   }
@@ -626,7 +584,7 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new PutTargetsCommand({
         Rule: parameters.rule,
         EventBusName: eventBusName,
@@ -658,7 +616,12 @@ export class EventBridgeService {
         })),
       } as PutTargetsRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying put targets (attempt ${attempt})...`;
+        },
+      });
 
       const successCount =
         (response.FailedEntryCount || 0) === 0
@@ -676,12 +639,13 @@ export class EventBridgeService {
       return response;
     } catch (error) {
       spinner.fail(`Failed to configure targets for rule '${parameters.rule}'`);
-      throw new ServiceError(
+      throw new TargetError(
         `Failed to put targets for rule '${parameters.rule}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        parameters.rule,
+        undefined,
+        undefined,
         "put-targets",
-        error,
-        { ruleName: parameters.rule, eventBusName, targetCount: parameters.targets.length },
+        { eventBusName, targetCount: parameters.targets.length },
       );
     }
   }
@@ -704,7 +668,7 @@ export class EventBridgeService {
     );
 
     try {
-      const client = await this.getEventBridgeClient(config);
+      const client = await this.getClient(config);
       const command = new RemoveTargetsCommand({
         Rule: parameters.rule,
         EventBusName: eventBusName,
@@ -712,7 +676,12 @@ export class EventBridgeService {
         Force: parameters.force,
       } as RemoveTargetsRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying remove targets (attempt ${attempt})...`;
+        },
+      });
 
       const successCount =
         (response.FailedEntryCount || 0) === 0
@@ -728,25 +697,14 @@ export class EventBridgeService {
       return response;
     } catch (error) {
       spinner.fail(`Failed to remove targets from rule '${parameters.rule}'`);
-      throw new ServiceError(
+      throw new TargetError(
         `Failed to remove targets from rule '${parameters.rule}': ${error instanceof Error ? error.message : String(error)}`,
-        "EventBridge",
+        parameters.rule,
+        undefined,
+        undefined,
         "remove-targets",
-        error,
-        { ruleName: parameters.rule, eventBusName, targetIds: parameters.ids },
+        { eventBusName, targetIds: parameters.ids },
       );
-    }
-  }
-
-  /**
-   * Clear client caches (useful for testing or configuration changes)
-   *
-   */
-  clearClientCache(): void {
-    this.clientCache.clear();
-
-    if (this.options.enableDebugLogging) {
-      console.debug("Cleared EventBridge client caches");
     }
   }
 }

@@ -16,11 +16,11 @@ import {
   GetFunctionConfigurationCommand,
   InvokeCommand,
   LambdaClient,
-  ListFunctionsCommand,
-  ListVersionsByFunctionCommand,
   PublishVersionCommand,
   UpdateFunctionCodeCommand,
   UpdateFunctionConfigurationCommand,
+  paginateListFunctions,
+  paginateListVersionsByFunction,
   type AliasConfiguration,
   type CreateFunctionRequest,
   type DeleteFunctionCommandOutput,
@@ -28,59 +28,25 @@ import {
   type GetFunctionRequest,
   type InvokeCommandOutput,
   type ListFunctionsRequest,
-  type ListVersionsByFunctionCommandOutput,
   type UpdateFunctionCodeRequest,
   type UpdateFunctionConfigurationRequest,
 } from "@aws-sdk/client-lambda";
-import ora from "ora";
-import { ServiceError } from "../lib/errors.js";
-import { CredentialService, type AwsClientConfig } from "./credential-service.js";
-
-/**
- * Spinner interface for progress indicators
- * @internal
- */
-interface SpinnerInterface {
-  text: string;
-  succeed: (message?: string) => void;
-  fail: (message?: string) => void;
-  warn: (message?: string) => void;
-}
+import { BaseAwsService, type BaseServiceOptions } from "../lib/base-aws-service.js";
+import {
+  CodeDeploymentError,
+  FunctionError,
+  InvocationError,
+  LambdaConfigurationError,
+} from "../lib/lambda-errors.js";
+import { retryWithBackoff } from "../lib/retry.js";
+import type { AwsClientConfig } from "./credential-service.js";
 
 /**
  * Configuration options for Lambda service
  *
  * @public
  */
-export interface LambdaServiceOptions {
-  /**
-   * Credential service configuration
-   */
-  credentialService?: {
-    defaultRegion?: string;
-    defaultProfile?: string;
-    enableDebugLogging?: boolean;
-  };
-
-  /**
-   * Enable debug logging for Lambda operations
-   */
-  enableDebugLogging?: boolean;
-
-  /**
-   * Enable progress indicators for long-running operations
-   */
-  enableProgressIndicators?: boolean;
-
-  /**
-   * Lambda client configuration overrides
-   */
-  clientConfig?: {
-    region?: string;
-    profile?: string;
-    endpoint?: string;
-  };
-}
+export type LambdaServiceOptions = BaseServiceOptions;
 
 /**
  * Lambda function invocation parameters
@@ -194,78 +160,28 @@ export interface LambdaUpdateConfigurationParameters {
  *
  * @public
  */
-export class LambdaService {
-  private readonly credentialService: CredentialService;
-  private readonly options: LambdaServiceOptions;
-  private clientCache = new Map<string, LambdaClient>();
-
+export class LambdaService extends BaseAwsService<LambdaClient> {
   /**
    * Create a new Lambda service instance
    *
    * @param options - Configuration options for the service
    */
   constructor(options: LambdaServiceOptions = {}) {
-    this.options = {
-      ...options,
-      enableProgressIndicators:
-        options.enableProgressIndicators ??
-        (process.env.NODE_ENV !== "test" && !process.env.CI && !process.env.VITEST),
-    };
-
-    this.credentialService = new CredentialService({
-      enableDebugLogging: options.enableDebugLogging ?? false,
-      ...options.credentialService,
-    });
+    super(LambdaClient, options);
   }
 
   /**
-   * Get Lambda client with caching
-   *
-   * @param config - Client configuration options
-   * @returns Lambda client instance
-   * @internal
-   */
-  private async getLambdaClient(config: AwsClientConfig = {}): Promise<LambdaClient> {
-    const cacheKey = `${config.region || "default"}-${config.profile || "default"}`;
-
-    if (!this.clientCache.has(cacheKey)) {
-      const clientConfig = {
-        ...config,
-        ...this.options.clientConfig,
-      };
-
-      const client = await this.credentialService.createClient(LambdaClient, clientConfig);
-      this.clientCache.set(cacheKey, client);
-    }
-
-    return this.clientCache.get(cacheKey)!;
-  }
-
-  /**
-   * Create a progress spinner if enabled
-   *
-   * @param text - Initial spinner text
-   * @returns Spinner instance or mock object
-   * @internal
-   */
-  private createSpinner(text: string): SpinnerInterface {
-    return (this.options.enableProgressIndicators ?? true)
-      ? ora(text).start()
-      : {
-          text,
-          succeed: () => {},
-          fail: () => {},
-          warn: () => {},
-        };
-  }
-
-  /**
-   * List all Lambda functions
+   * List all Lambda functions using AWS SDK v3 native pagination
    *
    * @param config - Client configuration options
    * @param params - List functions parameters
    * @returns Promise resolving to array of function configurations
    * @throws When function listing fails
+   *
+   * @remarks
+   * Uses AWS SDK v3's built-in async iterator pagination pattern for efficient
+   * memory usage and automatic token handling. Fetches all pages unless MaxItems
+   * is specified.
    */
   async listFunctions(
     config: AwsClientConfig = {},
@@ -274,19 +190,37 @@ export class LambdaService {
     const spinner = this.createSpinner("Listing Lambda functions...");
 
     try {
-      const client = await this.getLambdaClient(config);
-      const command = new ListFunctionsCommand(parameters);
+      const client = await this.getClient(config);
+      const allFunctions: FunctionConfiguration[] = [];
+      let pageCount = 0;
 
-      const response = await client.send(command);
-      const functions = response.Functions || [];
+      // Use AWS SDK v3 native paginator with async iterator
+      const paginatorConfig = parameters.MaxItems
+        ? { client, pageSize: parameters.MaxItems }
+        : { client };
+      const paginator = paginateListFunctions(paginatorConfig, parameters);
 
-      spinner.succeed(`Found ${functions.length} Lambda functions`);
-      return functions;
+      for await (const page of paginator) {
+        pageCount++;
+        const functions = page.Functions || [];
+        allFunctions.push(...functions);
+
+        spinner.text = `Loading Lambda functions... (${allFunctions.length} so far, ${pageCount} page${pageCount === 1 ? "" : "s"})`;
+
+        // Stop if we've reached MaxItems limit
+        if (parameters.MaxItems && allFunctions.length >= parameters.MaxItems) {
+          break;
+        }
+      }
+
+      const functionPlural = allFunctions.length === 1 ? "" : "s";
+      spinner.succeed(`Found ${allFunctions.length} Lambda function${functionPlural}`);
+      return allFunctions;
     } catch (error) {
       spinner.fail("Failed to list functions");
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to list Lambda functions: ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        undefined,
         "list-functions",
         error,
       );
@@ -314,13 +248,18 @@ export class LambdaService {
     const spinner = this.createSpinner(`Getting function '${functionName}'...`);
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new GetFunctionCommand({
         FunctionName: functionName,
         ...parameters,
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying get function (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Retrieved function '${functionName}'`);
       return {
@@ -335,12 +274,11 @@ export class LambdaService {
       };
     } catch (error) {
       spinner.fail(`Failed to get function '${functionName}'`);
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to get function '${functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        functionName,
         "get-function",
         error,
-        { functionName },
       );
     }
   }
@@ -362,24 +300,28 @@ export class LambdaService {
     const spinner = this.createSpinner(`Getting configuration for function '${functionName}'...`);
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new GetFunctionConfigurationCommand({
         FunctionName: functionName,
         ...(qualifier && { Qualifier: qualifier }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying get function configuration (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Retrieved configuration for function '${functionName}'`);
       return response;
     } catch (error) {
       spinner.fail(`Failed to get configuration for function '${functionName}'`);
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to get function configuration '${functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        functionName,
         "get-function-configuration",
         error,
-        { functionName, qualifier },
       );
     }
   }
@@ -399,7 +341,7 @@ export class LambdaService {
     const spinner = this.createSpinner(`Invoking function '${parameters.functionName}'...`);
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new InvokeCommand({
         FunctionName: parameters.functionName,
         InvocationType: parameters.invocationType || "RequestResponse",
@@ -409,7 +351,12 @@ export class LambdaService {
         ...(parameters.clientContext && { ClientContext: parameters.clientContext }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying invoke (attempt ${attempt})...`;
+        },
+      });
 
       const invocationType = parameters.invocationType || "RequestResponse";
       if (invocationType === "RequestResponse") {
@@ -421,12 +368,13 @@ export class LambdaService {
       return response;
     } catch (error) {
       spinner.fail(`Failed to invoke function '${parameters.functionName}'`);
-      throw new ServiceError(
+      throw new InvocationError(
         `Failed to invoke function '${parameters.functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
-        "invoke",
-        error,
-        { functionName: parameters.functionName, invocationType: parameters.invocationType },
+        parameters.functionName,
+        parameters.invocationType,
+        undefined,
+        undefined,
+        { cause: error },
       );
     }
   }
@@ -446,7 +394,7 @@ export class LambdaService {
     const spinner = this.createSpinner(`Creating function '${parameters.functionName}'...`);
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new CreateFunctionCommand({
         FunctionName: parameters.functionName,
         Runtime: parameters.runtime,
@@ -463,15 +411,20 @@ export class LambdaService {
         Tags: parameters.tags,
       } as CreateFunctionRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying create function (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Function '${parameters.functionName}' created successfully`);
       return response;
     } catch (error) {
       spinner.fail(`Failed to create function '${parameters.functionName}'`);
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to create function '${parameters.functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        parameters.functionName,
         "create-function",
         error,
         { functionName: parameters.functionName },
@@ -496,7 +449,7 @@ export class LambdaService {
     );
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new UpdateFunctionCodeCommand({
         FunctionName: parameters.functionName,
         ZipFile: parameters.zipFile,
@@ -508,18 +461,23 @@ export class LambdaService {
         RevisionId: parameters.revisionId,
       } as UpdateFunctionCodeRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying update function code (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Code updated for function '${parameters.functionName}'`);
       return response;
     } catch (error) {
       spinner.fail(`Failed to update code for function '${parameters.functionName}'`);
-      throw new ServiceError(
+      throw new CodeDeploymentError(
         `Failed to update function code '${parameters.functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
-        "update-function-code",
-        error,
-        { functionName: parameters.functionName },
+        parameters.functionName,
+        parameters.s3Bucket ? "S3" : "ZIP",
+        undefined,
+        { cause: error },
       );
     }
   }
@@ -541,7 +499,7 @@ export class LambdaService {
     );
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new UpdateFunctionConfigurationCommand({
         FunctionName: parameters.functionName,
         Role: parameters.role,
@@ -559,18 +517,24 @@ export class LambdaService {
         RevisionId: parameters.revisionId,
       } as UpdateFunctionConfigurationRequest);
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying update function configuration (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Configuration updated for function '${parameters.functionName}'`);
       return response;
     } catch (error) {
       spinner.fail(`Failed to update configuration for function '${parameters.functionName}'`);
-      throw new ServiceError(
+      throw new LambdaConfigurationError(
         `Failed to update function configuration '${parameters.functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
-        "update-function-configuration",
-        error,
-        { functionName: parameters.functionName },
+        parameters.functionName,
+        "general",
+        undefined,
+        undefined,
+        { cause: error },
       );
     }
   }
@@ -592,21 +556,26 @@ export class LambdaService {
     const spinner = this.createSpinner(`Deleting function '${functionName}'...`);
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new DeleteFunctionCommand({
         FunctionName: functionName,
         ...(qualifier && { Qualifier: qualifier }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying delete function (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Function '${functionName}' deleted successfully`);
       return response;
     } catch (error) {
       spinner.fail(`Failed to delete function '${functionName}'`);
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to delete function '${functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        functionName,
         "delete-function",
         error,
         { functionName, qualifier },
@@ -633,22 +602,27 @@ export class LambdaService {
     const spinner = this.createSpinner(`Publishing version for function '${functionName}'...`);
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new PublishVersionCommand({
         FunctionName: functionName,
         ...(description && { Description: description }),
         ...(revisionId && { RevisionId: revisionId }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying publish version (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(`Version published for function '${functionName}': ${response.Version}`);
       return response;
     } catch (error) {
       spinner.fail(`Failed to publish version for function '${functionName}'`);
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to publish version for function '${functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        functionName,
         "publish-version",
         error,
         { functionName },
@@ -657,41 +631,60 @@ export class LambdaService {
   }
 
   /**
-   * List all versions of a Lambda function
+   * List all versions of a Lambda function using AWS SDK v3 native pagination
    *
    * @param functionName - Name or ARN of the Lambda function
    * @param config - Client configuration options
-   * @param marker - Pagination marker
+   * @param marker - Pagination marker (optional, for backwards compatibility)
    * @param maxItems - Maximum number of versions to return
    * @returns Promise resolving to array of function version configurations
    * @throws When version listing fails
+   *
+   * @remarks
+   * Uses AWS SDK v3's built-in async iterator pagination pattern. Fetches all
+   * pages unless maxItems is specified.
    */
   async listVersionsByFunction(
     functionName: string,
     config: AwsClientConfig = {},
     marker?: string,
     maxItems?: number,
-  ): Promise<ListVersionsByFunctionCommandOutput> {
+  ): Promise<FunctionConfiguration[]> {
     const spinner = this.createSpinner(`Listing versions for function '${functionName}'...`);
 
     try {
-      const client = await this.getLambdaClient(config);
-      const command = new ListVersionsByFunctionCommand({
+      const client = await this.getClient(config);
+      const allVersions: FunctionConfiguration[] = [];
+      let _pageCount = 0;
+
+      // Use AWS SDK v3 native paginator with async iterator
+      const paginatorConfig = maxItems ? { client, pageSize: maxItems } : { client };
+      const paginator = paginateListVersionsByFunction(paginatorConfig, {
         FunctionName: functionName,
         ...(marker && { Marker: marker }),
         ...(maxItems && { MaxItems: maxItems }),
       });
 
-      const response = await client.send(command);
-      const versions = response.Versions || [];
+      for await (const page of paginator) {
+        _pageCount++;
+        const versions = page.Versions || [];
+        allVersions.push(...versions);
 
-      spinner.succeed(`Found ${versions.length} versions for function '${functionName}'`);
-      return response;
+        spinner.text = `Loading versions for '${functionName}'... (${allVersions.length} so far)`;
+
+        // Stop if we've reached maxItems limit
+        if (maxItems && allVersions.length >= maxItems) {
+          break;
+        }
+      }
+
+      spinner.succeed(`Found ${allVersions.length} versions for function '${functionName}'`);
+      return allVersions;
     } catch (error) {
       spinner.fail(`Failed to list versions for function '${functionName}'`);
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to list versions for function '${functionName}': ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        functionName,
         "list-versions-by-function",
         error,
         { functionName },
@@ -722,7 +715,7 @@ export class LambdaService {
     );
 
     try {
-      const client = await this.getLambdaClient(config);
+      const client = await this.getClient(config);
       const command = new CreateAliasCommand({
         FunctionName: parameters.functionName,
         Name: parameters.name,
@@ -731,7 +724,12 @@ export class LambdaService {
         ...(parameters.routingConfig && { RoutingConfig: parameters.routingConfig }),
       });
 
-      const response = await client.send(command);
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt, _delay) => {
+          spinner.text = `Retrying create alias (attempt ${attempt})...`;
+        },
+      });
 
       spinner.succeed(
         `Alias '${parameters.name}' created for function '${parameters.functionName}'`,
@@ -741,25 +739,13 @@ export class LambdaService {
       spinner.fail(
         `Failed to create alias '${parameters.name}' for function '${parameters.functionName}'`,
       );
-      throw new ServiceError(
+      throw new FunctionError(
         `Failed to create alias: ${error instanceof Error ? error.message : String(error)}`,
-        "Lambda",
+        parameters.functionName,
         "create-alias",
         error,
         { functionName: parameters.functionName, aliasName: parameters.name },
       );
-    }
-  }
-
-  /**
-   * Clear client caches (useful for testing or configuration changes)
-   *
-   */
-  clearClientCache(): void {
-    this.clientCache.clear();
-
-    if (this.options.enableDebugLogging) {
-      console.debug("Cleared Lambda client caches");
     }
   }
 }
