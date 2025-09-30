@@ -69,6 +69,13 @@ export const TableNameSchema = z
   );
 
 /**
+ * Schema for output format validation
+ *
+ * @public
+ */
+export const OutputFormatSchema = z.enum(["table", "json", "jsonl", "csv"]).default("table");
+
+/**
  * Common CLI configuration schema
  *
  * @public
