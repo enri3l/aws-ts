@@ -9,13 +9,12 @@
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-ff6b35.svg)](https://claude.ai/code)
 
 Modern TypeScript-based command-line interface for AWS operations with
-CQRS architecture and testing infrastructure.
+CQRS architecture.
 
 ## Features
 
 - **TypeScript-First**: Built with TypeScript v5.9 and strict type checking
 - **Modular Architecture**: CQRS pattern with clean separation of concerns
-- **Testing**: Unit, integration, and E2E testing with TestContainers
 - **AWS SDK v3**: Latest AWS SDK with SSO credential provider integration
 - **TSDoc Documentation**: Machine-readable documentation with automated API docs
 - **Quality Tooling**: ESLint, Prettier, and automated quality gates
@@ -133,12 +132,6 @@ pnpm dev:debug             # Debug mode with inspector
 pnpm build                 # Production build
 pnpm clean                 # Clean build artifacts
 
-# Testing
-pnpm test                  # Interactive test mode
-pnpm test:run              # Run all tests once
-pnpm test:coverage         # Run tests with coverage
-pnpm test:integration      # Run integration tests
-
 # Quality
 pnpm typecheck             # TypeScript type checking
 pnpm lint                  # ESLint + Markdownlint
@@ -157,39 +150,6 @@ pnpm publish:jsr           # Publish to JSR registry
 pnpm publish:jsr:dry-run   # Test publish to JSR (dry run)
 ```
 
-## 🧪 Testing Strategy
-
-The project implements a multi-level testing approach:
-
-### Test Types
-
-- **Unit Tests**: Fast, isolated tests for individual components
-- **Integration Tests**: TestContainers with DynamoDB Local for AWS integration
-- **E2E Tests**: Full CLI command testing with captured output
-
-### Running Tests
-
-```bash
-# Run specific test types
-pnpm test --project unit
-pnpm test --project integration
-pnpm test --project e2e
-
-# Coverage reporting
-pnpm test:coverage
-```
-
-### Test Structure
-
-```text
-tests/
-├── unit/              # Unit tests
-├── integration/       # Integration tests with TestContainers
-├── e2e/              # End-to-end CLI tests
-├── setup.ts          # Global test setup
-└── utils/            # Test utilities and helpers
-```
-
 ## Configuration
 
 ### Environment Variables
@@ -203,9 +163,6 @@ AWS_PROFILE=my-profile
 NODE_ENV=development
 LOG_LEVEL=DEBUG
 NO_COLOR=false
-
-# Testing
-DYNAMODB_ENDPOINT=http://localhost:8000
 ```
 
 ### CLI Configuration
@@ -220,15 +177,14 @@ aws-ts dynamo tables list --region us-west-2 --output json
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md)
-for details.
+We welcome contributions!
 
 ### Development Workflow
 
 1. **Fork and Clone**: Fork the repository and clone your fork
 2. **Branch**: Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. **Develop**: Make your changes following our coding standards
-4. **Test**: Ensure all tests pass (`pnpm validate`)
+4. **Validate**: Ensure code passes validation (`pnpm validate`)
 5. **Commit**: Use conventional commits (`git commit -m 'feat: add amazing feature'`)
 6. **Push**: Push to your branch (`git push origin feature/amazing-feature`)
 7. **PR**: Open a Pull Request with a clear description
@@ -239,7 +195,6 @@ for details.
 - **ESLint**: Enforced code quality rules with TSDoc validation
 - **Prettier**: Consistent code formatting
 - **Conventional Commits**: Semantic commit messages for automated versioning
-- **Test Coverage**: Minimum 90% coverage for new code
 
 ## Requirements
 
@@ -261,8 +216,6 @@ for details.
 
 ### Development Dependencies
 
-- **[vitest](https://vitest.dev/)**: Testing framework
-- **[testcontainers](https://testcontainers.com/)**: Integration testing
 - **[typescript-eslint](https://typescript-eslint.io/)**: TypeScript linting
 - **[semantic-release](https://semantic-release.gitbook.io/)**: Automated versioning
 
@@ -274,7 +227,7 @@ Anthropic's agentic coding tool that understands codebases and helps with:
 - **Architecture Design**: CQRS patterns and modular structure
 - **Code Generation**: TypeScript handlers and validation schemas
 - **Documentation**: TSDoc standards and README
-- **Quality Assurance**: Linting rules and testing strategies
+- **Quality Assurance**: Linting rules and quality gates
 
 ## License
 
@@ -286,7 +239,6 @@ LICENSE file for details.
 - **[Oclif](https://oclif.io/)** - Excellent CLI framework
 - **[AWS SDK Team](https://aws.amazon.com/sdk-for-javascript/)** -
   AWS integration
-- **[Vitest](https://vitest.dev/)** - Fast and modern testing framework
 - **[TypeScript](https://www.typescriptlang.org/)** - Type safety and developer
   experience
 - **[Claude Code](https://claude.ai/code)** - AI-assisted development
