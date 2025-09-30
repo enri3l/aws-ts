@@ -42,7 +42,7 @@ import {
   type BaseServiceOptions,
   type SpinnerInterface,
 } from "../lib/base-aws-service.js";
-import { ClusterError, ECSServiceError, TaskError } from "../lib/ecs-errors.js";
+import { ClusterError, ServiceError, TaskError } from "../lib/ecs-errors.js";
 import { retryWithBackoff } from "../lib/retry.js";
 import type { AwsClientConfig } from "./credential-service.js";
 
@@ -524,7 +524,7 @@ export class ECSService extends BaseAwsService<ECSClient> {
    * @param options - List options including cluster, launchType, schedulingStrategy, and maxResults
    * @param config - Client configuration options
    * @returns Promise resolving to array of service ARNs
-   * @throws ECSServiceError - When service listing fails
+   * @throws ServiceError - When service listing fails
    *
    * @example List all services in a cluster
    * ```typescript
@@ -591,7 +591,7 @@ export class ECSService extends BaseAwsService<ECSClient> {
       return allServiceArns;
     } catch (error) {
       spinner.fail("Failed to list services");
-      throw new ECSServiceError(
+      throw new ServiceError(
         `Failed to list ECS services: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
         options.cluster,
@@ -711,7 +711,7 @@ export class ECSService extends BaseAwsService<ECSClient> {
       return descriptions;
     } catch (error) {
       spinner.fail("Failed to describe services");
-      throw new ECSServiceError(
+      throw new ServiceError(
         `Failed to describe ECS services: ${error instanceof Error ? error.message : String(error)}`,
         serviceNames.join(", "),
         options.cluster,
@@ -759,7 +759,7 @@ export class ECSService extends BaseAwsService<ECSClient> {
       return description;
     } catch (error) {
       spinner.fail(`Failed to create service '${parameters.serviceName}'`);
-      throw new ECSServiceError(
+      throw new ServiceError(
         `Failed to create ECS service '${parameters.serviceName}': ${error instanceof Error ? error.message : String(error)}`,
         parameters.serviceName,
         parameters.cluster,
@@ -807,7 +807,7 @@ export class ECSService extends BaseAwsService<ECSClient> {
       return description;
     } catch (error) {
       spinner.fail(`Failed to update service '${parameters.service}'`);
-      throw new ECSServiceError(
+      throw new ServiceError(
         `Failed to update ECS service '${parameters.service}': ${error instanceof Error ? error.message : String(error)}`,
         parameters.service,
         parameters.cluster,
@@ -847,7 +847,7 @@ export class ECSService extends BaseAwsService<ECSClient> {
       spinner.succeed(`Deleted ECS service '${serviceName}'`);
     } catch (error) {
       spinner.fail(`Failed to delete service '${serviceName}'`);
-      throw new ECSServiceError(
+      throw new ServiceError(
         `Failed to delete ECS service '${serviceName}': ${error instanceof Error ? error.message : String(error)}`,
         serviceName,
         options.cluster,

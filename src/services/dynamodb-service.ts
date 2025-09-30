@@ -19,8 +19,8 @@ import {
 import { BaseAwsService, type BaseServiceOptions } from "../lib/base-aws-service.js";
 import {
   DynamoDBError,
-  DynamoDBQueryError,
   ItemError,
+  QueryError,
   ScanError,
   TableError,
 } from "../lib/dynamodb-errors.js";
@@ -409,7 +409,7 @@ export class DynamoDBService extends BaseAwsService<DynamoDBClient> {
       return result;
     } catch (error) {
       spinner.fail(`Failed to query table '${parameters.tableName}'`);
-      throw new DynamoDBQueryError(
+      throw new QueryError(
         `Failed to query table '${parameters.tableName}': ${error instanceof Error ? error.message : String(error)}`,
         parameters.tableName,
         parameters.indexName,

@@ -17,6 +17,7 @@ import {
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { parseTimeRange } from "../../../lib/time-utilities.js";
+import { CloudWatchLogsAnalyticsService } from "../../../services/cloudwatch-logs-analytics-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 
 /**
@@ -176,8 +177,8 @@ EXAMPLES:
         exportFile: flags["export-file"],
       });
 
-      // Initialize CloudWatch Logs service
-      const logsService = new CloudWatchLogsService({
+      // Initialize CloudWatch Logs services
+      const managementService = new CloudWatchLogsService({
         enableDebugLogging: input.verbose,
         credentialService: {
           ...(input.region && { defaultRegion: input.region }),
@@ -185,8 +186,12 @@ EXAMPLES:
         },
       });
 
+      const analyticsService = new CloudWatchLogsAnalyticsService(managementService, {
+        enableDebugLogging: input.verbose,
+      });
+
       // Execute pattern analysis
-      const analysisResult = await logsService.analyzeLogPatterns(
+      const analysisResult = await analyticsService.analyzeLogPatterns(
         input.logGroupName,
         {
           ...(input.region && { region: input.region }),

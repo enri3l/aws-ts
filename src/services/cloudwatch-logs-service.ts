@@ -34,10 +34,10 @@ import {
   type SpinnerInterface,
 } from "../lib/base-aws-service.js";
 import {
-  CloudWatchLogsQueryError,
   FilterError,
   LogGroupError,
   LogStreamError,
+  QueryError,
   StreamingError,
 } from "../lib/cloudwatch-logs-errors.js";
 import { retryWithBackoff } from "../lib/retry.js";
@@ -487,7 +487,7 @@ export class CloudWatchLogsService extends BaseAwsService<CloudWatchLogsClient> 
       }
 
       if (status === "Failed" || status === "Cancelled") {
-        throw new CloudWatchLogsQueryError(
+        throw new QueryError(
           `Query failed with status: ${status}`,
           parameters.query,
           parameters.logGroupNames,
@@ -577,7 +577,7 @@ export class CloudWatchLogsService extends BaseAwsService<CloudWatchLogsClient> 
     } catch {
       // Ignore stop query errors
     }
-    throw new CloudWatchLogsQueryError(
+    throw new QueryError(
       "Query execution timed out",
       parameters.query,
       parameters.logGroupNames,
@@ -602,10 +602,10 @@ export class CloudWatchLogsService extends BaseAwsService<CloudWatchLogsClient> 
     spinner: SpinnerInterface,
   ): never {
     spinner.fail("Query execution failed");
-    if (error instanceof CloudWatchLogsQueryError) {
+    if (error instanceof QueryError) {
       throw error;
     }
-    throw new CloudWatchLogsQueryError(
+    throw new QueryError(
       `Failed to execute query: ${error instanceof Error ? error.message : String(error)}`,
       parameters.query,
       parameters.logGroupNames,

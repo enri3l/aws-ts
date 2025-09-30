@@ -31,6 +31,9 @@
 import { getAuthErrorGuidance } from "./auth-guidance.js";
 import { sanitizeErrorForVerboseOutput } from "./error-sanitization.js";
 
+// Re-export sanitization utilities for convenience
+export { sanitizeErrorForVerboseOutput } from "./error-sanitization.js";
+
 /**
  * Base error class for all AWS CLI errors
  *

@@ -34,9 +34,9 @@ import {
 import { BaseAwsService, type BaseServiceOptions } from "../lib/base-aws-service.js";
 import {
   CodeDeploymentError,
+  ConfigurationError,
   FunctionError,
   InvocationError,
-  LambdaConfigurationError,
 } from "../lib/lambda-errors.js";
 import { retryWithBackoff } from "../lib/retry.js";
 import type { AwsClientConfig } from "./credential-service.js";
@@ -528,7 +528,7 @@ export class LambdaService extends BaseAwsService<LambdaClient> {
       return response;
     } catch (error) {
       spinner.fail(`Failed to update configuration for function '${parameters.functionName}'`);
-      throw new LambdaConfigurationError(
+      throw new ConfigurationError(
         `Failed to update function configuration '${parameters.functionName}': ${error instanceof Error ? error.message : String(error)}`,
         parameters.functionName,
         "general",

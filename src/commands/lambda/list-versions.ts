@@ -6,10 +6,7 @@
  *
  */
 
-import type {
-  FunctionConfiguration,
-  ListVersionsByFunctionCommandOutput,
-} from "@aws-sdk/client-lambda";
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Command, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
@@ -170,19 +167,18 @@ export default class LambdaListVersionsCommand extends Command {
   /**
    * Format and display the versions list output
    *
-   * @param versionsResult - Versions result to display
+   * @param versionsResult - Versions list to display
    * @param format - Output format to use
    * @param functionName - Function name for display
    * @throws Error When unsupported output format is specified
    * @internal
    */
   private formatAndDisplayOutput(
-    versionsResult: ListVersionsByFunctionCommandOutput,
+    versionsResult: FunctionConfiguration[],
     format: string,
     functionName: string,
   ): void {
-    const versions = versionsResult?.Versions ?? [];
-    const nextMarker = versionsResult?.NextMarker;
+    const versions = versionsResult;
 
     if (versions.length === 0) {
       this.log(`No versions found for function '${functionName}'.`);
@@ -210,18 +206,11 @@ export default class LambdaListVersionsCommand extends Command {
           tableData.map((item: Record<string, unknown>, index: number) => ({ data: item, index })),
         );
         this.log(output);
-
-        // Pagination info
-        if (nextMarker) {
-          this.log(`\n📄 More versions available. Use --marker ${nextMarker} to continue.`);
-        }
-
         break;
       }
       case "json": {
         const result = {
           versions,
-          nextMarker,
           totalCount: versions.length,
           functionName,
         };
