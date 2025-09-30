@@ -97,6 +97,7 @@
     "@aws-sdk/client-apigatewayv2": "3.896.0",
     "@aws-sdk/client-cloudwatch-logs": "3.896.0",
     "@aws-sdk/client-dynamodb": "3.896.0",
+    "@aws-sdk/client-ec2": "3.896.0",
     "@aws-sdk/client-ecs": "3.896.0",
     "@aws-sdk/client-eventbridge": "3.896.0",
     "@aws-sdk/client-lambda": "3.896.0",
@@ -143,6 +144,9 @@
       },
       "dynamodb": {
         "description": "DynamoDB table operations and data management commands"
+      },
+      "ec2": {
+        "description": "Amazon EC2 instance management and lifecycle operations"
       },
       "ecs": {
         "description": "Amazon ECS container orchestration and service management commands"
