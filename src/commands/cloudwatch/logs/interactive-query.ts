@@ -8,7 +8,7 @@
  */
 
 import { Flags } from "@oclif/core";
-import { prompt } from "enquirer";
+import enquirer from "enquirer";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { QueryResult } from "../../../services/cloudwatch-logs-service.js";
@@ -211,7 +211,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     }
 
     if (this.availableLogGroups.length > 0) {
-      const { logGroupSelection } = await prompt<{ logGroupSelection: string[] }>({
+      const { logGroupSelection } = await enquirer.prompt<{ logGroupSelection: string[] }>({
         type: "multiselect",
         name: "logGroupSelection",
         message: "Select log groups to query:",
@@ -226,7 +226,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
       });
       this.selectedLogGroups = logGroupSelection;
     } else {
-      const { manualLogGroups } = await prompt<{ manualLogGroups: string }>({
+      const { manualLogGroups } = await enquirer.prompt<{ manualLogGroups: string }>({
         type: "input",
         name: "manualLogGroups",
         message: "Enter log group names (comma-separated):",
@@ -249,7 +249,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
   private async discoverFields(_region?: string, _profile?: string): Promise<void> {
     this.log("Step 2: Field Discovery");
 
-    const { discoverFields } = await prompt<{ discoverFields: boolean }>({
+    const { discoverFields } = await enquirer.prompt<{ discoverFields: boolean }>({
       type: "confirm",
       name: "discoverFields",
       message: "Would you like to discover available fields in your log groups?",
@@ -290,7 +290,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
 
     this.log(" Step 3: Query Approach");
 
-    const { approach } = await prompt<{ approach: "template" | "custom" }>({
+    const { approach } = await enquirer.prompt<{ approach: "template" | "custom" }>({
       type: "select",
       name: "approach",
       message: "How would you like to build your query?",
@@ -317,7 +317,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
 
     const templates = this.getQueryTemplates();
 
-    const { selectedTemplate } = await prompt<{ selectedTemplate: QueryTemplate }>({
+    const { selectedTemplate } = await enquirer.prompt<{ selectedTemplate: QueryTemplate }>({
       type: "select",
       name: "selectedTemplate",
       message: "Choose a query template:",
@@ -366,7 +366,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     const queryParts: string[] = [];
 
     // Fields selection
-    const { fields } = await prompt<{ fields: string }>({
+    const { fields } = await enquirer.prompt<{ fields: string }>({
       type: "input",
       name: "fields",
       message: "Enter fields to select (comma-separated, or press Enter for default):",
@@ -375,7 +375,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     queryParts.push(`fields ${fields}`);
 
     // Filter conditions
-    const { addFilter } = await prompt<{ addFilter: boolean }>({
+    const { addFilter } = await enquirer.prompt<{ addFilter: boolean }>({
       type: "confirm",
       name: "addFilter",
       message: "Add filter conditions?",
@@ -383,7 +383,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     });
 
     if (addFilter) {
-      const { filterCondition } = await prompt<{ filterCondition: string }>({
+      const { filterCondition } = await enquirer.prompt<{ filterCondition: string }>({
         type: "input",
         name: "filterCondition",
         message: "Enter filter condition (e.g., @message like /ERROR/):",
@@ -393,7 +393,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     }
 
     // Sorting
-    const { addSort } = await prompt<{ addSort: boolean }>({
+    const { addSort } = await enquirer.prompt<{ addSort: boolean }>({
       type: "confirm",
       name: "addSort",
       message: "Add sorting?",
@@ -401,14 +401,14 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     });
 
     if (addSort) {
-      const { sortField } = await prompt<{ sortField: string }>({
+      const { sortField } = await enquirer.prompt<{ sortField: string }>({
         type: "input",
         name: "sortField",
         message: "Sort by field:",
         initial: "@timestamp",
       });
 
-      const { sortOrder } = await prompt<{ sortOrder: "asc" | "desc" }>({
+      const { sortOrder } = await enquirer.prompt<{ sortOrder: "asc" | "desc" }>({
         type: "select",
         name: "sortOrder",
         message: "Sort order:",
@@ -423,7 +423,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     }
 
     // Limit
-    const { limit } = await prompt<{ limit: number }>({
+    const { limit } = await enquirer.prompt<{ limit: number }>({
       type: "numeral",
       name: "limit",
       message: "Number of results to return:",
@@ -453,7 +453,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
   private async buildAdvancedQuery(
     queryLanguage: string,
   ): Promise<{ query: string; timeRange: { startTime: Date; endTime: Date } }> {
-    const { customQuery } = await prompt<{ customQuery: string }>({
+    const { customQuery } = await enquirer.prompt<{ customQuery: string }>({
       type: "input",
       name: "customQuery",
       message: `Enter your ${queryLanguage} query:`,
@@ -476,7 +476,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
   private async getTimeRange(): Promise<{ startTime: Date; endTime: Date }> {
     this.log(" Time Range Selection");
 
-    const { timeRangeType } = await prompt<{ timeRangeType: "relative" | "absolute" }>({
+    const { timeRangeType } = await enquirer.prompt<{ timeRangeType: "relative" | "absolute" }>({
       type: "select",
       name: "timeRangeType",
       message: "How would you like to specify the time range?",
@@ -487,7 +487,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     });
 
     if (timeRangeType === "relative") {
-      const { relativeTime } = await prompt<{ relativeTime: string }>({
+      const { relativeTime } = await enquirer.prompt<{ relativeTime: string }>({
         type: "select",
         name: "relativeTime",
         message: "Select time range:",
@@ -507,14 +507,14 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
 
       return { startTime, endTime };
     } else {
-      const { startTimeStr } = await prompt<{ startTimeStr: string }>({
+      const { startTimeStr } = await enquirer.prompt<{ startTimeStr: string }>({
         type: "input",
         name: "startTimeStr",
         message: "Enter start time (ISO 8601 format):",
         initial: new Date(Date.now() - 3_600_000).toISOString(),
       });
 
-      const { endTimeStr } = await prompt<{ endTimeStr: string }>({
+      const { endTimeStr } = await enquirer.prompt<{ endTimeStr: string }>({
         type: "input",
         name: "endTimeStr",
         message: "Enter end time (ISO 8601 format):",
@@ -551,7 +551,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
   ): Promise<void> {
     this.log("Step 5: Execute Query");
 
-    const { confirmExecution } = await prompt<{ confirmExecution: boolean }>({
+    const { confirmExecution } = await enquirer.prompt<{ confirmExecution: boolean }>({
       type: "confirm",
       name: "confirmExecution",
       message: "Execute the query now?",

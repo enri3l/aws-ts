@@ -8,7 +8,7 @@
  */
 
 import { Args, Flags } from "@oclif/core";
-import { prompt } from "enquirer";
+import enquirer from "enquirer";
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -538,7 +538,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends BaseCommand {
     }
 
     // Confirm deletion
-    const { confirmDelete } = await prompt<{ confirmDelete: boolean }>({
+    const { confirmDelete } = await enquirer.prompt<{ confirmDelete: boolean }>({
       type: "confirm",
       name: "confirmDelete",
       message: `Are you sure you want to delete the query '${name}'?`,
