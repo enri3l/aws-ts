@@ -360,6 +360,7 @@ export type EC2ResetInstanceAttributeInput = z.infer<typeof EC2ResetInstanceAttr
  *
  * @param filterString - Filter string in format "Name=name,Values=val1,val2"
  * @returns Parsed filter object
+ * @throws Error if filter format is invalid or missing required Name/Values
  *
  * @remarks
  * Supports AWS CLI filter syntax for EC2 operations

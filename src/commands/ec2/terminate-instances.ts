@@ -113,6 +113,7 @@ export default class EC2TerminateInstancesCommand extends BaseCommand {
    *
    * @param results - Array of instance state changes
    * @param format - Output format to use
+   * @throws Error if unsupported output format is specified
    * @internal
    */
   private formatAndDisplayOutput(results: InstanceStateChange[], format: string): void {
