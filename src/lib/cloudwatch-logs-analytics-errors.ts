@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-analytics-errors
  * CloudWatch Logs Analytics-specific error types
  *
  * Extends the base error system with analytics-specific error handling

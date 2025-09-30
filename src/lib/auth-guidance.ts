@@ -1,4 +1,5 @@
 /**
+ * @module auth-guidance
  * Authentication error guidance system for AWS CLI operations
  *
  * Provides user-friendly resolution guidance for authentication-specific errors.

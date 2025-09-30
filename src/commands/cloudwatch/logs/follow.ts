@@ -1,4 +1,5 @@
 /**
+ * @module follow
  * CloudWatch Logs follow command
  *
  * Follow specific log streams with pattern-based stream selection and auto-reconnect

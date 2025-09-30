@@ -1,4 +1,5 @@
 /**
+ * @module base-command
  * Base command class for standardized command patterns
  *
  * Provides common functionality for all CLI commands including error handling,

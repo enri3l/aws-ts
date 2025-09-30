@@ -1,4 +1,5 @@
 /**
+ * @module ecs-errors
  * ECS-specific error types for AWS ECS operations
  *
  * Extends the base error system with ECS-specific error handling

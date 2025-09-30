@@ -1,4 +1,5 @@
 /**
+ * @module describe-api
  * API Gateway describe API command
  *
  * Retrieves detailed information about a specific API Gateway API

@@ -1,4 +1,5 @@
 /**
+ * @module switch
  * AWS authentication profile switch command
  *
  * Switches the active AWS profile with optional credential validation

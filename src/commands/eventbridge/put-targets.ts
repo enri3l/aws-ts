@@ -1,4 +1,5 @@
 /**
+ * @module put-targets
  * EventBridge put targets command
  *
  * Adds or updates targets for an EventBridge rule with comprehensive

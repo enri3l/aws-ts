@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-errors
  * CloudWatch Logs-specific error types for AWS CLI operations
  *
  * Extends the base error system with CloudWatch Logs-specific error handling

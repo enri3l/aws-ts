@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-schemas
  * CloudWatch Logs-specific Zod schemas for input validation
  *
  * Provides validation schemas for CloudWatch Logs commands

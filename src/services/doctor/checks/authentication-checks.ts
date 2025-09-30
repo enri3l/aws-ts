@@ -1,4 +1,5 @@
 /**
+ * @module authentication-checks
  * Authentication validation checks for AWS credentials and tokens
  *
  * Provides authentication validation leveraging existing

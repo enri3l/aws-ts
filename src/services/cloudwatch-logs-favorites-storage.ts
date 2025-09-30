@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-favorites-storage
  * CloudWatch Logs Favorites storage service for local persistence
  *
  * Provides file-based storage for CloudWatch Logs favorites and saved queries

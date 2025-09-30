@@ -1,4 +1,5 @@
 /**
+ * @module put-item
  * DynamoDB put item command
  *
  * Creates or replaces an item in a DynamoDB table with support for

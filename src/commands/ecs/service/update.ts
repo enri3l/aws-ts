@@ -1,4 +1,5 @@
 /**
+ * @module update
  * ECS service update command
  *
  * Updates an existing ECS service configuration including

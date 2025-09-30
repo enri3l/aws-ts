@@ -1,4 +1,5 @@
 /**
+ * @module apigw-schemas
  * API Gateway-specific Zod schemas for input validation
  *
  * Provides validation schemas for API Gateway commands

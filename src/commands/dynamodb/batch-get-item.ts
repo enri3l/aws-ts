@@ -1,4 +1,5 @@
 /**
+ * @module batch-get-item
  * DynamoDB batch get item command
  *
  * Retrieves multiple items efficiently from one or more DynamoDB tables

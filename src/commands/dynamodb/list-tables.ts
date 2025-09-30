@@ -1,4 +1,5 @@
 /**
+ * @module list-tables
  * DynamoDB list tables command
  *
  * Lists all DynamoDB tables in the specified region with support for

@@ -1,4 +1,5 @@
 /**
+ * @module profile-manager
  * AWS profile manager for multi-profile management
  *
  * Provides AWS profile discovery, validation, and management

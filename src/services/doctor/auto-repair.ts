@@ -1,4 +1,5 @@
 /**
+ * @module auto-repair
  * Auto-repair service for diagnostic issue resolution
  *
  * Provides safe auto-repair capabilities with backup-first patterns and

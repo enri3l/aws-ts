@@ -1,4 +1,5 @@
 /**
+ * @module update-item
  * DynamoDB update item command
  *
  * Updates an existing item in a DynamoDB table using update expressions

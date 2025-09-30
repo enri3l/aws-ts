@@ -1,4 +1,5 @@
 /**
+ * @module wait
  * ECS task wait command
  *
  * Waits for ECS tasks to reach a specified state with

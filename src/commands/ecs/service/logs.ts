@@ -1,4 +1,5 @@
 /**
+ * @module logs
  * ECS service logs command
  *
  * Retrieves and displays logs from tasks running in an ECS service

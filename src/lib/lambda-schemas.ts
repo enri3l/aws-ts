@@ -1,4 +1,5 @@
 /**
+ * @module lambda-schemas
  * Lambda-specific Zod schemas for input validation
  *
  * Provides validation schemas for Lambda commands

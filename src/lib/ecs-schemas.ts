@@ -1,4 +1,5 @@
 /**
+ * @module ecs-schemas
  * ECS-specific Zod validation schemas for AWS ECS operations
  *
  * Provides input validation for ECS cluster, service, and task operations

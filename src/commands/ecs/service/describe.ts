@@ -1,4 +1,5 @@
 /**
+ * @module describe
  * ECS service describe command
  *
  * Describes ECS services with detailed configuration, status,

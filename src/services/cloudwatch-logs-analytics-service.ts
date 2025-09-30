@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-analytics-service
  * CloudWatch Logs Analytics service for pattern analysis and metrics extraction
  *
  * Provides analytics capabilities for CloudWatch Logs, including pattern detection,

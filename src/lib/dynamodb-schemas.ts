@@ -1,4 +1,5 @@
 /**
+ * @module dynamodb-schemas
  * DynamoDB-specific Zod schemas for input validation
  *
  * Provides validation schemas for DynamoDB commands

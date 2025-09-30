@@ -1,4 +1,5 @@
 /**
+ * @module status
  * AWS authentication status command
  *
  * Displays authentication status for AWS profiles including credential

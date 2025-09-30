@@ -1,4 +1,5 @@
 /**
+ * @module ecs-service
  * ECS service for container orchestration and management
  *
  * Orchestrates AWS ECS operations by providing a unified interface for

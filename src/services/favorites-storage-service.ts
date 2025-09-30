@@ -1,4 +1,5 @@
 /**
+ * @module favorites-storage-service
  * Favorites storage service for CloudWatch Logs
  *
  * Manages local storage of favorite log groups and queries with usage analytics,

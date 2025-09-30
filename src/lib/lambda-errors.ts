@@ -1,4 +1,5 @@
 /**
+ * @module lambda-errors
  * Lambda-specific error types for AWS Lambda operations
  *
  * Extends the base error system with Lambda-specific error handling
@@ -680,4 +681,37 @@ export function getLambdaErrorGuidance(error: unknown): string {
     }
   }
   return getGenericLambdaErrorGuidance();
+}
+
+/**
+ * Format Lambda command errors with standardized messages and guidance
+ *
+ * @param error - The error that occurred
+ * @param verbose - Whether to include verbose error details
+ * @param context - Optional context for the operation that failed
+ * @returns Formatted error message with guidance
+ *
+ * @public
+ *
+ * @remarks
+ * This function provides centralized error formatting for all Lambda commands,
+ * ensuring consistent error messages and user guidance across the CLI.
+ * It handles both Lambda-specific errors and generic errors, enriching them
+ * with actionable resolution guidance.
+ */
+export function formatLambdaError(error: unknown, verbose = false, context?: string): string {
+  const guidance = getLambdaErrorGuidance(error);
+  const contextPrefix = context ? `${context}: ` : "";
+
+  if (error instanceof Error) {
+    let message = `${contextPrefix}${error.message}`;
+
+    if (verbose && error.stack) {
+      message += `\n\nStack trace:\n${error.stack}`;
+    }
+
+    return `${message}\n\n${guidance}`;
+  }
+
+  return `${contextPrefix}An unknown error occurred\n\n${guidance}`;
 }

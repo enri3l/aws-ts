@@ -1,4 +1,5 @@
 /**
+ * @module auth-schemas
  * Authentication-specific Zod schemas for input validation
  *
  * Provides validation schemas for authentication commands

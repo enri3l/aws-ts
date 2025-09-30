@@ -1,4 +1,5 @@
 /**
+ * @module diagnostic-errors
  * Diagnostic-specific error types for doctor command system
  *
  * Extends the base error hierarchy with diagnostic-specific error types

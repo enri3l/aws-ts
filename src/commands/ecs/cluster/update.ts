@@ -1,4 +1,5 @@
 /**
+ * @module update
  * ECS cluster update command
  *
  * Updates an ECS cluster configuration including settings,

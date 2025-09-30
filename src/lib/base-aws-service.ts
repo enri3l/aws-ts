@@ -1,4 +1,5 @@
 /**
+ * @module base-aws-service
  * Base AWS service class providing common functionality for all AWS service implementations
  *
  * Provides shared functionality for AWS SDK client management, credential integration,

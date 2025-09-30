@@ -1,4 +1,5 @@
 /**
+ * @module restart
  * ECS service restart command
  *
  * Restarts an ECS service by forcing a new deployment

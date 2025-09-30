@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-analytics-schemas
  * CloudWatch Logs analytics and insights schemas and interfaces
  *
  * Provides validation schemas and TypeScript interfaces for

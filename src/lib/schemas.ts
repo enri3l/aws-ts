@@ -1,4 +1,5 @@
 /**
+ * @module schemas
  * Zod schemas for input validation with TypeScript type inference
  *
  * Provides input validation schemas for CLI commands, configuration,

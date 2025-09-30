@@ -1,4 +1,5 @@
 /**
+ * @module list-groups
  * CloudWatch Logs list groups command
  *
  * Lists all CloudWatch log groups in the specified region with support for

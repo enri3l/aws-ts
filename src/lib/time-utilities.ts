@@ -1,4 +1,5 @@
 /**
+ * @module time-utilities
  * Time parsing utilities for CloudWatch Logs commands
  *
  * Provides helper functions for parsing and validating time ranges

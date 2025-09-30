@@ -1,4 +1,5 @@
 /**
+ * @module doctor-service
  * Doctor service for system health checks and diagnostics
  *
  * Orchestrates progressive validation stages by coordinating existing services

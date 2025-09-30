@@ -1,4 +1,5 @@
 /**
+ * @module lambda-service
  * Lambda service for function management and invocation
  *
  * Orchestrates AWS Lambda operations by providing a unified interface for

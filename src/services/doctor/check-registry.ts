@@ -1,4 +1,5 @@
 /**
+ * @module check-registry
  * Registry for managing diagnostic check implementations
  *
  * Provides centralized registration and discovery of check implementations

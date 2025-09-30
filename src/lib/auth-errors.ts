@@ -1,4 +1,5 @@
 /**
+ * @module auth-errors
  * Authentication-specific error types for AWS CLI operations
  *
  * Extends the base error system with authentication-specific error handling

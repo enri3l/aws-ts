@@ -1,4 +1,5 @@
 /**
+ * @module list
  * ECS cluster list command
  *
  * Lists all ECS clusters in the specified region with support for

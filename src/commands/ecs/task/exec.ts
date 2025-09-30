@@ -1,4 +1,5 @@
 /**
+ * @module exec
  * ECS task exec command
  *
  * Executes commands in running ECS task containers using

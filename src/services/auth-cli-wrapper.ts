@@ -1,4 +1,5 @@
 /**
+ * @module auth-cli-wrapper
  * AWS CLI wrapper service for authentication operations
  *
  * Provides a TypeScript interface for AWS CLI subprocess operations,

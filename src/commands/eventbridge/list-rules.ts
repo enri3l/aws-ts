@@ -1,4 +1,5 @@
 /**
+ * @module list-rules
  * EventBridge list rules command
  *
  * Lists all EventBridge rules in the specified event bus with support for

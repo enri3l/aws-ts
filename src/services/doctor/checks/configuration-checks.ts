@@ -1,4 +1,5 @@
 /**
+ * @module configuration-checks
  * Configuration validation checks for AWS setup
  *
  * Provides AWS configuration file validation including config file accessibility,

@@ -1,4 +1,5 @@
 /**
+ * @module base-check
  * Base class for diagnostic checks
  *
  * Provides common error handling and execution patterns for all ICheck implementations.

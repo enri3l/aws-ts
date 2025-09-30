@@ -1,4 +1,5 @@
 /**
+ * @module query
  * CloudWatch Logs query command
  *
  * Execute CloudWatch Logs Insights queries with support for all three query languages

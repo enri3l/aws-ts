@@ -1,4 +1,5 @@
 /**
+ * @module data-processing
  * Data parsing/processing framework for JSON/JSONLine/CSV normalization
  *
  * Provides unified data processing capabilities for CLI output and input handling

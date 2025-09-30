@@ -1,4 +1,5 @@
 /**
+ * @module stop
  * ECS service stop command
  *
  * Stops an ECS service by scaling it to zero tasks

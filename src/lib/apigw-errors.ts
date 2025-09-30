@@ -1,4 +1,5 @@
 /**
+ * @module apigw-errors
  * API Gateway-specific error types for AWS CLI operations
  *
  * Extends the base error system with API Gateway-specific error handling

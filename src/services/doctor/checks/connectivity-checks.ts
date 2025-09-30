@@ -1,4 +1,5 @@
 /**
+ * @module connectivity-checks
  * Connectivity validation checks for AWS services and endpoints
  *
  * Provides AWS service connectivity validation including STS

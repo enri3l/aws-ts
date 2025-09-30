@@ -1,4 +1,5 @@
 /**
+ * @module eventbridge-service
  * EventBridge service for rule and target management
  *
  * Orchestrates Amazon EventBridge operations by providing a unified interface for

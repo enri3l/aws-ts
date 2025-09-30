@@ -1,4 +1,5 @@
 /**
+ * @module list
  * ECS task list command
  *
  * Lists ECS tasks in a cluster with filtering options

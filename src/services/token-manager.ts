@@ -1,4 +1,5 @@
 /**
+ * @module token-manager
  * SSO token manager for token lifecycle management
  *
  * Provides SSO token management including expiry detection,

@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-service
  * CloudWatch Logs service for high-level log operations
  *
  * Orchestrates CloudWatch Logs operations by providing a unified interface for

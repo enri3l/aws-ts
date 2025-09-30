@@ -1,4 +1,5 @@
 /**
+ * @module credential-service
  * AWS credential service for SDK integration
  *
  * Provides AWS SDK client factory methods with proper credential management

@@ -1,4 +1,5 @@
 /**
+ * @module environment-checks
  * Environment validation checks for system requirements
  *
  * Provides fundamental system validation including Node.js version compatibility,

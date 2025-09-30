@@ -1,4 +1,5 @@
 /**
+ * @module get-item
  * DynamoDB get item command
  *
  * Retrieves a single item from a DynamoDB table by its primary key

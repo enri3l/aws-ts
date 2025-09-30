@@ -1,4 +1,5 @@
 /**
+ * @module filter-events
  * CloudWatch Logs filter events command
  *
  * Advanced filtering with FilterLogEvents API, complex filter expressions,

@@ -1,4 +1,5 @@
 /**
+ * @module auth-service
  * High-level authentication service for user-facing operations
  *
  * Orchestrates authentication workflows by coordinating AWS CLI wrapper,

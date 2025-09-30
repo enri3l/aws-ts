@@ -1,4 +1,5 @@
 /**
+ * @module describe-group
  * CloudWatch Logs describe group command
  *
  * Displays detailed information about a specific CloudWatch log group including

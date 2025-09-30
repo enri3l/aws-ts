@@ -1,4 +1,5 @@
 /**
+ * @module dynamodb-service
  * DynamoDB service for high-level table operations
  *
  * Orchestrates DynamoDB operations by providing a unified interface for

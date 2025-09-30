@@ -1,4 +1,5 @@
 /**
+ * @module dynamodb-errors
  * DynamoDB-specific error types for AWS CLI operations
  *
  * Extends the base error system with DynamoDB-specific error handling

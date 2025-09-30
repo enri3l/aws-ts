@@ -1,4 +1,5 @@
 /**
+ * @module apigw-service
  * API Gateway service for high-level API discovery and configuration operations
  *
  * Orchestrates API Gateway operations by providing a unified interface for

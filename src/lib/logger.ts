@@ -1,4 +1,5 @@
 /**
+ * @module logger
  * Structured logging system with configurable levels
  *
  * Provides consistent, structured logging across the CLI application with

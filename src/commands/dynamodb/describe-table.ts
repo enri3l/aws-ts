@@ -1,4 +1,5 @@
 /**
+ * @module describe-table
  * DynamoDB describe table command
  *
  * Displays detailed information about a specific DynamoDB table including

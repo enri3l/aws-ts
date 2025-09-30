@@ -1,4 +1,5 @@
 /**
+ * @module eventbridge-schemas
  * EventBridge-specific Zod schemas for input validation
  *
  * Provides validation schemas for EventBridge commands

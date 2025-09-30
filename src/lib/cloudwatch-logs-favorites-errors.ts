@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-favorites-errors
  * CloudWatch Logs Favorites-specific error types
  *
  * Extends the base error system with favorites-specific error handling

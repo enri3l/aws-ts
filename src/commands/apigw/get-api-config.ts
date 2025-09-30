@@ -1,4 +1,5 @@
 /**
+ * @module get-api-config
  * API Gateway get API configuration command
  *
  * Retrieves configuration details for a specific API Gateway API

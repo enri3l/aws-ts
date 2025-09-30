@@ -1,4 +1,5 @@
 /**
+ * @module types
  * Type definitions for doctor command system
  *
  * Provides interfaces and types for health checks, diagnostics, and validation

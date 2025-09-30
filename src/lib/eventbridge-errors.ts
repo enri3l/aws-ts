@@ -1,4 +1,5 @@
 /**
+ * @module eventbridge-errors
  * EventBridge-specific error types for AWS EventBridge operations
  *
  * Extends the base error system with EventBridge-specific error handling

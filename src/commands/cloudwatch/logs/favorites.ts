@@ -1,4 +1,5 @@
 /**
+ * @module favorites
  * CloudWatch Logs favorites management command
  *
  * Manages favorite log groups and queries for quick access and team collaboration

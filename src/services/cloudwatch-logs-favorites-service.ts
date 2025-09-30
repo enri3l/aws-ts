@@ -1,4 +1,5 @@
 /**
+ * @module cloudwatch-logs-favorites-service
  * CloudWatch Logs Favorites service for managing favorites and saved queries
  *
  * Provides high-level operations for managing CloudWatch Logs favorites

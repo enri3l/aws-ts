@@ -1,4 +1,5 @@
 /**
+ * @module doctor
  * AWS CLI doctor command for health checks and diagnostics
  *
  * Performs system validation including environment checks,
