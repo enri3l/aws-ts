@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSStopTask } from "../../../lib/ecs-schemas.js";
 import { ECSStopTaskSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type TaskDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS task stop command for terminating running tasks
@@ -20,7 +21,7 @@ import { ECSService, type TaskDescription } from "../../../services/ecs-service.
  *
  * @public
  */
-export default class ECSTaskStopCommand extends Command {
+export default class ECSTaskStopCommand extends BaseCommand {
   static override readonly description = "Stop running ECS tasks";
 
   static override readonly examples = [

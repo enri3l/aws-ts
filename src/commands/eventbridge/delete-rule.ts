@@ -6,12 +6,13 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeDeleteRule } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeDeleteRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Rule deletion result for display formatting
@@ -33,7 +34,7 @@ interface RuleDeletionResult {
  *
  * @public
  */
-export default class EventBridgeDeleteRuleCommand extends Command {
+export default class EventBridgeDeleteRuleCommand extends BaseCommand {
   static override readonly description = "Delete an EventBridge rule";
 
   static override readonly examples = [

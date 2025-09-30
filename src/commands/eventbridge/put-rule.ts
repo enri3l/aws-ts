@@ -6,12 +6,13 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgePutRule } from "../../lib/eventbridge-schemas.js";
 import { EventBridgePutRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Rule creation result from EventBridge service
@@ -83,7 +84,7 @@ interface RuleCreationResult {
  *
  * @public
  */
-export default class EventBridgePutRuleCommand extends Command {
+export default class EventBridgePutRuleCommand extends BaseCommand {
   static override readonly description = "Create or update an EventBridge rule";
 
   static override readonly examples = [

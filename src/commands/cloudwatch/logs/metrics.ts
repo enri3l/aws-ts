@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import {
   CloudWatchLogsMetricsSchema,
   type CloudWatchLogsMetrics,
@@ -17,6 +17,7 @@ import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { parseTimeRange } from "../../../lib/time-utilities.js";
 import { CloudWatchLogsAnalyticsService } from "../../../services/cloudwatch-logs-analytics-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * Base data point interface
@@ -75,7 +76,7 @@ type MetricDataPoint =
  *
  * @public
  */
-export default class CloudWatchLogsMetricsCommand extends Command {
+export default class CloudWatchLogsMetricsCommand extends BaseCommand {
   static override readonly summary = "Extract metrics and analytics from CloudWatch log data";
 
   static override readonly description = `

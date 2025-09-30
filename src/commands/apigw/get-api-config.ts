@@ -8,7 +8,7 @@
 
 import type { Integration as RestIntegration } from "@aws-sdk/client-api-gateway";
 import type { Route, Integration as V2Integration } from "@aws-sdk/client-apigatewayv2";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleApiGwCommandError } from "../../lib/apigw-errors.js";
 import type { ApiGwGetApiConfig } from "../../lib/apigw-schemas.js";
 import { ApiGwGetApiConfigSchema, validateApiId } from "../../lib/apigw-schemas.js";
@@ -20,6 +20,7 @@ import {
   type RestApiDescription,
   type WebSocketApiDescription,
 } from "../../services/apigw-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Configuration summary info structure
@@ -38,7 +39,7 @@ interface SummaryInfo {
  *
  * @public
  */
-export default class ApigwGetApiConfigCommand extends Command {
+export default class ApigwGetApiConfigCommand extends BaseCommand {
   static override readonly description = "Get configuration details for an API Gateway API";
 
   static override readonly examples = [

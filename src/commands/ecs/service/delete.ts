@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSDeleteService } from "../../../lib/ecs-schemas.js";
 import { ECSDeleteServiceSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service delete command for removing services
@@ -20,7 +21,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceDeleteCommand extends Command {
+export default class ECSServiceDeleteCommand extends BaseCommand {
   static override readonly description = "Delete an ECS service";
 
   static override readonly examples = [

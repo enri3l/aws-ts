@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSUpdateService } from "../../../lib/ecs-schemas.js";
 import { ECSUpdateServiceSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service start command for resuming service tasks
@@ -21,7 +22,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceStartCommand extends Command {
+export default class ECSServiceStartCommand extends BaseCommand {
   static override readonly description = "Start a stopped ECS service";
 
   static override readonly examples = [

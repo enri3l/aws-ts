@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { AuthenticationError, ProfileError } from "../../lib/auth-errors.js";
 import type { AuthSwitch } from "../../lib/auth-schemas.js";
 import { formatError } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Auth switch command for AWS profile switching
@@ -20,7 +21,7 @@ import { AuthService } from "../../services/auth-service.js";
  *
  * @public
  */
-export default class AuthSwitchCommand extends Command {
+export default class AuthSwitchCommand extends BaseCommand {
   static override readonly description = "Switch to a different AWS profile";
 
   static override readonly examples = [

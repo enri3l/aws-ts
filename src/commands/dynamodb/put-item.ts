@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { PutItemParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBPutItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBPutItemSchema } from "../../lib/dynamodb-schemas.js";
@@ -14,6 +14,7 @@ import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { FormatterFactory } from "../../lib/formatters.js";
 import { parseJsonInput, parseJsonStringInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB put item command for item creation/replacement
@@ -23,7 +24,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBPutItemCommand extends Command {
+export default class DynamoDBPutItemCommand extends BaseCommand {
   static override readonly description = "Put (create/replace) an item in a DynamoDB table";
 
   static override readonly examples = [

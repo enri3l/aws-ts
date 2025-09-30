@@ -6,12 +6,13 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { handleApiGwCommandError } from "../../lib/apigw-errors.js";
 import type { ApiGwListApis } from "../../lib/apigw-schemas.js";
 import { ApiGwListApisSchema } from "../../lib/apigw-schemas.js";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { ApiGwService } from "../../services/apigw-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * API Gateway list APIs command for discovering available APIs
@@ -21,7 +22,7 @@ import { ApiGwService } from "../../services/apigw-service.js";
  *
  * @public
  */
-export default class ApigwListApisCommand extends Command {
+export default class ApigwListApisCommand extends BaseCommand {
   static override readonly description =
     "List all API Gateway APIs across REST, HTTP, and WebSocket types";
 

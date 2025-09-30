@@ -7,13 +7,14 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsFilterEvents } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsFilterEventsSchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { FilterEventsResult, LogEvent } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs filter events command for advanced filtering
@@ -23,7 +24,7 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
  *
  * @public
  */
-export default class CloudWatchLogsFilterEventsCommand extends Command {
+export default class CloudWatchLogsFilterEventsCommand extends BaseCommand {
   static override readonly description =
     "Advanced filtering of CloudWatch log events with complex expressions";
 

@@ -6,13 +6,14 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsSearch } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsSearchSchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { FilterEventsResult, LogEvent } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * Search result with highlighting information
@@ -33,7 +34,7 @@ interface SearchResult extends LogEvent {
  *
  * @public
  */
-export default class CloudWatchLogsSearchCommand extends Command {
+export default class CloudWatchLogsSearchCommand extends BaseCommand {
   static override readonly description =
     "Fast text search across CloudWatch log events with regex and highlighting";
 

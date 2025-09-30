@@ -6,13 +6,14 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSDescribeClusters } from "../../../lib/ecs-schemas.js";
 import { ECSDescribeClustersSchema } from "../../../lib/ecs-schemas.js";
 import type { ClusterDescription } from "../../../services/ecs-service.js";
 import { ECSService } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * Extended cluster description with index signature for data processing
@@ -34,7 +35,7 @@ interface ExtendedClusterDescription extends ClusterDescription {
  *
  * @public
  */
-export default class ECSClusterDescribeCommand extends Command {
+export default class ECSClusterDescribeCommand extends BaseCommand {
   static override readonly description =
     "Describe ECS clusters with detailed configuration information";
 

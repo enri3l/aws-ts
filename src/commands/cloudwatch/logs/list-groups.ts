@@ -6,7 +6,7 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsListGroups } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsListGroupsSchema } from "../../../lib/cloudwatch-logs-schemas.js";
@@ -15,6 +15,7 @@ import {
   CloudWatchLogsService,
   type LogGroupDescription,
 } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs list groups command for discovering available log groups
@@ -24,7 +25,7 @@ import {
  *
  * @public
  */
-export default class CloudWatchLogsListGroupsCommand extends Command {
+export default class CloudWatchLogsListGroupsCommand extends BaseCommand {
   static override readonly description = "List all CloudWatch log groups in the region";
 
   static override readonly examples = [

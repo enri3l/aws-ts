@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSUpdateService } from "../../../lib/ecs-schemas.js";
 import { ECSUpdateServiceSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service update command for modifying service configuration
@@ -21,7 +22,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceUpdateCommand extends Command {
+export default class ECSServiceUpdateCommand extends BaseCommand {
   static override readonly description = "Update an ECS service configuration";
 
   static override readonly examples = [

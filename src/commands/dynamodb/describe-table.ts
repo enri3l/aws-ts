@@ -6,13 +6,14 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import type { DynamoDBDescribeTable } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBDescribeTableSchema } from "../../lib/dynamodb-schemas.js";
 import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import type { TableDescription } from "../../services/dynamodb-service.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB describe table command for detailed table information
@@ -22,7 +23,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBDescribeTableCommand extends Command {
+export default class DynamoDBDescribeTableCommand extends BaseCommand {
   static override readonly description = "Show detailed information about a DynamoDB table";
 
   static override readonly examples = [

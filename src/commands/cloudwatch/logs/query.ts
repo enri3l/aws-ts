@@ -7,13 +7,14 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsQuery } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsQuerySchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { QueryResult } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs query command for executing Logs Insights queries
@@ -23,7 +24,7 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
  *
  * @public
  */
-export default class CloudWatchLogsQueryCommand extends Command {
+export default class CloudWatchLogsQueryCommand extends BaseCommand {
   static override readonly description = "Execute CloudWatch Logs Insights queries with filtering";
 
   static override readonly examples = [

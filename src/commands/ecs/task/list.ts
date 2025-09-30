@@ -6,11 +6,12 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSListTasks } from "../../../lib/ecs-schemas.js";
 import { ECSListTasksSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type TaskDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS task list command for discovering tasks
@@ -20,7 +21,7 @@ import { ECSService, type TaskDescription } from "../../../services/ecs-service.
  *
  * @public
  */
-export default class ECSTaskListCommand extends Command {
+export default class ECSTaskListCommand extends BaseCommand {
   static override readonly description = "List ECS tasks in a cluster";
 
   static override readonly examples = [

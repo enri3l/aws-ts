@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags, type Interfaces } from "@oclif/core";
+import { Args, Flags, type Interfaces } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSUpdateCluster } from "../../../lib/ecs-schemas.js";
 import { ECSUpdateClusterSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS cluster update command for modifying cluster configuration
@@ -20,7 +21,7 @@ import { ECSService } from "../../../services/ecs-service.js";
  *
  * @public
  */
-export default class ECSClusterUpdateCommand extends Command {
+export default class ECSClusterUpdateCommand extends BaseCommand {
   static override readonly description = "Update an ECS cluster configuration";
 
   static override readonly examples = [

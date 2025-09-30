@@ -7,12 +7,13 @@
  */
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaPublishVersion } from "../../lib/lambda-schemas.js";
 import { LambdaPublishVersionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended function configuration with index signature for data processing
@@ -34,7 +35,7 @@ interface ExtendedFunctionConfiguration extends FunctionConfiguration {
  *
  * @public
  */
-export default class LambdaPublishVersionCommand extends Command {
+export default class LambdaPublishVersionCommand extends BaseCommand {
   static override readonly description = "Publish a new Lambda function version";
 
   static override readonly examples = [

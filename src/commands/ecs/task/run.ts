@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSRunTask } from "../../../lib/ecs-schemas.js";
 import { ECSRunTaskSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type RunTaskResult } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS task run command for executing standalone tasks
@@ -21,7 +22,7 @@ import { ECSService, type RunTaskResult } from "../../../services/ecs-service.js
  *
  * @public
  */
-export default class ECSTaskRunCommand extends Command {
+export default class ECSTaskRunCommand extends BaseCommand {
   static override readonly description = "Run a standalone ECS task";
 
   static override readonly examples = [
@@ -223,7 +224,7 @@ export default class ECSTaskRunCommand extends Command {
       );
 
       // Display output and verbose information
-      this.displayOutput(input, result);
+      this.formatAndDisplayEcsOutput(input, result);
 
       if (input.verbose) {
         this.displayVerboseInfo(input, result);
@@ -408,7 +409,7 @@ export default class ECSTaskRunCommand extends Command {
    * @param result - Task run result
    * @internal
    */
-  private displayOutput(input: ECSRunTask, result: RunTaskResult): void {
+  private formatAndDisplayEcsOutput(input: ECSRunTask, result: RunTaskResult): void {
     switch (input.format) {
       case "table": {
         this.displayTableOutput(result);

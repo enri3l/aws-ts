@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSDescribeTasks } from "../../../lib/ecs-schemas.js";
 import { ECSDescribeTasksSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type TaskDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS task describe command for detailed task information
@@ -20,7 +21,7 @@ import { ECSService, type TaskDescription } from "../../../services/ecs-service.
  *
  * @public
  */
-export default class ECSTaskDescribeCommand extends Command {
+export default class ECSTaskDescribeCommand extends BaseCommand {
   static override readonly description = "Describe ECS tasks in detail";
 
   static override readonly examples = [
@@ -147,7 +148,7 @@ export default class ECSTaskDescribeCommand extends Command {
       }
 
       // Display output and verbose information
-      this.displayOutput(input, tasks);
+      this.formatAndDisplayEcsOutput(input, tasks);
 
       if (input.verbose) {
         this.displayVerboseInfo(input, tasks);
@@ -165,7 +166,7 @@ export default class ECSTaskDescribeCommand extends Command {
    * @param tasks - Task information to display
    * @internal
    */
-  private displayOutput(input: ECSDescribeTasks, tasks: TaskDescription[]): void {
+  private formatAndDisplayEcsOutput(input: ECSDescribeTasks, tasks: TaskDescription[]): void {
     switch (input.format) {
       case "table": {
         this.displayTasksAsTable(tasks);

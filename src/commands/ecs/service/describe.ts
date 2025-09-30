@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSDescribeServices } from "../../../lib/ecs-schemas.js";
 import { ECSDescribeServicesSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service describe command for detailed service information
@@ -20,7 +21,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceDescribeCommand extends Command {
+export default class ECSServiceDescribeCommand extends BaseCommand {
   static override readonly description = "Describe ECS services in detail";
 
   static override readonly examples = [
@@ -150,7 +151,7 @@ export default class ECSServiceDescribeCommand extends Command {
       }
 
       // Format and display output
-      this.displayOutput(input, services);
+      this.formatAndDisplayEcsOutput(input, services);
 
       if (input.verbose) {
         this.log(`\nDescribed ${services.length} service${services.length === 1 ? "" : "s"}`);
@@ -168,7 +169,10 @@ export default class ECSServiceDescribeCommand extends Command {
    * @param services - Services to display
    * @internal
    */
-  private displayOutput(input: ECSDescribeServices, services: ServiceDescription[]): void {
+  private formatAndDisplayEcsOutput(
+    input: ECSDescribeServices,
+    services: ServiceDescription[],
+  ): void {
     switch (input.format) {
       case "table": {
         this.displayServicesAsTable(services);

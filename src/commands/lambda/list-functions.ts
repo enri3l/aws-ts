@@ -7,12 +7,13 @@
  */
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaListFunctions } from "../../lib/lambda-schemas.js";
 import { LambdaListFunctionsSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended function configuration with index signature for data processing
@@ -34,7 +35,7 @@ interface ExtendedFunctionConfiguration extends FunctionConfiguration {
  *
  * @public
  */
-export default class LambdaListFunctionsCommand extends Command {
+export default class LambdaListFunctionsCommand extends BaseCommand {
   static override readonly description = "List all Lambda functions in the region";
 
   static override readonly examples = [

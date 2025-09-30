@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { SavedQuerySchema, type SavedQuery } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
@@ -15,13 +15,14 @@ import {
   FavoritesStorageService,
   type FavoritesExport,
 } from "../../../services/favorites-storage-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs favorites management command implementation
  *
  * @public
  */
-export default class CloudWatchLogsFavoritesCommand extends Command {
+export default class CloudWatchLogsFavoritesCommand extends BaseCommand {
   static override readonly summary = "Manage favorite log groups and queries for quick access";
 
   static override readonly description = `

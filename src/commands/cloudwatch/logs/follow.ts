@@ -7,11 +7,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsFollow } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsFollowSchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsService, type LogEvent } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs follow command for stream pattern following
@@ -21,7 +22,7 @@ import { CloudWatchLogsService, type LogEvent } from "../../../services/cloudwat
  *
  * @public
  */
-export default class CloudWatchLogsFollowCommand extends Command {
+export default class CloudWatchLogsFollowCommand extends BaseCommand {
   static override readonly description =
     "Follow specific log streams with pattern matching and auto-reconnect";
 

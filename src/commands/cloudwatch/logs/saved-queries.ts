@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { prompt } from "enquirer";
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
@@ -16,6 +16,7 @@ import type { SavedQuery } from "../../../lib/cloudwatch-logs-schemas.js";
 import { SavedQuerySchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs query result structure
@@ -148,7 +149,7 @@ class SavedQueriesStorage {
  *
  * @public
  */
-export default class CloudWatchLogsSavedQueriesCommand extends Command {
+export default class CloudWatchLogsSavedQueriesCommand extends BaseCommand {
   static override readonly description = "Manage saved CloudWatch Logs Insights queries";
 
   static override readonly examples = [

@@ -12,13 +12,14 @@ import {
   type BatchGetCommandOutput,
   type DynamoDBDocumentClient,
 } from "@aws-sdk/lib-dynamodb";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import type { DynamoDBBatchGetItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBBatchGetItemSchema } from "../../lib/dynamodb-schemas.js";
 import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { FormatterFactory } from "../../lib/formatters.js";
 import { parseJsonInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB batch get item command for multi-item retrieval
@@ -28,7 +29,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBBatchGetItemCommand extends Command {
+export default class DynamoDBBatchGetItemCommand extends BaseCommand {
   static override readonly description = "Get multiple items from DynamoDB tables in batch";
 
   static override readonly examples = [

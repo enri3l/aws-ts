@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import type { AuthProfiles, ProfileInfo } from "../../lib/auth-schemas.js";
 import { safeDisplayTable } from "../../lib/ui-utilities.js";
 import { AuthService } from "../../services/auth-service.js";
 import { TokenManager } from "../../services/token-manager.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Type for AuthProfilesCommand flags
@@ -39,7 +40,7 @@ interface DisplayProfileInfo extends ProfileInfo {
  *
  * @public
  */
-export default class AuthProfilesCommand extends Command {
+export default class AuthProfilesCommand extends BaseCommand {
   static override readonly description = "List all available AWS profiles";
 
   static override readonly examples = [

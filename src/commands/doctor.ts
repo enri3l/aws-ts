@@ -7,7 +7,7 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { getDiagnosticErrorGuidance } from "../lib/diagnostic-errors.js";
 import { ApiError, formatError, TimeoutError } from "../lib/errors.js";
 import { toSafeString } from "../lib/type-utilities.js";
@@ -35,6 +35,7 @@ import {
 } from "../services/doctor/checks/environment-checks.js";
 import { DoctorService, type DiagnosticSummary } from "../services/doctor/doctor-service.js";
 import type { CheckStage, DoctorContext } from "../services/doctor/types.js";
+import { BaseCommand } from "./base-command.js";
 
 /**
  * Doctor command for system health checks
@@ -45,7 +46,7 @@ import type { CheckStage, DoctorContext } from "../services/doctor/types.js";
  *
  * @public
  */
-export default class DoctorCommand extends Command {
+export default class DoctorCommand extends BaseCommand {
   static override readonly description = "Run health checks and diagnostics";
 
   static override readonly summary =

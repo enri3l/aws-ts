@@ -7,12 +7,13 @@
  */
 
 import type { FunctionConfiguration, GetFunctionResponse } from "@aws-sdk/client-lambda";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaDescribeFunction } from "../../lib/lambda-schemas.js";
 import { LambdaDescribeFunctionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended function details with index signature for data processing
@@ -52,7 +53,7 @@ interface ExtendedFunctionDetails {
  *
  * @public
  */
-export default class LambdaDescribeFunctionCommand extends Command {
+export default class LambdaDescribeFunctionCommand extends BaseCommand {
   static override readonly description = "Show detailed information about a Lambda function";
 
   static override readonly examples = [

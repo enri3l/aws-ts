@@ -6,12 +6,13 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeRemoveTargets } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeRemoveTargetsSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Remove targets result from EventBridge service
@@ -47,7 +48,7 @@ interface RemoveTargetsResult {
  *
  * @public
  */
-export default class EventBridgeRemoveTargetsCommand extends Command {
+export default class EventBridgeRemoveTargetsCommand extends BaseCommand {
   static override readonly description = "Remove targets from an EventBridge rule";
 
   static override readonly examples = [

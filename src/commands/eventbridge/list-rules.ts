@@ -7,12 +7,13 @@
  */
 
 import type { Rule, Target } from "@aws-sdk/client-eventbridge";
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeListRules } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeListRulesSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended rule interface with additional properties for display
@@ -66,7 +67,7 @@ interface RulesListResult {
  *
  * @public
  */
-export default class EventBridgeListRulesCommand extends Command {
+export default class EventBridgeListRulesCommand extends BaseCommand {
   static override readonly description = "List all EventBridge rules with filtering and pagination";
 
   static override readonly examples = [

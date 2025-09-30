@@ -7,7 +7,7 @@
  */
 
 import { BatchWriteCommand, type DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { BatchProcessor } from "../../lib/batch-processor.js";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import type { DynamoDBBatchWriteItem } from "../../lib/dynamodb-schemas.js";
@@ -15,6 +15,7 @@ import { DynamoDBBatchWriteItemSchema } from "../../lib/dynamodb-schemas.js";
 import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { FormatterFactory } from "../../lib/formatters.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 interface BatchWriteResult {
   processedItems: number;
@@ -76,7 +77,7 @@ function extractItemsFromUnprocessedRequests(
  *
  * @public
  */
-export default class DynamoDBBatchWriteItemCommand extends Command {
+export default class DynamoDBBatchWriteItemCommand extends BaseCommand {
   static override readonly description = "Batch write (put/delete) items to a DynamoDB table";
 
   static override readonly examples = [

@@ -7,12 +7,13 @@
  */
 
 import type { Target } from "@aws-sdk/client-eventbridge";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeListTargetsByRule } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeListTargetsByRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended target interface with index signature for data processing
@@ -56,7 +57,7 @@ interface TargetsListResult {
  *
  * @public
  */
-export default class EventBridgeListTargetsByRuleCommand extends Command {
+export default class EventBridgeListTargetsByRuleCommand extends BaseCommand {
   static override readonly description = "List all targets for an EventBridge rule";
 
   static override readonly examples = [

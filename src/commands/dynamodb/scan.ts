@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { ScanParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBScan } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBScanSchema } from "../../lib/dynamodb-schemas.js";
@@ -14,6 +14,7 @@ import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { FormatterFactory } from "../../lib/formatters.js";
 import { parseOptionalJson } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB scan command for full table/index scanning
@@ -23,7 +24,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBScanCommand extends Command {
+export default class DynamoDBScanCommand extends BaseCommand {
   static override readonly description = "Scan a DynamoDB table or index";
 
   static override readonly examples = [

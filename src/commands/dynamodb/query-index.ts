@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { QueryParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBQuery } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBQuerySchema } from "../../lib/dynamodb-schemas.js";
@@ -14,6 +14,7 @@ import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { FormatterFactory } from "../../lib/formatters.js";
 import { parseOptionalJson, parseRequiredJson } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB query index command for index querying
@@ -23,7 +24,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBQueryIndexCommand extends Command {
+export default class DynamoDBQueryIndexCommand extends BaseCommand {
   static override readonly description = "Query a DynamoDB Global or Local Secondary Index";
 
   static override readonly examples = [

@@ -6,12 +6,13 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import type { DynamoDBListTables } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBListTablesSchema } from "../../lib/dynamodb-schemas.js";
 import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB list tables command for discovering available tables
@@ -21,7 +22,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBListTablesCommand extends Command {
+export default class DynamoDBListTablesCommand extends BaseCommand {
   static override readonly description = "List all DynamoDB tables in the region";
 
   static override readonly examples = [

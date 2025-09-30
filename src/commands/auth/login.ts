@@ -6,7 +6,7 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { AuthenticationError } from "../../lib/auth-errors.js";
 import { validateSsoConfig, type AuthLogin, type SsoConfig } from "../../lib/auth-schemas.js";
 import {
@@ -16,6 +16,7 @@ import {
   UserConfigurationError,
 } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Auth login command for AWS SSO authentication
@@ -25,7 +26,7 @@ import { AuthService } from "../../services/auth-service.js";
  *
  * @public
  */
-export default class AuthLoginCommand extends Command {
+export default class AuthLoginCommand extends BaseCommand {
   static override readonly description = "Authenticate with AWS using SSO";
 
   static override readonly examples = [

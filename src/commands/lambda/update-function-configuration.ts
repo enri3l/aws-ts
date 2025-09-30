@@ -7,7 +7,7 @@
  */
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaUpdateFunctionConfiguration } from "../../lib/lambda-schemas.js";
@@ -16,6 +16,7 @@ import {
   LambdaService,
   type LambdaUpdateConfigurationParameters,
 } from "../../services/lambda-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended function configuration interface with index signature for data processing
@@ -37,7 +38,7 @@ interface ExtendedFunctionConfiguration extends FunctionConfiguration {
  *
  * @public
  */
-export default class LambdaUpdateFunctionConfigurationCommand extends Command {
+export default class LambdaUpdateFunctionConfigurationCommand extends BaseCommand {
   static override readonly description = "Update Lambda function configuration";
 
   static override readonly examples = [

@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSCreateService } from "../../../lib/ecs-schemas.js";
 import { ECSCreateServiceSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service create command for deploying new services
@@ -21,7 +22,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceCreateCommand extends Command {
+export default class ECSServiceCreateCommand extends BaseCommand {
   static override readonly description = "Create a new ECS service";
 
   static override readonly examples = [

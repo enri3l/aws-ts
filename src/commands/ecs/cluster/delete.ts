@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSDeleteCluster } from "../../../lib/ecs-schemas.js";
 import { ECSDeleteClusterSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS cluster delete command for removing clusters
@@ -20,7 +21,7 @@ import { ECSService } from "../../../services/ecs-service.js";
  *
  * @public
  */
-export default class ECSClusterDeleteCommand extends Command {
+export default class ECSClusterDeleteCommand extends BaseCommand {
   static override readonly description = "Delete an ECS cluster";
 
   static override readonly examples = [

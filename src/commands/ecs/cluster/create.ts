@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSCreateCluster } from "../../../lib/ecs-schemas.js";
 import { ECSCreateClusterSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS cluster create command for creating new clusters
@@ -20,7 +21,7 @@ import { ECSService } from "../../../services/ecs-service.js";
  *
  * @public
  */
-export default class ECSClusterCreateCommand extends Command {
+export default class ECSClusterCreateCommand extends BaseCommand {
   static override readonly description = "Create a new ECS cluster";
 
   static override readonly examples = [

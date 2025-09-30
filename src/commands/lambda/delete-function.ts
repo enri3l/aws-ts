@@ -7,12 +7,13 @@
  */
 
 import type { DeleteFunctionCommandOutput } from "@aws-sdk/client-lambda";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaDeleteFunction } from "../../lib/lambda-schemas.js";
 import { LambdaDeleteFunctionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Lambda delete function command for function removal
@@ -22,7 +23,7 @@ import { LambdaService } from "../../services/lambda-service.js";
  *
  * @public
  */
-export default class LambdaDeleteFunctionCommand extends Command {
+export default class LambdaDeleteFunctionCommand extends BaseCommand {
   static override readonly description = "Delete a Lambda function";
 
   static override readonly examples = [

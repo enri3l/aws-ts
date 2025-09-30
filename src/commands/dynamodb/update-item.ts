@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { UpdateItemParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBUpdateItem } from "../../lib/dynamodb-schemas.js";
 import { DynamoDBUpdateItemSchema } from "../../lib/dynamodb-schemas.js";
@@ -14,6 +14,7 @@ import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { FormatterFactory } from "../../lib/formatters.js";
 import { parseJsonInput, parseJsonStringInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB update item command for item updates
@@ -23,7 +24,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBUpdateItemCommand extends Command {
+export default class DynamoDBUpdateItemCommand extends BaseCommand {
   static override readonly description = "Update an existing item in a DynamoDB table";
 
   static override readonly examples = [

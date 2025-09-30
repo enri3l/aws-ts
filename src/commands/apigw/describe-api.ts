@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleApiGwCommandError } from "../../lib/apigw-errors.js";
 import type { ApiGwDescribeApi } from "../../lib/apigw-schemas.js";
 import { ApiGwDescribeApiSchema, validateApiId } from "../../lib/apigw-schemas.js";
@@ -18,6 +18,7 @@ import {
   type RestApiDescription,
   type WebSocketApiDescription,
 } from "../../services/apigw-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * API Gateway describe API command for detailed API information
@@ -27,7 +28,7 @@ import {
  *
  * @public
  */
-export default class ApigwDescribeApiCommand extends Command {
+export default class ApigwDescribeApiCommand extends BaseCommand {
   static override readonly description =
     "Get detailed information about a specific API Gateway API";
 

@@ -7,12 +7,13 @@
  */
 
 import type { InvokeCommandOutput } from "@aws-sdk/client-lambda";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaInvoke } from "../../lib/lambda-schemas.js";
 import { LambdaInvokeSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended invocation result with index signature for data processing
@@ -34,7 +35,7 @@ interface ExtendedInvokeCommandOutput extends InvokeCommandOutput {
  *
  * @public
  */
-export default class LambdaInvokeCommand extends Command {
+export default class LambdaInvokeCommand extends BaseCommand {
   static override readonly description = "Invoke a Lambda function with optional payload";
 
   static override readonly examples = [

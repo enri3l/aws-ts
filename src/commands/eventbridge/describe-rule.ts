@@ -7,12 +7,13 @@
  */
 
 import type { Rule, Target } from "@aws-sdk/client-eventbridge";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeDescribeRule } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeDescribeRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended rule details including targets for display
@@ -44,7 +45,7 @@ interface RuleDetailsWithTargets extends Rule {
  *
  * @public
  */
-export default class EventBridgeDescribeRuleCommand extends Command {
+export default class EventBridgeDescribeRuleCommand extends BaseCommand {
   static override readonly description = "Show detailed information about an EventBridge rule";
 
   static override readonly examples = [

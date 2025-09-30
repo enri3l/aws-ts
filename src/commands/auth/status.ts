@@ -6,12 +6,13 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import type { AuthStatus, AuthStatusResponse, ProfileInfo } from "../../lib/auth-schemas.js";
 import { ApiError, formatErrorWithGuidance, TimeoutError } from "../../lib/errors.js";
 import { safeDisplayTable } from "../../lib/ui-utilities.js";
 import { AuthService } from "../../services/auth-service.js";
 import { TokenManager } from "../../services/token-manager.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Auth status command for checking authentication state
@@ -21,7 +22,7 @@ import { TokenManager } from "../../services/token-manager.js";
  *
  * @public
  */
-export default class AuthStatusCommand extends Command {
+export default class AuthStatusCommand extends BaseCommand {
   static override readonly description = "Check AWS authentication status";
 
   static override readonly examples = [

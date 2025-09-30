@@ -6,12 +6,13 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { prompt } from "enquirer";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { QueryResult } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * Query template for common use cases
@@ -32,7 +33,7 @@ interface QueryTemplate {
  *
  * @public
  */
-export default class CloudWatchLogsInteractiveQueryCommand extends Command {
+export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
   static override readonly description =
     "Interactive CloudWatch Logs query builder with templates and field discovery";
 

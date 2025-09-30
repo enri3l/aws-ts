@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import {
   CloudWatchLogsAnalyzePatternsSchema,
   type CloudWatchLogsAnalyzePatterns,
@@ -19,13 +19,14 @@ import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { parseTimeRange } from "../../../lib/time-utilities.js";
 import { CloudWatchLogsAnalyticsService } from "../../../services/cloudwatch-logs-analytics-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs analyze patterns command implementation
  *
  * @public
  */
-export default class CloudWatchLogsAnalyzePatternsCommand extends Command {
+export default class CloudWatchLogsAnalyzePatternsCommand extends BaseCommand {
   static override readonly summary = "Analyze log patterns in a CloudWatch log group";
 
   static override readonly description = `

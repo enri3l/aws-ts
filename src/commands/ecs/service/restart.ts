@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSUpdateService } from "../../../lib/ecs-schemas.js";
 import { ECSUpdateServiceSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service restart command for forcing new deployments
@@ -20,7 +21,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceRestartCommand extends Command {
+export default class ECSServiceRestartCommand extends BaseCommand {
   static override readonly description = "Restart an ECS service by forcing a new deployment";
 
   static override readonly examples = [
@@ -175,7 +176,7 @@ export default class ECSServiceRestartCommand extends Command {
       );
 
       // Display output and verbose information
-      this.displayOutput(input, service);
+      this.formatAndDisplayEcsOutput(input, service);
 
       if (input.verbose) {
         this.displayVerboseInfo(input, service);
@@ -193,7 +194,7 @@ export default class ECSServiceRestartCommand extends Command {
    * @param service - Updated service information
    * @internal
    */
-  private displayOutput(input: ECSUpdateService, service: ServiceDescription): void {
+  private formatAndDisplayEcsOutput(input: ECSUpdateService, service: ServiceDescription): void {
     switch (input.format) {
       case "table": {
         this.log(`Successfully restarted ECS service '${service.serviceName}'`);

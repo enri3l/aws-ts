@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSConfig } from "../../../lib/ecs-schemas.js";
 import { ECSConfigSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type TaskDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS task exec command for interactive container access
@@ -21,7 +22,7 @@ import { ECSService, type TaskDescription } from "../../../services/ecs-service.
  *
  * @public
  */
-export default class ECSTaskExecCommand extends Command {
+export default class ECSTaskExecCommand extends BaseCommand {
   static override readonly description = "Execute commands in running ECS task containers";
 
   static override readonly examples = [

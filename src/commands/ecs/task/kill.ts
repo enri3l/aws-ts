@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSStopTask } from "../../../lib/ecs-schemas.js";
 import { ECSStopTaskSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type TaskDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS task kill command for immediate task termination
@@ -21,7 +22,7 @@ import { ECSService, type TaskDescription } from "../../../services/ecs-service.
  *
  * @public
  */
-export default class ECSTaskKillCommand extends Command {
+export default class ECSTaskKillCommand extends BaseCommand {
   static override readonly description = "Forcefully terminate ECS tasks immediately";
 
   static override readonly examples = [

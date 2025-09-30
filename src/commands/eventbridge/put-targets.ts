@@ -7,7 +7,7 @@
  */
 
 import type { Target } from "@aws-sdk/client-eventbridge";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgePutTargets } from "../../lib/eventbridge-schemas.js";
@@ -16,6 +16,7 @@ import {
   EventBridgeService,
   type EventBridgeTargetParameters,
 } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Input target configuration for transformation
@@ -149,7 +150,7 @@ interface PutTargetsResult {
  *
  * @public
  */
-export default class EventBridgePutTargetsCommand extends Command {
+export default class EventBridgePutTargetsCommand extends BaseCommand {
   static override readonly description = "Add or update targets for an EventBridge rule";
 
   static override readonly examples = [

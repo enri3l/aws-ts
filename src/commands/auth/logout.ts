@@ -6,10 +6,11 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import type { AuthLogout } from "../../lib/auth-schemas.js";
 import { formatError } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Auth logout command for AWS SSO session termination
@@ -19,7 +20,7 @@ import { AuthService } from "../../services/auth-service.js";
  *
  * @public
  */
-export default class AuthLogoutCommand extends Command {
+export default class AuthLogoutCommand extends BaseCommand {
   static override readonly description = "Logout from AWS SSO sessions";
 
   static override readonly examples = [

@@ -7,7 +7,7 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSConfig } from "../../../lib/ecs-schemas.js";
 import { ECSConfigSchema } from "../../../lib/ecs-schemas.js";
@@ -16,6 +16,7 @@ import {
   type ServiceDescription,
   type TaskDescription,
 } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service logs command for viewing task logs
@@ -25,7 +26,7 @@ import {
  *
  * @public
  */
-export default class ECSServiceLogsCommand extends Command {
+export default class ECSServiceLogsCommand extends BaseCommand {
   static override readonly description = "View logs from ECS service tasks";
 
   static override readonly examples = [

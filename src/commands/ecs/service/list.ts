@@ -6,11 +6,12 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSListServices } from "../../../lib/ecs-schemas.js";
 import { ECSListServicesSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service list command for discovering services
@@ -20,7 +21,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceListCommand extends Command {
+export default class ECSServiceListCommand extends BaseCommand {
   static override readonly description = "List ECS services in a cluster";
 
   static override readonly examples = [

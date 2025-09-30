@@ -7,12 +7,13 @@
  */
 
 import type { AliasConfiguration } from "@aws-sdk/client-lambda";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
 import type { LambdaCreateAlias } from "../../lib/lambda-schemas.js";
 import { LambdaCreateAliasSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Extended alias configuration with index signature for data processing
@@ -34,7 +35,7 @@ interface ExtendedAliasConfiguration extends AliasConfiguration {
  *
  * @public
  */
-export default class LambdaCreateAliasCommand extends Command {
+export default class LambdaCreateAliasCommand extends BaseCommand {
   static override readonly description = "Create an alias for a Lambda function";
 
   static override readonly examples = [

@@ -6,12 +6,13 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { getEventBridgeErrorGuidance } from "../../lib/eventbridge-errors.js";
 import type { EventBridgeDisableRule } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeDisableRuleSchema } from "../../lib/eventbridge-schemas.js";
 import { EventBridgeService } from "../../services/eventbridge-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * Rule disable operation result for display formatting
@@ -43,7 +44,7 @@ interface RuleDisableResult {
  *
  * @public
  */
-export default class EventBridgeDisableRuleCommand extends Command {
+export default class EventBridgeDisableRuleCommand extends BaseCommand {
   static override readonly description = "Disable an EventBridge rule";
 
   static override readonly examples = [

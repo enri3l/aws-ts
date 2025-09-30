@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSUpdateService } from "../../../lib/ecs-schemas.js";
 import { ECSUpdateServiceSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service scale command for adjusting service capacity
@@ -20,7 +21,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceScaleCommand extends Command {
+export default class ECSServiceScaleCommand extends BaseCommand {
   static override readonly description = "Scale an ECS service to a desired count";
 
   static override readonly examples = [

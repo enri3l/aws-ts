@@ -7,11 +7,12 @@
  */
 
 import type { Interfaces } from "@oclif/core";
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSConfig } from "../../../lib/ecs-schemas.js";
 import { ECSConfigSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type TaskDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * Task event interface
@@ -32,7 +33,7 @@ interface TaskEvent {
  *
  * @public
  */
-export default class ECSTaskEventsCommand extends Command {
+export default class ECSTaskEventsCommand extends BaseCommand {
   static override readonly description = "View ECS task events and state changes";
 
   static override readonly examples = [

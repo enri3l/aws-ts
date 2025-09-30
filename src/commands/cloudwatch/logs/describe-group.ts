@@ -6,13 +6,14 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsDescribeGroup } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsDescribeGroupSchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import type { LogGroupDescription } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * CloudWatch Logs describe group command for detailed log group information
@@ -22,7 +23,7 @@ import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service
  *
  * @public
  */
-export default class CloudWatchLogsDescribeGroupCommand extends Command {
+export default class CloudWatchLogsDescribeGroupCommand extends BaseCommand {
   static override readonly description = "Show detailed information about a CloudWatch log group";
 
   static override readonly examples = [

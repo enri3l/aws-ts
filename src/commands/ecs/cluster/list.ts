@@ -6,12 +6,13 @@
  *
  */
 
-import { Command, Flags } from "@oclif/core";
+import { Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSListClusters } from "../../../lib/ecs-schemas.js";
 import { ECSListClustersSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS cluster list command for discovering available clusters
@@ -21,7 +22,7 @@ import { ECSService } from "../../../services/ecs-service.js";
  *
  * @public
  */
-export default class ECSClusterListCommand extends Command {
+export default class ECSClusterListCommand extends BaseCommand {
   static override readonly description = "List all ECS clusters in the region";
 
   static override readonly examples = [

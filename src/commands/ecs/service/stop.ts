@@ -6,11 +6,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { getECSErrorGuidance } from "../../../lib/ecs-errors.js";
 import type { ECSUpdateService } from "../../../lib/ecs-schemas.js";
 import { ECSUpdateServiceSchema } from "../../../lib/ecs-schemas.js";
 import { ECSService, type ServiceDescription } from "../../../services/ecs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * ECS service stop command for halting service tasks
@@ -20,7 +21,7 @@ import { ECSService, type ServiceDescription } from "../../../services/ecs-servi
  *
  * @public
  */
-export default class ECSServiceStopCommand extends Command {
+export default class ECSServiceStopCommand extends BaseCommand {
   static override readonly description = "Stop an ECS service by scaling to zero tasks";
 
   static override readonly examples = [
@@ -184,7 +185,7 @@ export default class ECSServiceStopCommand extends Command {
       );
 
       // Display output and verbose information
-      this.displayOutput(input, service, currentDesiredCount);
+      this.formatAndDisplayEcsOutput(input, service, currentDesiredCount);
 
       if (input.verbose) {
         this.displayVerboseInfo(input, service);
@@ -203,7 +204,7 @@ export default class ECSServiceStopCommand extends Command {
    * @param currentDesiredCount - Previous desired count before stopping
    * @internal
    */
-  private displayOutput(
+  private formatAndDisplayEcsOutput(
     input: ECSUpdateService,
     service: ServiceDescription,
     currentDesiredCount: number,

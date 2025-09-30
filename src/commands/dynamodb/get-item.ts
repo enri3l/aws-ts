@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { GetItemParameterBuilder } from "../../lib/dynamodb-parameter-builders.js";
 import type { DynamoDBGetItem } from "../../lib/dynamodb-schemas.js";
@@ -14,6 +14,7 @@ import { DynamoDBGetItemSchema } from "../../lib/dynamodb-schemas.js";
 import { handleDynamoDBCommandError } from "../../lib/errors.js";
 import { parseJsonInput, parseJsonStringInput } from "../../lib/parsing.js";
 import { DynamoDBService } from "../../services/dynamodb-service.js";
+import { BaseCommand } from "../base-command.js";
 
 /**
  * DynamoDB get item command for single item retrieval
@@ -23,7 +24,7 @@ import { DynamoDBService } from "../../services/dynamodb-service.js";
  *
  * @public
  */
-export default class DynamoDBGetItemCommand extends Command {
+export default class DynamoDBGetItemCommand extends BaseCommand {
   static override readonly description = "Get a single item from a DynamoDB table by primary key";
 
   static override readonly examples = [

@@ -7,11 +7,12 @@
  *
  */
 
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Flags } from "@oclif/core";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import type { CloudWatchLogsTail } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsTailSchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
+import { BaseCommand } from "../../base-command.js";
 
 /**
  * Log event interface for type safety
@@ -43,7 +44,7 @@ interface LogEventData {
  *
  * @public
  */
-export default class CloudWatchLogsTailCommand extends Command {
+export default class CloudWatchLogsTailCommand extends BaseCommand {
   static override readonly description =
     "Stream CloudWatch log events in real-time using live tail";
 
