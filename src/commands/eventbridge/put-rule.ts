@@ -1,5 +1,5 @@
 /**
- * @module put-rule
+ * @module eventbridge/put-rule
  * EventBridge put rule command
  *
  * Creates or updates an EventBridge rule with event patterns, schedule expressions,

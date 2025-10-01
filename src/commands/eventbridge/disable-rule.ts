@@ -1,5 +1,5 @@
 /**
- * @module disable-rule
+ * @module eventbridge/disable-rule
  * EventBridge disable rule command
  *
  * Disables an enabled EventBridge rule to temporarily stop event processing

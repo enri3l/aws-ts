@@ -1,5 +1,5 @@
 /**
- * @module remove-targets
+ * @module eventbridge/remove-targets
  * EventBridge remove targets command
  *
  * Removes specific targets from an EventBridge rule with validation

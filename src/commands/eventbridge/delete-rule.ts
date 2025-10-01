@@ -1,5 +1,5 @@
 /**
- * @module delete-rule
+ * @module eventbridge/delete-rule
  * EventBridge delete rule command
  *
  * Deletes an EventBridge rule with safety confirmations and validation
