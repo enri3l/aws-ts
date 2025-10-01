@@ -1,5 +1,5 @@
 /**
- * @module interactive-query
+ * @module cloudwatch/logs/interactive-query
  * CloudWatch Logs interactive query command
  *
  * Interactive query builder with step-by-step query construction, field discovery,

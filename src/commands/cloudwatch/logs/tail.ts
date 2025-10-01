@@ -1,5 +1,5 @@
 /**
- * @module tail
+ * @module cloudwatch/logs/tail
  * CloudWatch Logs tail command
  *
  * Real-time log streaming using AWS StartLiveTail API with WebSocket connections.

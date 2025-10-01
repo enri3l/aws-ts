@@ -1,5 +1,5 @@
 /**
- * @module saved-queries
+ * @module cloudwatch/logs/saved-queries
  * CloudWatch Logs saved queries command
  *
  * Manage saved query definitions with local storage, execution capabilities,

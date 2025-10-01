@@ -1,5 +1,5 @@
 /**
- * @module search
+ * @module cloudwatch/logs/search
  * CloudWatch Logs search command
  *
  * Fast text search across log events with regex pattern support, field-specific

@@ -1,5 +1,5 @@
 /**
- * @module metrics
+ * @module cloudwatch/logs/metrics
  * CloudWatch Logs metrics command
  *
  * Extracts metrics and analytics from CloudWatch log data including error rates,

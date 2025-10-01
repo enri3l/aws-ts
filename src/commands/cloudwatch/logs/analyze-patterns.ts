@@ -1,5 +1,5 @@
 /**
- * @module analyze-patterns
+ * @module cloudwatch/logs/analyze-patterns
  * CloudWatch Logs analyze patterns command
  *
  * Analyzes log patterns in a CloudWatch log group to identify recurring patterns,
