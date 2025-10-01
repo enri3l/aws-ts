@@ -11,6 +11,7 @@ import { Flags } from "@oclif/core";
 import enquirer from "enquirer";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { formatBytes } from "../../../lib/format-utilities.js";
 import type { QueryResult } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 import { BaseCommand } from "../../base-command.js";
@@ -644,7 +645,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
       this.log(`\nQuery Statistics:`);
       this.log(`  Records Matched: ${result.statistics.recordsMatched || 0}`);
       this.log(`  Records Scanned: ${result.statistics.recordsScanned || 0}`);
-      this.log(`  Bytes Scanned: ${this.formatBytes(result.statistics.bytesScanned || 0)}`);
+      this.log(`  Bytes Scanned: ${formatBytes(result.statistics.bytesScanned || 0)}`);
     }
   }
 
@@ -727,22 +728,5 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
         throw new Error(`Unsupported time unit: ${unit}`);
       }
     }
-  }
-
-  /**
-   * Format bytes to human readable format
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string
-   * @internal
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }

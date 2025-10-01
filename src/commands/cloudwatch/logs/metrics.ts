@@ -15,6 +15,7 @@ import {
 } from "../../../lib/cloudwatch-logs-analytics-schemas.js";
 import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-errors.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { formatBytes } from "../../../lib/format-utilities.js";
 import { parseTimeRange } from "../../../lib/time-utilities.js";
 import { CloudWatchLogsAnalyticsService } from "../../../services/cloudwatch-logs-analytics-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
@@ -337,7 +338,7 @@ EXAMPLES:
       this.log("\n Query Execution Statistics:");
       this.log(` Records Matched: ${result.statistics.recordsMatched?.toLocaleString() || "N/A"}`);
       this.log(`Records Scanned: ${result.statistics.recordsScanned?.toLocaleString() || "N/A"}`);
-      this.log(` Bytes Scanned: ${this.formatBytes(result.statistics.bytesScanned || 0)}`);
+      this.log(` Bytes Scanned: ${formatBytes(result.statistics.bytesScanned || 0)}`);
     }
 
     // Display data points table
@@ -436,19 +437,6 @@ EXAMPLES:
         return trend.toUpperCase();
       }
     }
-  }
-
-  /**
-   * Format bytes with appropriate units
-   * @returns Formatted bytes string with units
-   * @internal
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, index)).toFixed(1)} ${sizes[index]}`;
   }
 
   /**

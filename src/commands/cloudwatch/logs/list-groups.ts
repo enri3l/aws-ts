@@ -12,6 +12,7 @@ import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-e
 import type { CloudWatchLogsListGroups } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsListGroupsSchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { formatBytes } from "../../../lib/format-utilities.js";
 import {
   CloudWatchLogsService,
   type LogGroupDescription,
@@ -231,7 +232,7 @@ export default class CloudWatchLogsListGroupsCommand extends BaseCommand {
           "#": index + 1,
           "Log Group Name": group.logGroupName,
           "Retention (days)": group.retentionInDays ?? "Never expires",
-          "Stored Bytes": group.storedBytes ? this.formatBytes(group.storedBytes) : "Unknown",
+          "Stored Bytes": group.storedBytes ? formatBytes(group.storedBytes) : "Unknown",
           Created: group.creationTime ? group.creationTime.toISOString().split("T")[0] : "Unknown",
         }));
 
@@ -323,22 +324,5 @@ export default class CloudWatchLogsListGroupsCommand extends BaseCommand {
         throw new Error(`Unsupported output format: ${format}`);
       }
     }
-  }
-
-  /**
-   * Format bytes to human readable format
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string
-   * @internal
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }

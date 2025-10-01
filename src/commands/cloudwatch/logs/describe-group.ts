@@ -12,6 +12,7 @@ import { handleCloudWatchLogsCommandError } from "../../../lib/cloudwatch-logs-e
 import type { CloudWatchLogsDescribeGroup } from "../../../lib/cloudwatch-logs-schemas.js";
 import { CloudWatchLogsDescribeGroupSchema } from "../../../lib/cloudwatch-logs-schemas.js";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
+import { formatBytes } from "../../../lib/format-utilities.js";
 import type { LogGroupDescription } from "../../../services/cloudwatch-logs-service.js";
 import { CloudWatchLogsService } from "../../../services/cloudwatch-logs-service.js";
 import { BaseCommand } from "../../base-command.js";
@@ -260,7 +261,7 @@ export default class CloudWatchLogsDescribeGroupCommand extends BaseCommand {
       { Property: "Metric Filter Count", Value: logGroup.metricFilterCount?.toString() || "0" },
       {
         Property: "Stored Bytes",
-        Value: logGroup.storedBytes ? this.formatBytes(logGroup.storedBytes) : "N/A",
+        Value: logGroup.storedBytes ? formatBytes(logGroup.storedBytes) : "N/A",
       },
       { Property: "KMS Key ID", Value: logGroup.kmsKeyId || "None" },
       { Property: "Data Protection Status", Value: logGroup.dataProtectionStatus || "N/A" },
@@ -279,7 +280,7 @@ export default class CloudWatchLogsDescribeGroupCommand extends BaseCommand {
         "First Event": stream.firstEventTime?.toISOString().split("T")[0] || "N/A",
         "Last Event": stream.lastEventTime?.toISOString().split("T")[0] || "N/A",
         "Last Ingestion": stream.lastIngestionTime?.toISOString().split("T")[0] || "N/A",
-        "Stored Bytes": stream.storedBytes ? this.formatBytes(stream.storedBytes) : "N/A",
+        "Stored Bytes": stream.storedBytes ? formatBytes(stream.storedBytes) : "N/A",
       }));
       this.log(processor.formatOutput(streamData.map((item, index) => ({ data: item, index }))));
     } else if (logGroup.logStreams) {
@@ -331,22 +332,5 @@ export default class CloudWatchLogsDescribeGroupCommand extends BaseCommand {
       );
       this.log(streamOutput);
     }
-  }
-
-  /**
-   * Format bytes to human readable format
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string
-   * @internal
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(2))} ${sizes[index]}`;
   }
 }
