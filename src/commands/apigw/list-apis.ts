@@ -1,5 +1,5 @@
 /**
- * @module list-apis
+ * @module apigw/list-apis
  * API Gateway list APIs command
  *
  * Lists all API Gateway APIs across REST, HTTP, and WebSocket types
