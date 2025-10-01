@@ -9,24 +9,11 @@
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaListFunctions } from "../../lib/lambda-schemas.js";
 import { LambdaListFunctionsSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
 import { BaseCommand } from "../base-command.js";
-
-/**
- * Extended function configuration with index signature for data processing
- *
- * @internal
- */
-interface ExtendedFunctionConfiguration extends FunctionConfiguration {
-  /**
-   * Index signature for data processing compatibility
-   */
-  [key: string]: unknown;
-}
 
 /**
  * Lambda list functions command for discovering available functions
@@ -154,100 +141,58 @@ export default class LambdaListFunctionsCommand extends BaseCommand {
         },
       );
 
-      // Format output based on requested format
-      this.formatAndDisplayOutput(functions, input.format);
+      // Display output using BaseCommand method
+      if (input.format === "table") {
+        this.log(`Found ${functions.length} Lambda functions:\n`);
+      }
+
+      // Build display options with conditional transform property
+      const displayOptions: {
+        emptyMessage: string;
+        transform?: (item: unknown) => unknown;
+      } = {
+        emptyMessage: "No Lambda functions found in the specified region.",
+      };
+
+      // Add transform function based on output format
+      if (input.format === "table") {
+        displayOptions.transform = (item: unknown) => {
+          const function_ = item as FunctionConfiguration;
+          return {
+            "Function Name": function_?.FunctionName ?? "N/A",
+            Runtime: function_?.Runtime ?? "N/A",
+            "Last Modified": function_?.LastModified ?? "N/A",
+            "Memory (MB)": function_?.MemorySize ?? "N/A",
+            "Timeout (s)": function_?.Timeout ?? "N/A",
+          };
+        };
+      } else if (input.format === "csv") {
+        displayOptions.transform = (item: unknown) => {
+          const function_ = item as FunctionConfiguration;
+          return {
+            FunctionName: function_?.FunctionName ?? "",
+            FunctionArn: function_?.FunctionArn ?? "",
+            Runtime: function_?.Runtime ?? "",
+            Role: function_?.Role ?? "",
+            Handler: function_?.Handler ?? "",
+            CodeSize: function_?.CodeSize ?? 0,
+            Description: function_?.Description ?? "",
+            Timeout: function_?.Timeout ?? 0,
+            MemorySize: function_?.MemorySize ?? 0,
+            LastModified: function_?.LastModified ?? "",
+            CodeSha256: function_?.CodeSha256 ?? "",
+            Version: function_?.Version ?? "",
+            State: function_?.State ?? "",
+            StateReason: function_?.StateReason ?? "",
+            LastUpdateStatus: function_?.LastUpdateStatus ?? "",
+          };
+        };
+      }
+
+      this.displayOutput(functions, input.format, displayOptions);
     } catch (error) {
       const formattedError = formatLambdaError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
-    }
-  }
-
-  /**
-   * Format and display the function list output
-   *
-   * @param functions - Array of function configurations to display
-   * @param format - Output format to use
-   * @throws Error When unsupported output format is specified
-   * @internal
-   */
-  private formatAndDisplayOutput(functions: FunctionConfiguration[], format: string): void {
-    if (functions.length === 0) {
-      this.log("No Lambda functions found in the specified region.");
-      return;
-    }
-
-    switch (format) {
-      case "table": {
-        this.log(`Found ${functions.length} Lambda functions:\n`);
-        const tableData = functions.map((function_, index) => ({
-          "#": index + 1,
-          "Function Name": function_?.FunctionName ?? "N/A",
-          Runtime: function_?.Runtime ?? "N/A",
-          "Last Modified": function_?.LastModified ?? "N/A",
-          "Memory (MB)": function_?.MemorySize ?? "N/A",
-          "Timeout (s)": function_?.Timeout ?? "N/A",
-        }));
-
-        // Use DataProcessor for consistent table formatting
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          tableData.map((item, index) => ({ data: item, index })),
-        );
-        this.log(output);
-        break;
-      }
-      case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput(
-          functions.map((function_, index) => ({
-            data: function_ as ExtendedFunctionConfiguration,
-            index,
-          })),
-        );
-        this.log(output);
-        break;
-      }
-      case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput(
-          functions.map((function_, index) => ({
-            data: function_ as ExtendedFunctionConfiguration,
-            index,
-          })),
-        );
-        this.log(output);
-        break;
-      }
-      case "csv": {
-        // Flatten function objects for CSV output
-        const flattenedData = functions.map((function_) => ({
-          FunctionName: function_?.FunctionName ?? "",
-          FunctionArn: function_?.FunctionArn ?? "",
-          Runtime: function_?.Runtime ?? "",
-          Role: function_?.Role ?? "",
-          Handler: function_?.Handler ?? "",
-          CodeSize: function_?.CodeSize ?? 0,
-          Description: function_?.Description ?? "",
-          Timeout: function_?.Timeout ?? 0,
-          MemorySize: function_?.MemorySize ?? 0,
-          LastModified: function_?.LastModified ?? "",
-          CodeSha256: function_?.CodeSha256 ?? "",
-          Version: function_?.Version ?? "",
-          State: function_?.State ?? "",
-          StateReason: function_?.StateReason ?? "",
-          LastUpdateStatus: function_?.LastUpdateStatus ?? "",
-        }));
-
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          flattenedData.map((item, index) => ({ data: item, index })),
-        );
-        this.log(output);
-        break;
-      }
-      default: {
-        throw new Error(`Unsupported output format: ${format}`);
-      }
     }
   }
 }

@@ -9,24 +9,11 @@
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaListVersions } from "../../lib/lambda-schemas.js";
 import { LambdaListVersionsSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
 import { BaseCommand } from "../base-command.js";
-
-/**
- * Extended function configuration with index signature for data processing
- *
- * @internal
- */
-interface ExtendedFunctionConfiguration extends FunctionConfiguration {
-  /**
-   * Index signature for data processing compatibility
-   */
-  [key: string]: unknown;
-}
 
 /**
  * Lambda list versions command for version discovery
@@ -148,7 +135,7 @@ export default class LambdaListVersionsCommand extends BaseCommand {
       });
 
       // List function versions
-      const versionsResult = await lambdaService.listVersionsByFunction(
+      const versions = await lambdaService.listVersionsByFunction(
         input.functionName,
         {
           ...(input.region && { region: input.region }),
@@ -158,118 +145,73 @@ export default class LambdaListVersionsCommand extends BaseCommand {
         input.maxItems,
       );
 
-      // Format output based on requested format
-      this.formatAndDisplayOutput(versionsResult, input.format, input.functionName);
-    } catch (error) {
-      const formattedError = formatLambdaError(error, flags.verbose);
-      this.error(formattedError, { exit: 1 });
-    }
-  }
-
-  /**
-   * Format and display the versions list output
-   *
-   * @param versionsResult - Versions list to display
-   * @param format - Output format to use
-   * @param functionName - Function name for display
-   * @throws Error When unsupported output format is specified
-   * @internal
-   */
-  private formatAndDisplayOutput(
-    versionsResult: FunctionConfiguration[],
-    format: string,
-    functionName: string,
-  ): void {
-    const versions = versionsResult;
-
-    if (versions.length === 0) {
-      this.log(`No versions found for function '${functionName}'.`);
-      return;
-    }
-
-    switch (format) {
-      case "table": {
-        this.log(`Found ${versions.length} versions for function: ${functionName}\n`);
-
-        // Summary table
-        const tableData = versions.map((version: FunctionConfiguration, index: number) => ({
-          "#": index + 1,
-          Version: version.Version === "$LATEST" ? "$LATEST" : `v${version.Version ?? ""}`,
-          Description: version.Description ?? "No description",
-          Runtime: version.Runtime ?? "N/A",
-          "Last Modified": version.LastModified ?? "N/A",
-          "Code Size": `${version.CodeSize ?? 0} bytes`,
-          State: version.State ?? "N/A",
-        }));
-
-        // Use DataProcessor for consistent table formatting
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          tableData.map((item: Record<string, unknown>, index: number) => ({ data: item, index })),
-        );
-        this.log(output);
-        break;
+      // Display output using BaseCommand method
+      if (input.format === "table") {
+        this.log(`Found ${versions.length} versions for function: ${input.functionName}\n`);
       }
-      case "json": {
+
+      if (input.format === "json") {
+        // Special JSON format with metadata
         const result = {
           versions,
           totalCount: versions.length,
-          functionName,
+          functionName: input.functionName,
+        };
+        this.log(JSON.stringify(result, undefined, 2));
+      } else {
+        // Build display options with conditional transform property
+        const displayOptions: {
+          emptyMessage: string;
+          transform?: (item: unknown) => unknown;
+        } = {
+          emptyMessage: `No versions found for function '${input.functionName}'.`,
         };
 
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: result, index: 0 }]);
-        this.log(output);
-        break;
-      }
-      case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput(
-          versions.map((version: FunctionConfiguration, index: number) => ({
-            data: version as ExtendedFunctionConfiguration,
-            index,
-          })),
-        );
-        this.log(output);
-        break;
-      }
-      case "csv": {
-        // Flatten versions for CSV output
-        const flattenedData = versions.map((version: FunctionConfiguration) => ({
-          FunctionName: version.FunctionName ?? "",
-          FunctionArn: version.FunctionArn ?? "",
-          Version: version.Version ?? "",
-          Description: version.Description ?? "",
-          Runtime: version.Runtime ?? "",
-          Role: version.Role ?? "",
-          Handler: version.Handler ?? "",
-          CodeSize: version.CodeSize ?? 0,
-          Timeout: version.Timeout ?? 0,
-          MemorySize: version.MemorySize ?? 0,
-          LastModified: version.LastModified ?? "",
-          CodeSha256: version.CodeSha256 ?? "",
-          State: version.State ?? "",
-          StateReason: version.StateReason ?? "",
-          LastUpdateStatus: version.LastUpdateStatus ?? "",
-          PackageType: version.PackageType ?? "",
-          VpcId: version.VpcConfig?.VpcId ?? "",
-          LayerCount: version.Layers?.length ?? 0,
-          EnvironmentVariableCount: Object.keys(version.Environment?.Variables ?? {}).length,
-        }));
+        // Add transform function based on output format
+        if (input.format === "table") {
+          displayOptions.transform = (item: unknown) => {
+            const version = item as FunctionConfiguration;
+            return {
+              Version: version.Version === "$LATEST" ? "$LATEST" : `v${version.Version ?? ""}`,
+              Description: version.Description ?? "No description",
+              Runtime: version.Runtime ?? "N/A",
+              "Last Modified": version.LastModified ?? "N/A",
+              "Code Size": `${version.CodeSize ?? 0} bytes`,
+              State: version.State ?? "N/A",
+            };
+          };
+        } else if (input.format === "csv") {
+          displayOptions.transform = (item: unknown) => {
+            const version = item as FunctionConfiguration;
+            return {
+              FunctionName: version.FunctionName ?? "",
+              FunctionArn: version.FunctionArn ?? "",
+              Version: version.Version ?? "",
+              Description: version.Description ?? "",
+              Runtime: version.Runtime ?? "",
+              Role: version.Role ?? "",
+              Handler: version.Handler ?? "",
+              CodeSize: version.CodeSize ?? 0,
+              Timeout: version.Timeout ?? 0,
+              MemorySize: version.MemorySize ?? 0,
+              LastModified: version.LastModified ?? "",
+              CodeSha256: version.CodeSha256 ?? "",
+              State: version.State ?? "",
+              StateReason: version.StateReason ?? "",
+              LastUpdateStatus: version.LastUpdateStatus ?? "",
+              PackageType: version.PackageType ?? "",
+              VpcId: version.VpcConfig?.VpcId ?? "",
+              LayerCount: version.Layers?.length ?? 0,
+              EnvironmentVariableCount: Object.keys(version.Environment?.Variables ?? {}).length,
+            };
+          };
+        }
 
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput(
-          flattenedData.map((item: Record<string, unknown>, index: number) => ({
-            data: item,
-            index,
-          })),
-        );
-        this.log(output);
-        break;
+        this.displayOutput(versions, input.format, displayOptions);
       }
-      default: {
-        throw new Error(`Unsupported output format: ${format}`);
-      }
+    } catch (error) {
+      const formattedError = formatLambdaError(error, flags.verbose);
+      this.error(formattedError, { exit: 1 });
     }
   }
 }
