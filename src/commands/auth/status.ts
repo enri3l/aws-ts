@@ -8,8 +8,8 @@
  */
 
 import { Flags } from "@oclif/core";
+import { formatAuthError } from "../../lib/auth-errors.js";
 import type { AuthStatus, AuthStatusResponse, ProfileInfo } from "../../lib/auth-schemas.js";
-import { ApiError, formatErrorWithGuidance, TimeoutError } from "../../lib/errors.js";
 import { safeDisplayTable } from "../../lib/ui-utilities.js";
 import { AuthService } from "../../services/auth-service.js";
 import { TokenManager } from "../../services/token-manager.js";
@@ -114,34 +114,9 @@ export default class AuthStatusCommand extends BaseCommand {
 
       this.displayStatusTable(status, flags.detailed);
     } catch (error) {
-      this.handleAuthStatusError(error, flags.verbose);
-    }
-  }
-
-  /**
-   * Handle authentication status errors with appropriate error messages
-   *
-   * @param error - The error that occurred
-   * @param verbose - Whether to include verbose error information
-   * @private
-   */
-  private handleAuthStatusError(error: unknown, verbose: boolean): never {
-    // Handle configuration and API errors with specific guidance
-    if (error instanceof ApiError) {
-      this.error(`Failed to get authentication status: AWS API error - ${error.message}`, {
+      this.error(formatAuthError(error, flags.verbose, "Failed to get authentication status"), {
         exit: 1,
       });
-    } else if (error instanceof TimeoutError) {
-      this.error(`Failed to get authentication status: Operation timed out - ${error.message}`, {
-        exit: 1,
-      });
-    } else if (error instanceof Error) {
-      this.error(
-        `Failed to get authentication status: ${formatErrorWithGuidance(error, verbose)}`,
-        { exit: 1 },
-      );
-    } else {
-      this.error(`Failed to get authentication status: ${String(error)}`, { exit: 1 });
     }
   }
 

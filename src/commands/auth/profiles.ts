@@ -9,6 +9,7 @@
 
 import type { Interfaces } from "@oclif/core";
 import { Flags } from "@oclif/core";
+import { formatAuthError } from "../../lib/auth-errors.js";
 import type { AuthProfiles, ProfileInfo } from "../../lib/auth-schemas.js";
 import { safeDisplayTable } from "../../lib/ui-utilities.js";
 import { AuthService } from "../../services/auth-service.js";
@@ -111,7 +112,19 @@ export default class AuthProfilesCommand extends BaseCommand {
       const profiles = await this.getProfiles(flags);
       this.displayProfiles(profiles, flags);
     } catch (error) {
-      this.handleProfilesError(error, flags);
+      // Handle JSON format differently to maintain valid JSON output
+      if (flags.format === "json") {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorObject = {
+          error: "Failed to list profiles",
+          message: errorMessage,
+          profiles: [],
+        };
+        this.log(JSON.stringify(errorObject, undefined, 2));
+        this.exit(1);
+      }
+
+      this.error(formatAuthError(error, flags.verbose, "Failed to list profiles"), { exit: 1 });
     }
   }
 
@@ -181,32 +194,6 @@ export default class AuthProfilesCommand extends BaseCommand {
     this.log("");
     this.log("To configure a new profile, run:");
     this.log("  aws-ts auth login --sso");
-  }
-
-  /**
-   * Handle profile listing errors with appropriate output format
-   *
-   * @param error - The error that occurred
-   * @param flags - Command flags
-   * @throws Re-throws the provided error after logging in JSON format when not in JSON mode
-   * @private
-   */
-  private handleProfilesError(error: unknown, flags: ProfileCommandFlags): never {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    if (flags.format === "json") {
-      const errorObject = {
-        error: "Failed to list profiles",
-        message: errorMessage,
-        profiles: [],
-      };
-      this.log(JSON.stringify(errorObject, undefined, 2));
-      this.exit(1);
-    }
-
-    // For table format, use OCLIF error method with wrapped message
-    const wrappedMessage = `Failed to list profiles: ${errorMessage}`;
-    this.error(wrappedMessage, { exit: 1 });
   }
 
   /**

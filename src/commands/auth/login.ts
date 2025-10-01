@@ -8,14 +8,8 @@
  */
 
 import { Flags } from "@oclif/core";
-import { AuthenticationError } from "../../lib/auth-errors.js";
+import { AuthenticationError, formatAuthError } from "../../lib/auth-errors.js";
 import { validateSsoConfig, type AuthLogin, type SsoConfig } from "../../lib/auth-schemas.js";
-import {
-  ApiError,
-  formatErrorWithGuidance,
-  TimeoutError,
-  UserConfigurationError,
-} from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
 import { BaseCommand } from "../base-command.js";
 
@@ -161,20 +155,7 @@ export default class AuthLoginCommand extends BaseCommand {
 
       await authService.login(input);
     } catch (error) {
-      // Handle authentication-specific errors with guidance
-      if (error instanceof AuthenticationError) {
-        this.error(formatErrorWithGuidance(error, flags.verbose), { exit: 1 });
-      } else if (error instanceof UserConfigurationError) {
-        this.error(formatErrorWithGuidance(error, flags.verbose), { exit: 1 });
-      } else if (error instanceof ApiError) {
-        this.error(`Authentication failed: AWS API error - ${error.message}`, { exit: 1 });
-      } else if (error instanceof TimeoutError) {
-        this.error(`Authentication failed: Operation timed out - ${error.message}`, { exit: 1 });
-      } else if (error instanceof Error) {
-        this.error(`Authentication failed: ${error.message}`, { exit: 1 });
-      } else {
-        this.error(`Authentication failed: ${String(error)}`, { exit: 1 });
-      }
+      this.error(formatAuthError(error, flags.verbose, "Authentication failed"), { exit: 1 });
     }
   }
 }

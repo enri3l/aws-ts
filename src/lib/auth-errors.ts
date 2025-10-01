@@ -7,6 +7,7 @@
  *
  */
 
+import { getAuthErrorGuidance } from "./auth-guidance.js";
 import { BaseError } from "./errors.js";
 
 /**
@@ -165,4 +166,35 @@ export function isAuthError(
     error instanceof TokenError ||
     error instanceof AwsCliError
   );
+}
+
+/**
+ * Format authentication errors with guidance
+ *
+ * Provides centralized error formatting for all auth commands with
+ * user-friendly messages and resolution guidance. Similar to formatLambdaError
+ * but specific to authentication operations.
+ *
+ * @param error - The error that occurred
+ * @param verbose - Whether to include verbose error details like stack traces
+ * @param context - Optional context for the operation that failed
+ * @returns Formatted error message with guidance
+ *
+ * @public
+ */
+export function formatAuthError(error: unknown, verbose = false, context?: string): string {
+  const guidance = getAuthErrorGuidance(error);
+  const contextPrefix = context ? `${context}: ` : "";
+
+  if (error instanceof Error) {
+    let message = `${contextPrefix}${error.message}`;
+
+    if (verbose && error.stack) {
+      message += `\n\nStack trace:\n${error.stack}`;
+    }
+
+    return `${message}\n\n${guidance}`;
+  }
+
+  return `${contextPrefix}An unknown error occurred\n\n${guidance}`;
 }

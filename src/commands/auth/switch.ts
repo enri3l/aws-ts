@@ -8,9 +8,8 @@
  */
 
 import { Args, Flags } from "@oclif/core";
-import { AuthenticationError, ProfileError } from "../../lib/auth-errors.js";
+import { formatAuthError } from "../../lib/auth-errors.js";
 import type { AuthSwitch } from "../../lib/auth-schemas.js";
-import { formatError } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
 import { BaseCommand } from "../base-command.js";
 
@@ -111,19 +110,7 @@ export default class AuthSwitchCommand extends BaseCommand {
         }
       }
     } catch (error) {
-      if (error instanceof ProfileError) {
-        this.error(formatError(error, flags.verbose), { exit: 1 });
-      }
-
-      if (error instanceof AuthenticationError) {
-        this.error(formatError(error, flags.verbose), { exit: 1 });
-      }
-
-      if (error instanceof Error) {
-        this.error(`Profile switch failed: ${formatError(error, flags.verbose)}`, { exit: 1 });
-      }
-
-      this.error(`Profile switch failed: ${String(error)}`, { exit: 1 });
+      this.error(formatAuthError(error, flags.verbose, "Profile switch failed"), { exit: 1 });
     }
   }
 }

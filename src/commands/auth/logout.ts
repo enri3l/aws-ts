@@ -8,8 +8,8 @@
  */
 
 import { Flags } from "@oclif/core";
+import { formatAuthError } from "../../lib/auth-errors.js";
 import type { AuthLogout } from "../../lib/auth-schemas.js";
-import { formatError } from "../../lib/errors.js";
 import { AuthService } from "../../services/auth-service.js";
 import { BaseCommand } from "../base-command.js";
 
@@ -92,11 +92,7 @@ export default class AuthLogoutCommand extends BaseCommand {
 
       await authService.logout(input);
     } catch (error) {
-      if (error instanceof Error) {
-        this.error(`Logout failed: ${formatError(error, flags.verbose)}`, { exit: 1 });
-      }
-
-      this.error(`Logout failed: ${String(error)}`, { exit: 1 });
+      this.error(formatAuthError(error, flags.verbose, "Logout failed"), { exit: 1 });
     }
   }
 }
