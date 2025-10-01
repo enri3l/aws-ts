@@ -1,5 +1,5 @@
 /**
- * @module describe
+ * @module ecs/task/describe
  * ECS task describe command
  *
  * Describes ECS tasks with detailed information including

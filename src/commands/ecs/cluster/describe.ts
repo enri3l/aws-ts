@@ -1,5 +1,5 @@
 /**
- * @module describe
+ * @module ecs/cluster/describe
  * ECS cluster describe command
  *
  * Describes ECS clusters with detailed configuration information including

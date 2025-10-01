@@ -1,5 +1,5 @@
 /**
- * @module delete
+ * @module ecs/cluster/delete
  * ECS cluster delete command
  *
  * Deletes an ECS cluster with safety confirmations and dependency checking

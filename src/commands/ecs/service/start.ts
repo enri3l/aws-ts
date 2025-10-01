@@ -1,5 +1,5 @@
 /**
- * @module start
+ * @module ecs/service/start
  * ECS service start command
  *
  * Starts a stopped ECS service by restoring it to its

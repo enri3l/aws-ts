@@ -1,5 +1,5 @@
 /**
- * @module logs
+ * @module ecs/task/logs
  * ECS task logs command
  *
  * Retrieves and displays logs from containers in an ECS task

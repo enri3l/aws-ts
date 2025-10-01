@@ -1,5 +1,5 @@
 /**
- * @module scale
+ * @module ecs/service/scale
  * ECS service scale command
  *
  * Scales an ECS service by updating the desired count

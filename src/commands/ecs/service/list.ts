@@ -1,5 +1,5 @@
 /**
- * @module list
+ * @module ecs/service/list
  * ECS service list command
  *
  * Lists ECS services in a cluster with filtering options

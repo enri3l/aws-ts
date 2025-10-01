@@ -1,5 +1,5 @@
 /**
- * @module delete
+ * @module ecs/service/delete
  * ECS service delete command
  *
  * Deletes an ECS service with safety confirmations and proper

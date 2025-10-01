@@ -1,5 +1,5 @@
 /**
- * @module run
+ * @module ecs/task/run
  * ECS task run command
  *
  * Runs a standalone task using a task definition with support

@@ -1,5 +1,5 @@
 /**
- * @module stop
+ * @module ecs/task/stop
  * ECS task stop command
  *
  * Stops running ECS tasks with optional reason specification

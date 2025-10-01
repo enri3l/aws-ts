@@ -1,5 +1,5 @@
 /**
- * @module events
+ * @module ecs/task/events
  * ECS task events command
  *
  * Retrieves and displays task-related events and state changes

@@ -1,5 +1,5 @@
 /**
- * @module create
+ * @module ecs/cluster/create
  * ECS cluster create command
  *
  * Creates a new ECS cluster with optional capacity provider configuration,

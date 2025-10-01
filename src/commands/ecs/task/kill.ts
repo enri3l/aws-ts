@@ -1,5 +1,5 @@
 /**
- * @module kill
+ * @module ecs/task/kill
  * ECS task kill command
  *
  * Forcefully terminates ECS tasks immediately without

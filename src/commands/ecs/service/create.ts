@@ -1,5 +1,5 @@
 /**
- * @module create
+ * @module ecs/service/create
  * ECS service create command
  *
  * Creates a new ECS service with configuration options
