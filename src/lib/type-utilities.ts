@@ -1,13 +1,12 @@
 /**
+ * @module type-utilities
  * Type utilities for safe value conversion and type handling
  *
- * @file
  * Provides type-safe utilities for converting unknown values to strings,
  * handling metadata safely, and ensuring TypeScript compliance while
  * maintaining security guarantees.
  *
- * @author AWS TypeScript CLI Team
- * @since 0.4.0
+ * @public
  */
 
 /**

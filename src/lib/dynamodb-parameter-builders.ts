@@ -1,11 +1,12 @@
 /**
+ * @module dynamodb-parameter-builders
  * DynamoDB parameter builders for reducing cognitive complexity
  *
  * Provides builder pattern implementations for constructing DynamoDB operation
  * parameters, eliminating complex conditional spread operators and improving
  * code maintainability and testability.
  *
- * @file Centralized parameter building to reduce cognitive complexity in commands
+ * @public
  */
 
 import type {

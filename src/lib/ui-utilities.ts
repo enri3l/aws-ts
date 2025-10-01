@@ -1,13 +1,12 @@
 /**
+ * @module ui-utilities
  * User interface utilities for safe console output
  *
- * @file
  * Provides safe console output utilities that prevent memory exhaustion and
  * terminal crashes from unbounded data display. Implements bounds checking
  * and graceful degradation for large datasets.
  *
- * @author AWS TypeScript CLI Team
- * @since 0.4.0
+ * @public
  */
 
 /**

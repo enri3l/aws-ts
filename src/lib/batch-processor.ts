@@ -1,10 +1,11 @@
 /**
+ * @module batch-processor
  * Batch processing utility for DynamoDB operations
  *
  * Provides centralized retry logic, exponential backoff, and batch management
  * for DynamoDB batch operations to reduce cognitive complexity in commands.
  *
- * @file Centralized batch processing with retry logic
+ * @public
  */
 
 /**

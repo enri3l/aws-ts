@@ -1,11 +1,11 @@
 /**
+ * @module errors
  * Error categorization system for AWS CLI application
  *
  * Provides structured error types with consistent error codes and user-friendly
  * messages. Integrates with Oclif's error handling mechanisms while maintaining
  * clear separation between different error categories.
  *
- * @file
  * This module implements a error hierarchy for the AWS CLI:
  *
  * **Core Error Types:**

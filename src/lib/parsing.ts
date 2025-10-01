@@ -1,10 +1,11 @@
 /**
+ * @module parsing
  * Shared parsing utilities for DynamoDB commands
  *
  * Provides common functionality for parsing JSON inputs, handling file:// protocol,
  * and validating input formats across all DynamoDB command implementations.
  *
- * @file Centralized parsing utilities to reduce code duplication and cognitive complexity
+ * @public
  */
 
 /**

@@ -1,13 +1,12 @@
 /**
+ * @module error-sanitization
  * Error sanitization utilities for secure verbose output
  *
- * @file
  * Provides secure error sanitization functionality to prevent sensitive data exposure
  * in verbose error output. Implements allowlist-based property filtering with
  * primitive type validation to ensure only safe error metadata is included.
  *
- * @author AWS TypeScript CLI Team
- * @since 0.4.0
+ * @public
  */
 
 import type { SanitizedError } from "./type-utilities.js";

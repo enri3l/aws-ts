@@ -1,18 +1,17 @@
 /**
+ * @module retry
  * Retry logic abstraction with exponential backoff
  *
  * Provides configurable retry strategies for AWS SDK operations
  * with exponential backoff and jitter to handle transient failures.
  *
- * @file
  * This module implements retry patterns following AWS SDK v3 best practices:
  * - Exponential backoff with full jitter
  * - Configurable max attempts and base delays
  * - Support for custom retry conditions
  * - Automatic handling of throttling errors
  *
- * @author AWS TypeScript CLI Team
- * @since 1.0.0
+ * @public
  */
 
 /**

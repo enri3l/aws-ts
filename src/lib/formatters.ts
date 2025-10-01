@@ -1,10 +1,11 @@
 /**
+ * @module formatters
  * Output formatting utilities for DynamoDB commands
  *
  * Provides Strategy pattern implementation for different output formats
  * to reduce cognitive complexity in command classes.
  *
- * @file Centralized output formatting with Strategy pattern
+ * @public
  */
 
 import { DataFormat, DataProcessor } from "./data-processing.js";
