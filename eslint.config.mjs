@@ -46,9 +46,9 @@ export default tseslint.config(
         },
       ],
       // TSDoc/JSDoc Documentation Rules
-      "tsdoc/syntax": "warn",
+      "tsdoc/syntax": "error", // Enforce TSDoc syntax compliance
       "jsdoc/require-jsdoc": [
-        "warn",
+        "error", // Enforce JSDoc/TSDoc on public APIs
         {
           publicOnly: true,
           require: {
@@ -56,11 +56,14 @@ export default tseslint.config(
             MethodDefinition: true,
             ClassDeclaration: true,
           },
+          contexts: [
+            "TSModuleDeclaration", // Require @module tags on module declarations
+          ],
         },
       ],
-      "jsdoc/require-param-description": "warn",
-      "jsdoc/require-returns-description": "warn",
-      "jsdoc/require-throws": "warn",
+      "jsdoc/require-param-description": "error",
+      "jsdoc/require-returns-description": "error",
+      "jsdoc/require-throws": "error",
       "jsdoc/check-tag-names": [
         "error",
         {
