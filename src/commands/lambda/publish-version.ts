@@ -1,4 +1,5 @@
 /**
+ * @module lambda/publish-version
  * Lambda publish version command
  *
  * Creates a new version of a Lambda function from the current $LATEST version

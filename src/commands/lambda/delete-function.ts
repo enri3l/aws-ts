@@ -1,4 +1,5 @@
 /**
+ * @module lambda/delete-function
  * Lambda delete function command
  *
  * Deletes a Lambda function and its associated versions, layers,

@@ -1,4 +1,5 @@
 /**
+ * @module lambda/update-function-configuration
  * Lambda update function configuration command
  *
  * Updates the configuration of a Lambda function including runtime settings,

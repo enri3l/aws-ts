@@ -1,4 +1,5 @@
 /**
+ * @module lambda/create-alias
  * Lambda create alias command
  *
  * Creates an alias for a Lambda function that points to a specific version
