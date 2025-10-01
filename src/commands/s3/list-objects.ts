@@ -7,6 +7,7 @@
  */
 
 import { Args, Flags } from "@oclif/core";
+import { formatBytes } from "../../lib/format-utilities.js";
 import { formatS3Error } from "../../lib/s3-errors.js";
 import { S3ListObjectsSchema } from "../../lib/s3-schemas.js";
 import { S3Service } from "../../services/s3-service.js";
@@ -124,7 +125,7 @@ export default class S3ListObjectsCommand extends BaseCommand {
       // Transform for display
       const displayObjects = objects.map((object) => ({
         Key: object.Key,
-        Size: this.formatBytes(object.Size || 0),
+        Size: formatBytes(object.Size || 0),
         LastModified: object.LastModified?.toISOString(),
         StorageClass: object.StorageClass,
         ETag: object.ETag?.replaceAll('"', ""),
@@ -138,21 +139,5 @@ export default class S3ListObjectsCommand extends BaseCommand {
       const formattedError = formatS3Error(error, flags.verbose, "list objects");
       this.error(formattedError, { exit: 1 });
     }
-  }
-
-  /**
-   * Format bytes to human-readable string
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string with appropriate unit
-   *
-   * @private
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / k ** index).toFixed(2)} ${sizes[index]}`;
   }
 }

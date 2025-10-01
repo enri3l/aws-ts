@@ -6,6 +6,7 @@
  */
 
 import { Args, Flags } from "@oclif/core";
+import { formatBytes } from "../../lib/format-utilities.js";
 import { formatS3Error } from "../../lib/s3-errors.js";
 import { S3HeadObjectSchema } from "../../lib/s3-schemas.js";
 import { S3Service } from "../../services/s3-service.js";
@@ -104,7 +105,7 @@ export default class S3HeadObjectCommand extends BaseCommand {
       // Transform for display
       const metadata = {
         Key: input.key,
-        ContentLength: this.formatBytes(result.ContentLength || 0),
+        ContentLength: formatBytes(result.ContentLength || 0),
         ContentType: result.ContentType,
         ETag: result.ETag?.replaceAll('"', ""),
         LastModified: result.LastModified?.toISOString(),
@@ -120,21 +121,5 @@ export default class S3HeadObjectCommand extends BaseCommand {
       const formattedError = formatS3Error(error, flags.verbose, "get object metadata");
       this.error(formattedError, { exit: 1 });
     }
-  }
-
-  /**
-   * Format bytes to human-readable string
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string with appropriate unit
-   *
-   * @private
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / k ** index).toFixed(2)} ${sizes[index]}`;
   }
 }

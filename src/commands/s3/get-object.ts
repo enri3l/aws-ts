@@ -8,6 +8,7 @@
 
 import { Args, Flags } from "@oclif/core";
 import path from "node:path";
+import { formatBytes } from "../../lib/format-utilities.js";
 import { formatS3Error } from "../../lib/s3-errors.js";
 import { S3GetObjectSchema } from "../../lib/s3-schemas.js";
 import { S3Service } from "../../services/s3-service.js";
@@ -129,7 +130,7 @@ export default class S3GetObjectCommand extends BaseCommand {
       );
 
       // Display success
-      const sizeFormatted = this.formatBytes(result.contentLength);
+      const sizeFormatted = formatBytes(result.contentLength);
       this.log(`Downloaded ${sizeFormatted} to ${result.outputPath}`);
 
       if (flags.verbose) {
@@ -142,21 +143,5 @@ export default class S3GetObjectCommand extends BaseCommand {
       const formattedError = formatS3Error(error, flags.verbose, "download object");
       this.error(formattedError, { exit: 1 });
     }
-  }
-
-  /**
-   * Format bytes to human-readable string
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string with appropriate unit
-   *
-   * @private
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / k ** index).toFixed(2)} ${sizes[index]}`;
   }
 }

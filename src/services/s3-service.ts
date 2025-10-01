@@ -25,14 +25,12 @@ import {
   type PutObjectCommandInput,
   type _Object as S3Object,
 } from "@aws-sdk/client-s3";
-// Note: @aws-sdk/lib-storage is available but not currently installed
-// For now, we use simple uploads. To enable multipart uploads for large files,
-// add @aws-sdk/lib-storage to dependencies and uncomment Upload usage
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { BaseAwsService, type BaseServiceOptions } from "../lib/base-aws-service.js";
+import { formatBytes } from "../lib/format-utilities.js";
 import { retryWithBackoff } from "../lib/retry.js";
 import { S3BucketError, S3ObjectError, S3TransferError } from "../lib/s3-errors.js";
 import type { AwsClientConfig } from "./credential-service.js";
@@ -289,7 +287,7 @@ export class S3Service extends BaseAwsService<S3Client> {
       await pipeline(response.Body as NodeJS.ReadableStream, writeStream);
 
       const contentLength = response.ContentLength || 0;
-      const formattedSize = this.formatBytes(contentLength);
+      const formattedSize = formatBytes(contentLength);
 
       spinner.succeed(`Downloaded ${formattedSize} to ${outputPath}`);
 
@@ -353,7 +351,7 @@ export class S3Service extends BaseAwsService<S3Client> {
     try {
       const stats = await stat(filePath);
       const fileSize = stats.size;
-      const formattedSize = this.formatBytes(fileSize);
+      const formattedSize = formatBytes(fileSize);
 
       const client = await this.getClient(config);
       const fileStream = createReadStream(filePath);
@@ -514,21 +512,5 @@ export class S3Service extends BaseAwsService<S3Client> {
         error,
       );
     }
-  }
-
-  /**
-   * Format bytes to human-readable string
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string with appropriate unit
-   *
-   * @private
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / k ** index).toFixed(2)} ${sizes[index]}`;
   }
 }

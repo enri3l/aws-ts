@@ -8,6 +8,7 @@
 
 import { Args, Flags } from "@oclif/core";
 import path from "node:path";
+import { formatBytes } from "../../lib/format-utilities.js";
 import { parseJsonStringInput } from "../../lib/parsing.js";
 import { formatS3Error } from "../../lib/s3-errors.js";
 import {
@@ -175,7 +176,7 @@ export default class S3PutObjectCommand extends BaseCommand {
       );
 
       // Display success
-      const sizeFormatted = this.formatBytes(result.contentLength);
+      const sizeFormatted = formatBytes(result.contentLength);
       this.log(`Uploaded ${sizeFormatted} to s3://${input.bucketName}/${input.key}`);
 
       if (flags.verbose) {
@@ -206,21 +207,5 @@ export default class S3PutObjectCommand extends BaseCommand {
     if (result.serverSideEncryption) {
       this.log(`Encryption: ${result.serverSideEncryption}`);
     }
-  }
-
-  /**
-   * Format bytes to human-readable string
-   *
-   * @param bytes - Number of bytes
-   * @returns Formatted string with appropriate unit
-   *
-   * @private
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / k ** index).toFixed(2)} ${sizes[index]}`;
   }
 }
