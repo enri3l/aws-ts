@@ -1,5 +1,5 @@
 /**
- * @module query-index
+ * @module dynamodb/query-index
  * DynamoDB query index command
  *
  * Performs efficient queries on a DynamoDB Global or Local Secondary Index

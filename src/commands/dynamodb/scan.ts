@@ -1,5 +1,5 @@
 /**
- * @module scan
+ * @module dynamodb/scan
  * DynamoDB scan table command
  *
  * Performs full table or index scans with support for filtering,

@@ -1,5 +1,5 @@
 /**
- * @module query
+ * @module dynamodb/query
  * DynamoDB query table command
  *
  * Performs efficient queries on a DynamoDB table using key conditions

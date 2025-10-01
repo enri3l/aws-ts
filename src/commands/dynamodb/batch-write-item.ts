@@ -1,5 +1,5 @@
 /**
- * @module batch-write-item
+ * @module dynamodb/batch-write-item
  * DynamoDB batch write item command
  *
  * Performs bulk write operations (put/delete) to a DynamoDB table with
