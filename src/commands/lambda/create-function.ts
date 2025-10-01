@@ -10,7 +10,7 @@
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Flags, type Interfaces } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
-import { getLambdaErrorGuidance } from "../../lib/lambda-errors.js";
+import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaCreateFunction } from "../../lib/lambda-schemas.js";
 import { LambdaCreateFunctionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
@@ -271,7 +271,7 @@ export default class LambdaCreateFunctionCommand extends BaseCommand {
       // Format output based on requested format
       this.formatAndDisplayOutput(functionConfig, input.format, input.functionName);
     } catch (error) {
-      const formattedError = this.formatLambdaError(error, flags.verbose);
+      const formattedError = formatLambdaError(error, flags.verbose);
       this.error(formattedError, { exit: 1 });
     }
   }
@@ -489,27 +489,5 @@ export default class LambdaCreateFunctionCommand extends BaseCommand {
     }
 
     this.log("\nNote: Your function is now ready to be invoked using the Lambda service.");
-  }
-
-  /**
-   * Format Lambda-specific errors with user guidance
-   *
-   * @param error - The error to format
-   * @param verbose - Whether to include verbose error details
-   * @returns Formatted error message with guidance
-   * @internal
-   */
-  private formatLambdaError(error: unknown, verbose: boolean): string {
-    const guidance = getLambdaErrorGuidance(error);
-
-    if (verbose && error instanceof Error) {
-      return `${error.message}\n\n${guidance}`;
-    }
-
-    if (error instanceof Error) {
-      return `${error.message}\n\n${guidance}`;
-    }
-
-    return `An unknown error occurred\n\n${guidance}`;
   }
 }
