@@ -1,4 +1,5 @@
 /**
+ * @module ec2/describe-instance-attribute
  * EC2 describe instance attribute command
  *
  * Shows a specific attribute of an EC2 instance.

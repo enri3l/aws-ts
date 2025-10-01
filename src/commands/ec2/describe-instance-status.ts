@@ -1,4 +1,5 @@
 /**
+ * @module ec2/describe-instance-status
  * EC2 describe instance status command
  *
  * Shows detailed instance and system status information including health checks,
