@@ -9,24 +9,11 @@
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaUpdateFunctionCode } from "../../lib/lambda-schemas.js";
 import { LambdaUpdateFunctionCodeSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
 import { BaseCommand } from "../base-command.js";
-
-/**
- * Extended function configuration with index signature for data processing
- *
- * @internal
- */
-interface ExtendedFunctionConfiguration extends FunctionConfiguration {
-  /**
-   * Index signature for data processing compatibility
-   */
-  [key: string]: unknown;
-}
 
 /**
  * Lambda update function code command for code deployment
@@ -302,20 +289,10 @@ export default class LambdaUpdateFunctionCodeCommand extends BaseCommand {
 
         break;
       }
-      case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([
-          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
-        ]);
-        this.log(output);
-        break;
-      }
+      case "json":
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([
-          { data: functionConfig as ExtendedFunctionConfiguration, index: 0 },
-        ]);
-        this.log(output);
+        this.displaySingleObject(functionConfig, format);
+
         break;
       }
       case "csv": {
@@ -335,10 +312,8 @@ export default class LambdaUpdateFunctionCodeCommand extends BaseCommand {
           MemorySize: functionConfig?.MemorySize ?? 0,
           Timeout: functionConfig?.Timeout ?? 0,
         };
+        this.displayOutput([flattenedData], format);
 
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
-        this.log(output);
         break;
       }
       default: {

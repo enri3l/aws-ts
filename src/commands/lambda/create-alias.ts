@@ -9,24 +9,11 @@
 
 import type { AliasConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaCreateAlias } from "../../lib/lambda-schemas.js";
 import { LambdaCreateAliasSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
 import { BaseCommand } from "../base-command.js";
-
-/**
- * Extended alias configuration with index signature for data processing
- *
- * @internal
- */
-interface ExtendedAliasConfiguration extends AliasConfiguration {
-  /**
-   * Index signature for data processing compatibility
-   */
-  [key: string]: unknown;
-}
 
 /**
  * Lambda create alias command for alias management
@@ -251,22 +238,13 @@ export default class LambdaCreateAliasCommand extends BaseCommand {
         this.log(
           "\nNote: You can now invoke the function using this alias name instead of the version number.",
         );
+
         break;
       }
-      case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([
-          { data: aliasConfig as ExtendedAliasConfiguration, index: 0 },
-        ]);
-        this.log(output);
-        break;
-      }
+      case "json":
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([
-          { data: aliasConfig as ExtendedAliasConfiguration, index: 0 },
-        ]);
-        this.log(output);
+        this.displaySingleObject(aliasConfig, format);
+
         break;
       }
       case "csv": {
@@ -283,10 +261,8 @@ export default class LambdaCreateAliasCommand extends BaseCommand {
           ).length,
           CreatedTimestamp: new Date().toISOString(),
         };
+        this.displayOutput([flattenedData], format);
 
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
-        this.log(output);
         break;
       }
       default: {

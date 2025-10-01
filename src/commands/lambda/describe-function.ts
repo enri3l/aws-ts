@@ -7,44 +7,13 @@
  *
  */
 
-import type { FunctionConfiguration, GetFunctionResponse } from "@aws-sdk/client-lambda";
+import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaDescribeFunction } from "../../lib/lambda-schemas.js";
 import { LambdaDescribeFunctionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
 import { BaseCommand } from "../base-command.js";
-
-/**
- * Extended function details with index signature for data processing
- *
- * @internal
- */
-interface ExtendedFunctionDetails {
-  /**
-   * Function configuration details
-   */
-  configuration?: FunctionConfiguration;
-
-  /**
-   * Function code details
-   */
-  code?: {
-    repositoryType?: string;
-    location?: string;
-  };
-
-  /**
-   * Function tags
-   */
-  tags?: Record<string, string>;
-
-  /**
-   * Index signature for data processing compatibility
-   */
-  [key: string]: unknown;
-}
 
 /**
  * Lambda describe function command for detailed function information
@@ -188,7 +157,11 @@ export default class LambdaDescribeFunctionCommand extends BaseCommand {
    * @internal
    */
   private formatAndDisplayOutput(
-    functionDetails: ExtendedFunctionDetails,
+    functionDetails: {
+      configuration?: FunctionConfiguration;
+      code?: { repositoryType?: string; location?: string };
+      tags?: Record<string, string>;
+    },
     format: string,
     functionName: string,
   ): void {
@@ -199,18 +172,13 @@ export default class LambdaDescribeFunctionCommand extends BaseCommand {
     switch (format) {
       case "table": {
         this.displayTableFormat(config, code, tags, functionName);
+
         break;
       }
-      case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: functionDetails, index: 0 }]);
-        this.log(output);
-        break;
-      }
+      case "json":
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: functionDetails, index: 0 }]);
-        this.log(output);
+        this.displaySingleObject(functionDetails, format);
+
         break;
       }
       case "csv": {
@@ -238,10 +206,8 @@ export default class LambdaDescribeFunctionCommand extends BaseCommand {
           Location: code?.location ?? "",
           TagCount: Object.keys(tags).length,
         };
+        this.displayOutput([flattenedData], format);
 
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
-        this.log(output);
         break;
       }
       default: {
@@ -278,7 +244,7 @@ export default class LambdaDescribeFunctionCommand extends BaseCommand {
    * @param config - Function configuration
    * @internal
    */
-  private displayBasicConfiguration(config: GetFunctionResponse["Configuration"]): void {
+  private displayBasicConfiguration(config: FunctionConfiguration | undefined): void {
     this.log("Basic Configuration:");
     const basicConfig = [
       ["Function Name", config?.FunctionName ?? "N/A"],
@@ -306,7 +272,7 @@ export default class LambdaDescribeFunctionCommand extends BaseCommand {
    * @param config - Function configuration
    * @internal
    */
-  private displayResourceConfiguration(config: GetFunctionResponse["Configuration"]): void {
+  private displayResourceConfiguration(config: FunctionConfiguration | undefined): void {
     this.log("\nResource Configuration:");
     const resourceConfig = [
       ["Memory Size", `${config?.MemorySize ?? 0} MB`],
@@ -326,9 +292,7 @@ export default class LambdaDescribeFunctionCommand extends BaseCommand {
    * @param config - Function configuration
    * @internal
    */
-  private displayVpcAndEnvironmentConfiguration(
-    config: GetFunctionResponse["Configuration"],
-  ): void {
+  private displayVpcAndEnvironmentConfiguration(config: FunctionConfiguration | undefined): void {
     // VPC Configuration
     if (config?.VpcConfig && config.VpcConfig.VpcId) {
       this.log("\n VPC Configuration:");

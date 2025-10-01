@@ -9,24 +9,11 @@
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaPublishVersion } from "../../lib/lambda-schemas.js";
 import { LambdaPublishVersionSchema } from "../../lib/lambda-schemas.js";
 import { LambdaService } from "../../services/lambda-service.js";
 import { BaseCommand } from "../base-command.js";
-
-/**
- * Extended function configuration with index signature for data processing
- *
- * @internal
- */
-interface ExtendedFunctionConfiguration extends FunctionConfiguration {
-  /**
-   * Index signature for data processing compatibility
-   */
-  [key: string]: unknown;
-}
 
 /**
  * Lambda publish version command for version creation
@@ -189,22 +176,13 @@ export default class LambdaPublishVersionCommand extends BaseCommand {
     switch (format) {
       case "table": {
         this.displayTableFormat(versionConfig, functionName);
+
         break;
       }
-      case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([
-          { data: versionConfig as ExtendedFunctionConfiguration, index: 0 },
-        ]);
-        this.log(output);
-        break;
-      }
+      case "json":
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([
-          { data: versionConfig as ExtendedFunctionConfiguration, index: 0 },
-        ]);
-        this.log(output);
+        this.displaySingleObject(versionConfig, format);
+
         break;
       }
       case "csv": {
@@ -227,10 +205,8 @@ export default class LambdaPublishVersionCommand extends BaseCommand {
           LayerCount: versionConfig?.Layers?.length ?? 0,
           EnvironmentVariableCount: Object.keys(versionConfig?.Environment?.Variables ?? {}).length,
         };
+        this.displayOutput([flattenedData], format);
 
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
-        this.log(output);
         break;
       }
       default: {

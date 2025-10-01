@@ -9,7 +9,6 @@
 
 import type { FunctionConfiguration } from "@aws-sdk/client-lambda";
 import { Args, Flags } from "@oclif/core";
-import { DataFormat, DataProcessor } from "../../lib/data-processing.js";
 import { formatLambdaError } from "../../lib/lambda-errors.js";
 import type { LambdaUpdateFunctionConfiguration } from "../../lib/lambda-schemas.js";
 import { LambdaUpdateFunctionConfigurationSchema } from "../../lib/lambda-schemas.js";
@@ -18,18 +17,6 @@ import {
   type LambdaUpdateConfigurationParameters,
 } from "../../services/lambda-service.js";
 import { BaseCommand } from "../base-command.js";
-
-/**
- * Extended function configuration interface with index signature for data processing
- *
- * @internal
- */
-interface ExtendedFunctionConfiguration extends FunctionConfiguration {
-  /**
-   * Index signature for data processing compatibility
-   */
-  [key: string]: unknown;
-}
 
 /**
  * Lambda update function configuration command for settings modification
@@ -509,23 +496,16 @@ export default class LambdaUpdateFunctionConfigurationCommand extends BaseComman
     format: string,
     functionName: string,
   ): void {
-    const extendedConfig = functionConfig as ExtendedFunctionConfiguration;
-
     switch (format) {
       case "table": {
         this.displayTableFormat(functionConfig, functionName);
+
         break;
       }
-      case "json": {
-        const processor = new DataProcessor({ format: DataFormat.JSON });
-        const output = processor.formatOutput([{ data: extendedConfig, index: 0 }]);
-        this.log(output);
-        break;
-      }
+      case "json":
       case "jsonl": {
-        const processor = new DataProcessor({ format: DataFormat.JSONL });
-        const output = processor.formatOutput([{ data: extendedConfig, index: 0 }]);
-        this.log(output);
+        this.displaySingleObject(functionConfig, format);
+
         break;
       }
       case "csv": {
@@ -549,10 +529,8 @@ export default class LambdaUpdateFunctionConfigurationCommand extends BaseComman
           HasKMSKey: functionConfig.KMSKeyArn ? "true" : "false",
           EnvironmentVariableCount: Object.keys(functionConfig.Environment?.Variables ?? {}).length,
         };
+        this.displayOutput([flattenedData], format);
 
-        const processor = new DataProcessor({ format: DataFormat.CSV });
-        const output = processor.formatOutput([{ data: flattenedData, index: 0 }]);
-        this.log(output);
         break;
       }
       default: {
