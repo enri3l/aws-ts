@@ -1,5 +1,5 @@
 /**
- * @module login
+ * @module auth/login
  * AWS authentication login command
  *
  * Provides interactive SSO authentication for AWS profiles with optional

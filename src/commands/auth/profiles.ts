@@ -1,5 +1,5 @@
 /**
- * @module profiles
+ * @module auth/profiles
  * AWS authentication profiles command
  *
  * Lists all available AWS profiles with their configuration details,

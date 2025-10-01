@@ -1,5 +1,5 @@
 /**
- * @module logout
+ * @module auth/logout
  * AWS authentication logout command
  *
  * Terminates AWS SSO sessions and clears cached credentials for
