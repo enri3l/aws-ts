@@ -156,6 +156,9 @@
       },
       "lambda": {
         "description": "AWS Lambda function management and invocation commands"
+      },
+      "s3": {
+        "description": "Amazon S3 object storage operations and management commands"
       }
     }
   }

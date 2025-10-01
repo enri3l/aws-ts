@@ -25,6 +25,17 @@ AWS authentication workflow with multi-profile SSO support:
 - `ProfileManager` - Multi-profile configuration handling
 - `TokenManager` - Session and token lifecycle management
 
+### S3 Service
+
+Amazon S3 object storage operations with streaming support:
+
+- `S3Service` - Object storage orchestration with automatic multipart handling
+- `S3Schemas` - Comprehensive Zod validation for bucket names, object keys, and operations
+- `S3Errors` - S3-specific error types with actionable guidance
+- Support for uploads, downloads, copying, and metadata operations
+- Automatic multipart upload for large files (>100MB)
+- Progress tracking and streaming for efficient memory usage
+
 ### Data Processing Engine
 
 Unified data processing for CLI input/output:
