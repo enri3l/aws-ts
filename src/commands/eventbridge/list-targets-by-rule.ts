@@ -1,5 +1,5 @@
 /**
- * @module list-targets-by-rule
+ * @module eventbridge/list-targets-by-rule
  * EventBridge list targets by rule command
  *
  * Lists all targets configured for a specific EventBridge rule including

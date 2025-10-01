@@ -1,4 +1,5 @@
 /**
+ * @module lambda/update-function-code
  * Lambda update function code command
  *
  * Updates the code for a Lambda function from ZIP files, S3 buckets,

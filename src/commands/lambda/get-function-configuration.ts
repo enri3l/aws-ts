@@ -1,4 +1,5 @@
 /**
+ * @module lambda/get-function-configuration
  * Lambda get function configuration command
  *
  * Retrieves function configuration details including runtime settings,

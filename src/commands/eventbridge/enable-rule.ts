@@ -1,5 +1,5 @@
 /**
- * @module enable-rule
+ * @module eventbridge/enable-rule
  * EventBridge enable rule command
  *
  * Enables a disabled EventBridge rule to activate event processing

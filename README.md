@@ -75,6 +75,14 @@ aws-ts auth:profiles
 
 # Log in using a specific SSO profile
 aws-ts auth:login --profile my-sso-profile
+
+# S3 object operations
+aws-ts s3:list-objects my-bucket
+aws-ts s3:get-object my-bucket path/to/file.txt --output ./local-file.txt
+aws-ts s3:put-object my-bucket path/to/file.txt ./local-file.txt
+aws-ts s3:delete-object my-bucket path/to/file.txt
+aws-ts s3:copy-object source-bucket file.txt dest-bucket file.txt
+aws-ts s3:head-object my-bucket path/to/file.txt
 ```
 
 ## Documentation

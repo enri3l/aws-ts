@@ -1,4 +1,5 @@
 /**
+ * @module lambda/list-functions
  * Lambda list functions command
  *
  * Lists all Lambda functions in the specified region with support for

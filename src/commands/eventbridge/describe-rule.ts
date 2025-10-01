@@ -1,5 +1,5 @@
 /**
- * @module describe-rule
+ * @module eventbridge/describe-rule
  * EventBridge describe rule command
  *
  * Shows detailed information about a specific EventBridge rule including

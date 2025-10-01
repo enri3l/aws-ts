@@ -1,4 +1,5 @@
 /**
+ * @module lambda/create-function
  * Lambda create function command
  *
  * Creates a new Lambda function with specified configuration including

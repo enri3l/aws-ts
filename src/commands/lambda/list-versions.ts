@@ -1,4 +1,5 @@
 /**
+ * @module lambda/list-versions
  * Lambda list versions command
  *
  * Lists all versions of a Lambda function including $LATEST with support

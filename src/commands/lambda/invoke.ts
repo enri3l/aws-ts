@@ -1,4 +1,5 @@
 /**
+ * @module lambda/invoke
  * Lambda invoke command
  *
  * Executes a Lambda function with optional payload and supports both

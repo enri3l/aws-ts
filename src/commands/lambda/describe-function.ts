@@ -1,4 +1,5 @@
 /**
+ * @module lambda/describe-function
  * Lambda describe function command
  *
  * Displays detailed information about a specific Lambda function including
