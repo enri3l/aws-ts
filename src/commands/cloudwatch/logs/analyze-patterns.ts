@@ -79,30 +79,7 @@ EXAMPLES:
   ];
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region for CloudWatch Logs",
-      env: "AWS_REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      env: "AWS_PROFILE",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for analysis results",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with detailed information",
-      default: false,
-    }),
+    ...BaseCommand.commonFlags,
 
     "start-time": Flags.string({
       description:

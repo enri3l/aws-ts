@@ -48,21 +48,11 @@ export default class AuthLogoutCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile name to logout from",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     "all-profiles": Flags.boolean({
       char: "a",
       description: "Logout from all configured SSO profiles",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
       default: false,
     }),
   };

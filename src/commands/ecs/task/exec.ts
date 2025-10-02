@@ -61,6 +61,8 @@ export default class ECSTaskExecCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     cluster: Flags.string({
       char: "c",
       description: "Name of the cluster containing the task",
@@ -86,24 +88,6 @@ export default class ECSTaskExecCommand extends BaseCommand {
 
     "dry-run": Flags.boolean({
       description: "Check prerequisites without executing commands",
-      default: false,
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

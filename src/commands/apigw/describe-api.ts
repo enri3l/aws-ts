@@ -69,6 +69,8 @@ export default class ApigwDescribeApiCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     type: Flags.string({
       description: "API type hint for faster lookup (rest, http, websocket)",
       options: ["rest", "http", "websocket"],
@@ -77,31 +79,6 @@ export default class ApigwDescribeApiCommand extends BaseCommand {
 
     "include-metadata": Flags.boolean({
       description: "Include additional metadata (stages, resources, etc.)",
-      default: false,
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the API",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for API description",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

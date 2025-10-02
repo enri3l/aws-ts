@@ -43,20 +43,8 @@ export default class SQSDeleteMessageBatchCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-    }),
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-    }),
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
+
     "batch-size": Flags.integer({
       description: "Batch size (1-10)",
       min: 1,
@@ -68,11 +56,6 @@ export default class SQSDeleteMessageBatchCommand extends BaseCommand {
       min: 1,
       max: 20,
       default: 10,
-    }),
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

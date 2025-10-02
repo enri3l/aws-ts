@@ -48,17 +48,7 @@ export default class SSMSessionStartCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     document: Flags.string({
       char: "d",
@@ -70,12 +60,6 @@ export default class SSMSessionStartCommand extends BaseCommand {
     reason: Flags.string({
       description: "Reason for starting session (audit trail)",
       helpValue: "REASON",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

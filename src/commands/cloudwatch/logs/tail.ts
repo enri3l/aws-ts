@@ -96,17 +96,7 @@ export default class CloudWatchLogsTailCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the log groups",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     filter: Flags.string({
       char: "f",
@@ -148,12 +138,6 @@ export default class CloudWatchLogsTailCommand extends BaseCommand {
 
     "show-log-stream": Flags.boolean({
       description: "Include log stream name in output",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with connection debugging",
       default: false,
     }),
   };

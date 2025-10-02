@@ -60,6 +60,8 @@ export default class ECSServiceUpdateCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     cluster: Flags.string({
       char: "c",
       description: "Name of the cluster containing the service",
@@ -95,32 +97,6 @@ export default class ECSServiceUpdateCommand extends BaseCommand {
       description: "Assign public IP to tasks",
       options: ["ENABLED", "DISABLED"],
       helpValue: "STATUS",
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "json",
-      helpValue: "FORMAT",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

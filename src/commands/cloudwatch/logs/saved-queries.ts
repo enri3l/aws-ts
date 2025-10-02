@@ -211,24 +211,7 @@ export default class CloudWatchLogsSavedQueriesCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region for query execution",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for list action",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     description: Flags.string({
       char: "d",
@@ -260,12 +243,6 @@ export default class CloudWatchLogsSavedQueriesCommand extends BaseCommand {
       description: "End time for query execution (relative or absolute)",
       helpValue: "TIME",
       default: "now",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with operation details",
-      default: false,
     }),
   };
 

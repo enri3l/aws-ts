@@ -55,6 +55,8 @@ export default class AuthSwitchCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "no-validate": Flags.boolean({
       description: "Skip credential validation after switching",
       default: false,
@@ -62,12 +64,6 @@ export default class AuthSwitchCommand extends BaseCommand {
 
     "set-default": Flags.boolean({
       description: "Set as default profile for the session",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
       default: false,
     }),
   };

@@ -93,24 +93,7 @@ export default class CloudWatchLogsSearchCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the log group",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for search results",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     regex: Flags.boolean({
       description: "Treat search pattern as regular expression",
@@ -173,12 +156,6 @@ export default class CloudWatchLogsSearchCommand extends BaseCommand {
     "show-statistics": Flags.boolean({
       description: "Show search statistics (total events scanned, matches found)",
       default: true,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with search operation details",
-      default: false,
     }),
   };
 

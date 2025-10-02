@@ -64,33 +64,10 @@ export default class DynamoDBBatchGetItemCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "consistent-read": Flags.boolean({
       description: "Use consistent reads for all tables (can be overridden per table)",
-      default: false,
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the tables",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for batch results",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

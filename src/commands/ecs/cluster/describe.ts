@@ -7,7 +7,7 @@
  *
  */
 
-import { Args, Flags } from "@oclif/core";
+import { Args } from "@oclif/core";
 import { DataFormat, DataProcessor } from "../../../lib/data-processing.js";
 import { formatECSError } from "../../../lib/ecs-errors.js";
 import type { ECSDescribeClusters } from "../../../lib/ecs-schemas.js";
@@ -76,30 +76,7 @@ export default class ECSClusterDescribeCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region to describe clusters in",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for cluster description",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
-    }),
+    ...BaseCommand.commonFlags,
   };
 
   /**

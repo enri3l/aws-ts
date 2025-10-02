@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Flags } from "@oclif/core";
+import { Args } from "@oclif/core";
 import { formatSQSError } from "../../../lib/sqs-errors.js";
 import type { SQSCancelMessageMoveTask } from "../../../lib/sqs-schemas.js";
 import { SQSCancelMessageMoveTaskSchema } from "../../../lib/sqs-schemas.js";
@@ -29,25 +29,7 @@ export default class SQSCancelMessageMoveTaskCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-    }),
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-    }),
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
-    }),
+    ...BaseCommand.commonFlags,
   };
 
   /**

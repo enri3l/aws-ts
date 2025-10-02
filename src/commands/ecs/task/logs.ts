@@ -62,6 +62,8 @@ export default class ECSTaskLogsCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     cluster: Flags.string({
       char: "c",
       description: "Name of the cluster containing the task",
@@ -93,24 +95,6 @@ export default class ECSTaskLogsCommand extends BaseCommand {
     tail: Flags.integer({
       description: "Number of lines to show from the end of logs",
       helpValue: "LINES",
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

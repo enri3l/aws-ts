@@ -73,6 +73,8 @@ export default class AuthProfilesCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     detailed: Flags.boolean({
       char: "d",
       description: "Show detailed profile information",
@@ -82,19 +84,6 @@ export default class AuthProfilesCommand extends BaseCommand {
     "active-only": Flags.boolean({
       char: "a",
       description: "Show only profiles with valid credentials",
-      default: false,
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
       default: false,
     }),
   };

@@ -5,7 +5,7 @@
  * Terminates an active Session Manager session.
  */
 
-import { Args, Flags } from "@oclif/core";
+import { Args } from "@oclif/core";
 import {
   TerminateSessionInputSchema,
   type TerminateSessionInput,
@@ -41,23 +41,7 @@ export default class SSMSessionTerminateCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
-    }),
+    ...BaseCommand.commonFlags,
   };
 
   /**

@@ -118,6 +118,8 @@ export default class DynamoDBBatchWriteItemCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "batch-size": Flags.integer({
       description: "Number of items per batch write request",
       min: 1,
@@ -143,31 +145,6 @@ export default class DynamoDBBatchWriteItemCommand extends BaseCommand {
       min: 0,
       max: 10,
       default: 3,
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the table",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for results",
-      options: ["table", "json"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

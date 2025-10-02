@@ -66,6 +66,8 @@ export default class DynamoDBScanCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "index-name": Flags.string({
       char: "i",
       description: "Name of the index to scan (GSI or LSI)",
@@ -118,31 +120,6 @@ export default class DynamoDBScanCommand extends BaseCommand {
       description: "Total segments for parallel scans",
       min: 1,
       max: 1_000_000,
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the table",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for scan results",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
 
     force: Flags.boolean({

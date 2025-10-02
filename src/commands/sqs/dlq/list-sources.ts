@@ -29,29 +29,12 @@ export default class SQSListDeadLetterSourceQueuesCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-    }),
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-    }),
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
+
     "max-results": Flags.integer({
       description: "Maximum results",
       min: 1,
       max: 1000,
-    }),
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

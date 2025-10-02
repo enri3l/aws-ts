@@ -72,24 +72,7 @@ export default class LambdaCreateAliasCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the function",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for alias creation result",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "function-version": Flags.string({
       description: "Function version the alias should point to",
@@ -112,12 +95,6 @@ export default class LambdaCreateAliasCommand extends BaseCommand {
     "routing-config": Flags.string({
       description: "Routing configuration as JSON",
       helpValue: "JSON_STRING",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 
