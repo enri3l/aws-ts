@@ -10,12 +10,14 @@ import {
   DeleteParameterCommand,
   GetParameterCommand,
   GetParameterHistoryCommand,
+  GetParametersCommand,
   paginateDescribeParameters,
   PutParameterCommand,
   SSMClient,
   type DeleteParameterCommandOutput,
   type GetParameterCommandOutput,
   type GetParameterHistoryCommandOutput,
+  type GetParametersCommandOutput,
   type ParameterMetadata,
   type ParameterStringFilter,
   type PutParameterCommandOutput,
@@ -39,6 +41,16 @@ export type ParameterStoreServiceOptions = BaseServiceOptions;
  */
 export interface GetParameterParameters {
   name: string;
+  withDecryption?: boolean;
+}
+
+/**
+ * Parameters for getting multiple parameters
+ *
+ * @public
+ */
+export interface GetParametersParameters {
+  names: string[];
   withDecryption?: boolean;
 }
 
@@ -134,6 +146,51 @@ export class ParameterStoreService extends BaseAwsService<SSMClient> {
         `Failed to get parameter ${name}: ${error instanceof Error ? error.message : String(error)}`,
         name,
         "get-parameter",
+        undefined,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Get multiple parameters from Parameter Store
+   *
+   * @param config - AWS client configuration
+   * @param parameters - Multiple parameter retrieval parameters
+   * @returns Multiple parameters information
+   */
+  async getParameters(
+    config: AwsClientConfig,
+    parameters: GetParametersParameters,
+  ): Promise<GetParametersCommandOutput> {
+    const { names, withDecryption = false } = parameters;
+    const spinner = this.createSpinner(`Getting ${names.length} parameter(s)...`);
+
+    try {
+      const client = await this.getClient(config);
+      const command = new GetParametersCommand({
+        Names: names,
+        WithDecryption: withDecryption,
+      });
+
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying get parameters (attempt ${attempt})...`;
+        },
+      });
+
+      const foundCount = response.Parameters?.length || 0;
+      const invalidCount = response.InvalidParameters?.length || 0;
+      const notFoundMessage = invalidCount > 0 ? ` (${invalidCount} not found)` : "";
+      spinner.succeed(`Retrieved ${foundCount} parameter(s)${notFoundMessage}`);
+      return response;
+    } catch (error) {
+      spinner.fail("Failed to get parameters");
+      throw new SSMParameterError(
+        `Failed to get parameters: ${error instanceof Error ? error.message : String(error)}`,
+        names.join(", "),
+        "get-parameters",
         undefined,
         error,
       );

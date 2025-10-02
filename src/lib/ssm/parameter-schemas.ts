@@ -164,3 +164,27 @@ export const GetParameterHistoryInputSchema = z.object({
  * @public
  */
 export type GetParameterHistoryInput = z.infer<typeof GetParameterHistoryInputSchema>;
+
+/**
+ * Get multiple parameters input validation
+ *
+ * @public
+ */
+export const GetMultipleParametersInputSchema = z.object({
+  names: z
+    .array(ParameterNameSchema)
+    .min(1, "At least one parameter name is required")
+    .max(10, "Maximum 10 parameters can be retrieved at once"),
+  withDecryption: z.boolean().default(false),
+  region: AwsRegionSchema,
+  profile: AwsProfileSchema,
+  format: z.enum(["table", "json", "jsonl", "csv"]).default("table"),
+  verbose: z.boolean().optional(),
+});
+
+/**
+ * Get multiple parameters input type
+ *
+ * @public
+ */
+export type GetMultipleParametersInput = z.infer<typeof GetMultipleParametersInputSchema>;

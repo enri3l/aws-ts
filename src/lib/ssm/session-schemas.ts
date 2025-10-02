@@ -142,3 +142,46 @@ export const RemotePortForwardingInputSchema = z.object({
  * @public
  */
 export type RemotePortForwardingInput = z.infer<typeof RemotePortForwardingInputSchema>;
+
+/**
+ * SSH setup input validation
+ *
+ * @public
+ */
+export const SshSetupInputSchema = z.object({
+  hostPattern: z.string().default("i-* mi-*"),
+  user: z.string().optional(),
+  identityFile: z.string().optional(),
+  region: AwsRegionSchema,
+  profile: AwsProfileSchema,
+  configPath: z.string().optional(),
+  verbose: z.boolean().optional(),
+});
+
+/**
+ * SSH setup input type
+ *
+ * @public
+ */
+export type SshSetupInput = z.infer<typeof SshSetupInputSchema>;
+
+/**
+ * SCP (secure copy) input validation
+ *
+ * @public
+ */
+export const ScpInputSchema = z.object({
+  source: z.string().min(1, "Source path is required"),
+  destination: z.string().min(1, "Destination path is required"),
+  recursive: z.boolean().default(false),
+  region: AwsRegionSchema,
+  profile: AwsProfileSchema,
+  verbose: z.boolean().optional(),
+});
+
+/**
+ * SCP input type
+ *
+ * @public
+ */
+export type ScpInput = z.infer<typeof ScpInputSchema>;

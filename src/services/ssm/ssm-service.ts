@@ -53,6 +53,29 @@ export interface SSMDescribeSessionsParameters {
 }
 
 /**
+ * Parameters for port forwarding sessions
+ *
+ * @public
+ */
+export interface SSMPortForwardingParameters {
+  instanceId: string;
+  localPort: number;
+  remotePort: number;
+}
+
+/**
+ * Parameters for remote port forwarding sessions
+ *
+ * @public
+ */
+export interface SSMRemotePortForwardingParameters {
+  instanceId: string;
+  remoteHost: string;
+  remotePort: number;
+  localPort?: number;
+}
+
+/**
  * SSM service for Systems Manager operations
  *
  * Provides a unified interface for all SSM operations,
@@ -194,6 +217,108 @@ export class SSMService extends BaseAwsService<SSMClient> {
         undefined,
         undefined,
         "describe-sessions",
+        error,
+      );
+    }
+  }
+
+  /**
+   * Start a port forwarding session
+   *
+   * @param config - AWS client configuration
+   * @param parameters - Port forwarding parameters
+   * @returns Session information
+   */
+  async startPortForwardingSession(
+    config: AwsClientConfig,
+    parameters: SSMPortForwardingParameters,
+  ): Promise<StartSessionCommandOutput> {
+    const { instanceId, localPort, remotePort } = parameters;
+    const spinner = this.createSpinner(
+      `Starting port forwarding session: localhost:${localPort} -> ${instanceId}:${remotePort}...`,
+    );
+
+    try {
+      const client = await this.getClient(config);
+      const command = new StartSessionCommand({
+        Target: instanceId,
+        DocumentName: "AWS-StartPortForwardingSession",
+        Parameters: {
+          portNumber: [String(remotePort)],
+          localPortNumber: [String(localPort)],
+        },
+      });
+
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying port forwarding session start (attempt ${attempt})...`;
+        },
+      });
+
+      spinner.succeed(`Port forwarding session started: ${response.SessionId}`);
+      return response;
+    } catch (error) {
+      spinner.fail("Failed to start port forwarding session");
+      throw new SSMSessionError(
+        `Failed to start port forwarding session: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        instanceId,
+        "start-port-forwarding",
+        error,
+      );
+    }
+  }
+
+  /**
+   * Start a remote port forwarding session
+   *
+   * @param config - AWS client configuration
+   * @param parameters - Remote port forwarding parameters
+   * @returns Session information
+   */
+  async startRemotePortForwardingSession(
+    config: AwsClientConfig,
+    parameters: SSMRemotePortForwardingParameters,
+  ): Promise<StartSessionCommandOutput> {
+    const { instanceId, remoteHost, remotePort, localPort } = parameters;
+    const spinner = this.createSpinner(
+      `Starting remote port forwarding session: localhost:${localPort || "auto"} -> ${remoteHost}:${remotePort} via ${instanceId}...`,
+    );
+
+    try {
+      const client = await this.getClient(config);
+      const sessionParameters: Record<string, string[]> = {
+        host: [remoteHost],
+        portNumber: [String(remotePort)],
+      };
+
+      if (localPort) {
+        sessionParameters["localPortNumber"] = [String(localPort)];
+      }
+
+      const command = new StartSessionCommand({
+        Target: instanceId,
+        DocumentName: "AWS-StartPortForwardingSessionToRemoteHost",
+        Parameters: sessionParameters,
+      });
+
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying remote port forwarding session start (attempt ${attempt})...`;
+        },
+      });
+
+      spinner.succeed(`Remote port forwarding session started: ${response.SessionId}`);
+      return response;
+    } catch (error) {
+      spinner.fail("Failed to start remote port forwarding session");
+      throw new SSMSessionError(
+        `Failed to start remote port forwarding session: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        instanceId,
+        "start-remote-port-forwarding",
         error,
       );
     }
