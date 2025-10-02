@@ -9,10 +9,15 @@
 import {
   DeleteParameterCommand,
   GetParameterCommand,
+  GetParameterHistoryCommand,
+  paginateDescribeParameters,
   PutParameterCommand,
   SSMClient,
   type DeleteParameterCommandOutput,
   type GetParameterCommandOutput,
+  type GetParameterHistoryCommandOutput,
+  type ParameterMetadata,
+  type ParameterStringFilter,
   type PutParameterCommandOutput,
 } from "@aws-sdk/client-ssm";
 import { BaseAwsService, type BaseServiceOptions } from "../../lib/base-aws-service.js";
@@ -50,6 +55,29 @@ export interface PutParameterParameters {
   keyId?: string;
   overwrite?: boolean;
   tier?: "Standard" | "Advanced" | "Intelligent-Tiering";
+}
+
+/**
+ * Parameters for listing parameters
+ *
+ * @public
+ */
+export interface ListParametersParameters {
+  path?: string;
+  recursive?: boolean;
+  maxResults?: number;
+}
+
+/**
+ * Parameters for getting parameter history
+ *
+ * @public
+ */
+export interface GetParameterHistoryParameters {
+  name: string;
+  withDecryption?: boolean;
+  maxResults?: number;
+  nextToken?: string;
 }
 
 /**
@@ -203,6 +231,111 @@ export class ParameterStoreService extends BaseAwsService<SSMClient> {
         `Failed to delete parameter ${name}: ${error instanceof Error ? error.message : String(error)}`,
         name,
         "delete-parameter",
+        undefined,
+        error,
+      );
+    }
+  }
+
+  /**
+   * List parameters from Parameter Store
+   *
+   * @param config - AWS client configuration
+   * @param parameters - Parameter listing parameters
+   * @returns List of parameter metadata
+   */
+  async listParameters(
+    config: AwsClientConfig,
+    parameters: ListParametersParameters = {},
+  ): Promise<ParameterMetadata[]> {
+    const { path, recursive = false, maxResults = 50 } = parameters;
+    const pathDisplay = path || "all parameters";
+    const spinner = this.createSpinner(`Listing ${pathDisplay}...`);
+
+    try {
+      const client = await this.getClient(config);
+      const filters: ParameterStringFilter[] = [];
+
+      if (path) {
+        filters.push({
+          Key: recursive ? "Path" : "Name",
+          Option: recursive ? "Recursive" : "Equals",
+          Values: [path],
+        });
+      }
+
+      const paginatorConfig = { client };
+      const input = {
+        ParameterFilters: filters.length > 0 ? filters : undefined,
+        MaxResults: maxResults,
+      };
+
+      const allParameters: ParameterMetadata[] = [];
+      const paginator = paginateDescribeParameters(paginatorConfig, input);
+
+      for await (const page of paginator) {
+        const parameters = page.Parameters || [];
+        for (const parameter of parameters) {
+          allParameters.push(parameter);
+        }
+      }
+
+      const parameterCount = allParameters.length;
+      const parameterPlural = parameterCount === 1 ? "" : "s";
+      spinner.succeed(`Found ${parameterCount} parameter${parameterPlural}`);
+      return allParameters;
+    } catch (error) {
+      spinner.fail("Failed to list parameters");
+      throw new SSMParameterError(
+        `Failed to list parameters: ${error instanceof Error ? error.message : String(error)}`,
+        path,
+        "list-parameters",
+        undefined,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Get parameter history from Parameter Store
+   *
+   * @param config - AWS client configuration
+   * @param parameters - Parameter history retrieval parameters
+   * @returns Parameter history information
+   */
+  async getParameterHistory(
+    config: AwsClientConfig,
+    parameters: GetParameterHistoryParameters,
+  ): Promise<GetParameterHistoryCommandOutput> {
+    const { name, withDecryption = false, maxResults, nextToken } = parameters;
+    const spinner = this.createSpinner(`Getting parameter history for ${name}...`);
+
+    try {
+      const client = await this.getClient(config);
+      const command = new GetParameterHistoryCommand({
+        Name: name,
+        WithDecryption: withDecryption,
+        MaxResults: maxResults,
+        NextToken: nextToken,
+      });
+
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying get parameter history (attempt ${attempt})...`;
+        },
+      });
+
+      const historyCount = response.Parameters?.length || 0;
+      const historyPlural = historyCount === 1 ? "" : "s";
+      spinner.succeed(`Found ${historyCount} version${historyPlural} for ${name}`);
+      return response;
+    } catch (error) {
+      spinner.fail("Failed to get parameter history");
+      throw new SSMParameterError(
+        `Failed to get parameter history for ${name}: ${error instanceof Error ? error.message : String(error)}`,
+        name,
+        "get-parameter-history",
         undefined,
         error,
       );
