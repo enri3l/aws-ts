@@ -103,6 +103,7 @@
     "@aws-sdk/client-lambda": "3.896.0",
     "@aws-sdk/client-s3": "3.896.0",
     "@aws-sdk/client-sqs": "3.896.0",
+    "@aws-sdk/client-ssm": "3.896.0",
     "@aws-sdk/client-sts": "3.896.0",
     "@aws-sdk/credential-provider-sso": "3.896.0",
     "@aws-sdk/credential-providers": "3.896.0",
@@ -172,6 +173,23 @@
           },
           "dlq": {
             "description": "Dead letter queue operations and message redrive"
+          }
+        }
+      },
+      "ssm": {
+        "description": "AWS Systems Manager operations for sessions, parameters, and automation",
+        "subtopics": {
+          "session": {
+            "description": "Session Manager operations for interactive sessions and tunneling"
+          },
+          "parameter": {
+            "description": "Parameter Store operations for configuration and secrets management"
+          },
+          "instance": {
+            "description": "Managed instance discovery and targeting"
+          },
+          "document": {
+            "description": "Systems Manager document management and discovery"
           }
         }
       }
