@@ -106,14 +106,17 @@ export default class SSMParameterGetMultipleCommand extends BaseCommand {
 
       if (parameters.length > 0) {
         this.displayOutput(parameters, input.format, {
-          transform: (parameter: Parameter) => ({
-            Name: parameter.Name,
-            Value: parameter.Value,
-            Type: parameter.Type,
-            Version: parameter.Version,
-            LastModifiedDate: parameter.LastModifiedDate?.toISOString(),
-            ARN: parameter.ARN,
-          }),
+          transform: (item: unknown) => {
+            const parameter = item as Parameter;
+            return {
+              Name: parameter.Name,
+              Value: parameter.Value,
+              Type: parameter.Type,
+              Version: parameter.Version,
+              LastModifiedDate: parameter.LastModifiedDate?.toISOString(),
+              ARN: parameter.ARN,
+            };
+          },
           emptyMessage: "No parameters found",
         });
       }

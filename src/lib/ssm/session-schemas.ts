@@ -58,6 +58,25 @@ export const TerminateSessionInputSchema = z.object({
 export type TerminateSessionInput = z.infer<typeof TerminateSessionInputSchema>;
 
 /**
+ * Resume session input validation
+ *
+ * @public
+ */
+export const ResumeSessionInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  region: AwsRegionSchema,
+  profile: AwsProfileSchema,
+  verbose: z.boolean().optional(),
+});
+
+/**
+ * Resume session input type
+ *
+ * @public
+ */
+export type ResumeSessionInput = z.infer<typeof ResumeSessionInputSchema>;
+
+/**
  * Describe sessions input validation
  *
  * @public

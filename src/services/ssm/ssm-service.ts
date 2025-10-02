@@ -9,10 +9,12 @@
 
 import {
   DescribeSessionsCommand,
+  ResumeSessionCommand,
   SSMClient,
   StartSessionCommand,
   TerminateSessionCommand,
   type DescribeSessionsCommandOutput,
+  type ResumeSessionCommandOutput,
   type SessionFilter,
   type StartSessionCommandOutput,
   type TerminateSessionCommandOutput,
@@ -171,6 +173,49 @@ export class SSMService extends BaseAwsService<SSMClient> {
         sessionId,
         undefined,
         "terminate-session",
+        error,
+      );
+    }
+  }
+
+  /**
+   * Resume a disconnected SSM session
+   *
+   * Reconnects to a session that was disconnected due to network issues.
+   * Only works for sessions in "Disconnected" state, not "Terminated" sessions.
+   *
+   * @param config - AWS client configuration
+   * @param sessionId - ID of the disconnected session to resume
+   * @returns Session information including session ID and stream URL
+   */
+  async resumeSession(
+    config: AwsClientConfig,
+    sessionId: string,
+  ): Promise<ResumeSessionCommandOutput> {
+    const spinner = this.createSpinner(`Resuming session ${sessionId}...`);
+
+    try {
+      const client = await this.getClient(config);
+      const command = new ResumeSessionCommand({
+        SessionId: sessionId,
+      });
+
+      const response = await retryWithBackoff(() => client.send(command), {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          spinner.text = `Retrying session resume (attempt ${attempt})...`;
+        },
+      });
+
+      spinner.succeed(`Session resumed: ${response.SessionId}`);
+      return response;
+    } catch (error) {
+      spinner.fail("Failed to resume session");
+      throw new SSMSessionError(
+        `Failed to resume SSM session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`,
+        sessionId,
+        undefined,
+        "resume-session",
         error,
       );
     }
