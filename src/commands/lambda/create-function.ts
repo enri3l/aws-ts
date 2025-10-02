@@ -68,24 +68,7 @@ export default class LambdaCreateFunctionCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region to create the function in",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for function creation result",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     runtime: Flags.string({
       description: "Function runtime",
@@ -197,12 +180,6 @@ export default class LambdaCreateFunctionCommand extends BaseCommand {
 
     publish: Flags.boolean({
       description: "Publish the function version",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

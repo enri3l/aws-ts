@@ -50,11 +50,7 @@ export default class AuthLoginCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile name to authenticate with",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     force: Flags.boolean({
       char: "f",
@@ -99,12 +95,6 @@ export default class AuthLoginCommand extends BaseCommand {
       description: "SSO role name for profile configuration",
       helpValue: "AdministratorAccess",
       dependsOn: ["configure"],
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

@@ -64,17 +64,7 @@ export default class ECSClusterUpdateCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the cluster",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     "container-insights": Flags.string({
       description: "Enable or disable container insights",
@@ -106,12 +96,6 @@ export default class ECSClusterUpdateCommand extends BaseCommand {
     "execute-command-s3-key-prefix": Flags.string({
       description: "S3 key prefix for execute command logs",
       helpValue: "S3_PREFIX",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

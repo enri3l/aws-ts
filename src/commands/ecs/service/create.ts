@@ -72,6 +72,8 @@ export default class ECSServiceCreateCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "desired-count": Flags.integer({
       description: "Number of tasks to run",
       default: 1,
@@ -123,32 +125,6 @@ export default class ECSServiceCreateCommand extends BaseCommand {
     tags: Flags.string({
       description: "Comma-separated key=value pairs for resource tags",
       helpValue: "KEY=VALUE,KEY=VALUE",
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "json",
-      helpValue: "FORMAT",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

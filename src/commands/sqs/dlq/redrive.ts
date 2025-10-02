@@ -29,31 +29,14 @@ export default class SQSStartMessageMoveTaskCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-    }),
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-    }),
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
+
     "destination-arn": Flags.string({
       description: "Destination ARN (defaults to original source)",
     }),
     "max-velocity": Flags.integer({
       description: "Max messages per second",
       min: 1,
-    }),
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

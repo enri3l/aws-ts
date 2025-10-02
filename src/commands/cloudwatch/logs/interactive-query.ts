@@ -64,17 +64,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the log groups",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     "log-groups": Flags.string({
       description: "Comma-separated list of log groups to pre-select",
@@ -94,16 +84,9 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
     }),
 
     "output-format": Flags.string({
-      char: "f",
       description: "Default output format for query results",
       options: ["table", "json", "jsonl", "csv"],
       default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with query building details",
-      default: false,
     }),
   };
 

@@ -44,24 +44,7 @@ export default class SQSCreateQueueCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     fifo: Flags.boolean({
       description: "Create FIFO queue",
@@ -94,12 +77,6 @@ export default class SQSCreateQueueCommand extends BaseCommand {
 
     "kms-key-id": Flags.string({
       description: "KMS key ID for encryption",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

@@ -59,24 +59,7 @@ export default class ApigwListApisCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region to list APIs from",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for API list",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     type: Flags.string({
       description: "Filter APIs by type",
@@ -89,12 +72,6 @@ export default class ApigwListApisCommand extends BaseCommand {
       min: 1,
       max: 1000,
       helpValue: "NUMBER",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

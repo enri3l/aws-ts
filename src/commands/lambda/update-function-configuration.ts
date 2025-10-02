@@ -74,24 +74,7 @@ export default class LambdaUpdateFunctionConfigurationCommand extends BaseComman
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the function",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for configuration update result",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     description: Flags.string({
       description: "Updated function description",
@@ -201,12 +184,6 @@ export default class LambdaUpdateFunctionConfigurationCommand extends BaseComman
     "revision-id": Flags.string({
       description: "Revision ID for optimistic locking",
       helpValue: "REVISION_ID",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

@@ -40,34 +40,11 @@ export default class SQSGetQueueUrlCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "queue-owner-aws-account-id": Flags.string({
       description: "AWS account ID for cross-account access",
       helpValue: "ACCOUNT_ID",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

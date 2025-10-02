@@ -75,6 +75,8 @@ export default class DynamoDBUpdateItemCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "update-expression": Flags.string({
       description: "Update expression (required for updates)",
       helpValue: "EXPRESSION",
@@ -100,31 +102,6 @@ export default class DynamoDBUpdateItemCommand extends BaseCommand {
       description: "Return values option",
       options: ["NONE", "ALL_OLD", "UPDATED_OLD", "ALL_NEW", "UPDATED_NEW"],
       default: "NONE",
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the table",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for the result",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

@@ -61,6 +61,8 @@ export default class ECSServiceDescribeCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     cluster: Flags.string({
       char: "c",
       description: "Name of the cluster containing the services",
@@ -71,32 +73,6 @@ export default class ECSServiceDescribeCommand extends BaseCommand {
       description: "Additional information to include",
       options: ["TAGS"],
       helpValue: "INFO_TYPE",
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "json",
-      helpValue: "FORMAT",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

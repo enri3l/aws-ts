@@ -80,24 +80,7 @@ export default class CloudWatchLogsFilterEventsCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the log group",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for filtered events",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     filter: Flags.string({
       description: "Filter pattern (text, JSON extraction, or space-delimited pattern)",
@@ -163,12 +146,6 @@ export default class CloudWatchLogsFilterEventsCommand extends BaseCommand {
     "field-optimization": Flags.boolean({
       description: "Enable field index optimization hints for better performance",
       default: true,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with filtering operation details",
-      default: false,
     }),
   };
 

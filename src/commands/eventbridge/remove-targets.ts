@@ -97,24 +97,7 @@ export default class EventBridgeRemoveTargetsCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the rule",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for remove targets result",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "event-bus-name": Flags.string({
       description: "Event bus name containing the rule",
@@ -129,12 +112,6 @@ export default class EventBridgeRemoveTargetsCommand extends BaseCommand {
 
     "dry-run": Flags.boolean({
       description: "Validate removal parameters without executing",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

@@ -49,24 +49,7 @@ export default class SQSSendMessageCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "delay-seconds": Flags.integer({
       description: "Delay before message becomes visible",
@@ -80,12 +63,6 @@ export default class SQSSendMessageCommand extends BaseCommand {
 
     "message-deduplication-id": Flags.string({
       description: "Message deduplication ID (for FIFO queues)",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

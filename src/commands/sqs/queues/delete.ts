@@ -41,33 +41,10 @@ export default class SQSDeleteQueueCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     force: Flags.boolean({
       description: "Skip confirmation prompt",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
       default: false,
     }),
   };

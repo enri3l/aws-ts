@@ -81,17 +81,7 @@ export default class CloudWatchLogsFollowCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the log group",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     regex: Flags.boolean({
       description: "Treat stream pattern as regular expression instead of glob",
@@ -162,12 +152,6 @@ export default class CloudWatchLogsFollowCommand extends BaseCommand {
     "follow-new-streams": Flags.boolean({
       description: "Automatically follow new streams that match the pattern",
       default: true,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with connection and reconnection debugging",
-      default: false,
     }),
   };
 

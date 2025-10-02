@@ -103,24 +103,7 @@ export default class EventBridgeListRulesCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region to list rules from",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for rule list",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "event-bus-name": Flags.string({
       description: "Event bus name to list rules from",
@@ -143,12 +126,6 @@ export default class EventBridgeListRulesCommand extends BaseCommand {
     "next-token": Flags.string({
       description: "Pagination token for next page of results",
       helpValue: "TOKEN",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

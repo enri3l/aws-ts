@@ -83,24 +83,7 @@ export default class CloudWatchLogsDescribeGroupCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the log group",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for log group information",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "include-log-streams": Flags.boolean({
       description: "Include log streams information in the description",
@@ -119,12 +102,6 @@ export default class CloudWatchLogsDescribeGroupCommand extends BaseCommand {
 
     "include-field-indexes": Flags.boolean({
       description: "Include field indexes information in the description",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

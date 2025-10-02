@@ -70,24 +70,7 @@ export default class CloudWatchLogsListGroupsCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region to list log groups from",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for log group list",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     prefix: Flags.string({
       description: "Log group name prefix filter",
@@ -109,12 +92,6 @@ export default class CloudWatchLogsListGroupsCommand extends BaseCommand {
 
     descending: Flags.boolean({
       description: "Sort results in descending order",
-      default: false,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

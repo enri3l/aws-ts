@@ -44,24 +44,7 @@ export default class SQSReceiveMessageCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "max-messages": Flags.integer({
       description: "Maximum number of messages to receive",
@@ -81,12 +64,6 @@ export default class SQSReceiveMessageCommand extends BaseCommand {
       description: "Visibility timeout for received messages",
       min: 0,
       max: 43_200,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

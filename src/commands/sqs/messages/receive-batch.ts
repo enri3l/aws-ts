@@ -36,20 +36,8 @@ export default class SQSReceiveMessageBatchCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-    }),
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-    }),
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "jsonl",
-    }),
+    ...BaseCommand.commonFlags,
+
     "max-batches": Flags.integer({
       description: "Maximum number of batches to receive",
       min: 1,
@@ -65,11 +53,6 @@ export default class SQSReceiveMessageBatchCommand extends BaseCommand {
       min: 0,
       max: 20,
       default: 20,
-    }),
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
     }),
   };
 

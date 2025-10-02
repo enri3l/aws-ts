@@ -74,6 +74,8 @@ export default class DynamoDBPutItemCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "condition-expression": Flags.string({
       description: "Condition expression for conditional put",
       helpValue: "EXPRESSION",
@@ -93,31 +95,6 @@ export default class DynamoDBPutItemCommand extends BaseCommand {
       description: "Return values option",
       options: ["NONE", "ALL_OLD"],
       default: "NONE",
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the table",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for the result",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

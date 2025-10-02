@@ -54,11 +54,7 @@ export default class AuthStatusCommand extends BaseCommand {
   ];
 
   static override readonly flags = {
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile name to check status for",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     "all-profiles": Flags.boolean({
       char: "a",
@@ -69,18 +65,6 @@ export default class AuthStatusCommand extends BaseCommand {
     detailed: Flags.boolean({
       char: "d",
       description: "Show detailed status information",
-      default: false,
-    }),
-
-    format: Flags.string({
-      description: "Output format",
-      options: ["table", "json"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
       default: false,
     }),
   };

@@ -62,17 +62,7 @@ export default class ECSClusterCreateCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region to create cluster in",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
+    ...BaseCommand.commonFlags,
 
     "capacity-providers": Flags.string({
       description: "Capacity providers for the cluster (comma-separated)",
@@ -83,12 +73,6 @@ export default class ECSClusterCreateCommand extends BaseCommand {
       description: "Tags for the cluster in key=value format (comma-separated)",
       helpValue: "KEY=VALUE",
       multiple: true,
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

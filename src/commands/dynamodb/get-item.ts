@@ -71,6 +71,8 @@ export default class DynamoDBGetItemCommand extends BaseCommand {
   };
 
   static override readonly flags = {
+    ...BaseCommand.commonFlags,
+
     "projection-expression": Flags.string({
       description: "Projection expression to select specific attributes",
       helpValue: "EXPRESSION",
@@ -83,31 +85,6 @@ export default class DynamoDBGetItemCommand extends BaseCommand {
 
     "consistent-read": Flags.boolean({
       description: "Use consistent read for the operation",
-      default: false,
-    }),
-
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the table",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for the item",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
       default: false,
     }),
   };

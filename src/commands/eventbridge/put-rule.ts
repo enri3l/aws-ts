@@ -135,24 +135,7 @@ export default class EventBridgePutRuleCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region to create the rule in",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for rule creation result",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "event-pattern": Flags.string({
       description: "Event pattern as JSON string",
@@ -190,12 +173,6 @@ export default class EventBridgePutRuleCommand extends BaseCommand {
     tags: Flags.string({
       description: "Tags as JSON key-value pairs",
       helpValue: "JSON_TAGS",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 

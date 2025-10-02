@@ -6,7 +6,7 @@
  *
  */
 
-import { Args, Flags } from "@oclif/core";
+import { Args } from "@oclif/core";
 import { formatSQSError } from "../../../lib/sqs-errors.js";
 import type { SQSCountMessages } from "../../../lib/sqs-schemas.js";
 import { SQSCountMessagesSchema } from "../../../lib/sqs-schemas.js";
@@ -40,30 +40,7 @@ export default class SQSCountMessagesCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output",
-      default: false,
-    }),
+    ...BaseCommand.commonFlags,
   };
 
   /**

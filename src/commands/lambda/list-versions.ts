@@ -66,24 +66,7 @@ export default class LambdaListVersionsCommand extends BaseCommand {
   };
 
   static override readonly flags = {
-    region: Flags.string({
-      char: "r",
-      description: "AWS region containing the function",
-      helpValue: "REGION",
-    }),
-
-    profile: Flags.string({
-      char: "p",
-      description: "AWS profile to use for authentication",
-      helpValue: "PROFILE_NAME",
-    }),
-
-    format: Flags.string({
-      char: "f",
-      description: "Output format for version list",
-      options: ["table", "json", "jsonl", "csv"],
-      default: "table",
-    }),
+    ...BaseCommand.commonFlags,
 
     "max-items": Flags.integer({
       description: "Maximum number of versions to return",
@@ -95,12 +78,6 @@ export default class LambdaListVersionsCommand extends BaseCommand {
     marker: Flags.string({
       description: "Pagination marker for next page of results",
       helpValue: "MARKER",
-    }),
-
-    verbose: Flags.boolean({
-      char: "v",
-      description: "Enable verbose output with debug information",
-      default: false,
     }),
   };
 
