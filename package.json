@@ -102,6 +102,7 @@
     "@aws-sdk/client-eventbridge": "3.896.0",
     "@aws-sdk/client-lambda": "3.896.0",
     "@aws-sdk/client-s3": "3.896.0",
+    "@aws-sdk/client-sqs": "3.896.0",
     "@aws-sdk/client-sts": "3.896.0",
     "@aws-sdk/credential-provider-sso": "3.896.0",
     "@aws-sdk/credential-providers": "3.896.0",
@@ -159,6 +160,20 @@
       },
       "s3": {
         "description": "Amazon S3 object storage operations and management commands"
+      },
+      "sqs": {
+        "description": "Amazon SQS queue and message management commands",
+        "subtopics": {
+          "queues": {
+            "description": "SQS queue lifecycle and configuration management"
+          },
+          "messages": {
+            "description": "SQS message operations and batch processing"
+          },
+          "dlq": {
+            "description": "Dead letter queue operations and message redrive"
+          }
+        }
       }
     }
   }
