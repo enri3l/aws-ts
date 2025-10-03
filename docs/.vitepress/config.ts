@@ -38,6 +38,7 @@ export default defineConfig({
         {
           text: "How-To Guides",
           items: [
+            { text: "CLI Installation", link: "/how-to/cli-installation" },
             { text: "Configuration", link: "/how-to/configuration" },
             { text: "Authentication", link: "/how-to/authentication" },
           ],
