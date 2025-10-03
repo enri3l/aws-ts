@@ -104,7 +104,7 @@ export default class SSMDocumentListCommand extends BaseCommand {
       });
 
       const documentManager = new DocumentManagerService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),

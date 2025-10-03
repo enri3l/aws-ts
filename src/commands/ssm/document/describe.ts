@@ -74,7 +74,7 @@ export default class SSMDocumentDescribeCommand extends BaseCommand {
       });
 
       const documentManager = new DocumentManagerService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),
@@ -101,7 +101,7 @@ export default class SSMDocumentDescribeCommand extends BaseCommand {
 
       // Display document details
       if (input.format === "table") {
-        this.displayDocumentTable(document, input.verbose || false);
+        this.displayDocumentTable(document, input.verbose ?? false);
       } else {
         this.displaySingleObject(document, input.format);
       }

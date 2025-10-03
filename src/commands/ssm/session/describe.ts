@@ -65,7 +65,7 @@ export default class SSMSessionDescribeCommand extends BaseCommand {
       });
 
       const ssmService = new SSMService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),
@@ -86,7 +86,7 @@ export default class SSMSessionDescribeCommand extends BaseCommand {
 
       // Display session details
       if (input.format === "table") {
-        this.displaySessionTable(session, input.verbose || false);
+        this.displaySessionTable(session, input.verbose ?? false);
       } else {
         this.displaySingleObject(session, input.format);
       }

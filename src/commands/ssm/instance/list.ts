@@ -92,7 +92,7 @@ export default class SSMInstanceListCommand extends BaseCommand {
       });
 
       const instanceManager = new InstanceManagerService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),

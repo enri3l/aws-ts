@@ -62,7 +62,7 @@ export default class SSMSessionTerminateCommand extends BaseCommand {
       });
 
       const ssmService = new SSMService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),

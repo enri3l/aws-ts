@@ -88,7 +88,7 @@ export default class SSMParameterGetHistoryCommand extends BaseCommand {
       });
 
       const parameterStore = new ParameterStoreService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),
