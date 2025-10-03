@@ -71,6 +71,7 @@ export default class SQSReceiveMessageCommand extends BaseCommand {
    * Execute the SQS receive message command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(SQSReceiveMessageCommand);

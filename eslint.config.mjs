@@ -98,6 +98,17 @@ export default tseslint.config(
       // Allow flexible JSDoc formatting to support comprehensive architectural documentation
       "jsdoc/tag-lines": "off", // Permit multi-line @remarks for detailed implementation context
       "jsdoc/newline-after-description": "off", // Allow @remarks immediately after description for better flow
+
+      // Enforce nullish coalescing over logical OR for boolean defaults
+      // ?? is more precise than || as it only coalesces null/undefined, not all falsy values
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "LogicalExpression[operator='||'][right.value=false]",
+          message:
+            "Use nullish coalescing (?? false) instead of logical OR (|| false) for boolean defaults. The ?? operator only coalesces null/undefined, while || coalesces all falsy values including 0 and empty string.",
+        },
+      ],
     },
     settings: {
       jsdoc: {

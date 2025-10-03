@@ -53,6 +53,7 @@ export default class SSMInstanceDescribeCommand extends BaseCommand {
    * Execute the SSM describe instance command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(SSMInstanceDescribeCommand);
@@ -67,7 +68,7 @@ export default class SSMInstanceDescribeCommand extends BaseCommand {
       });
 
       const instanceManager = new InstanceManagerService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),
@@ -89,7 +90,7 @@ export default class SSMInstanceDescribeCommand extends BaseCommand {
 
       // Display instance details
       if (input.format === "table") {
-        this.displayInstanceTable(instance, input.verbose || false);
+        this.displayInstanceTable(instance, input.verbose ?? false);
       } else {
         this.displaySingleObject(instance, input.format);
       }

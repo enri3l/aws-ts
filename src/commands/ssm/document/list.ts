@@ -86,6 +86,7 @@ export default class SSMDocumentListCommand extends BaseCommand {
    * Execute the SSM list documents command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(SSMDocumentListCommand);
@@ -103,7 +104,7 @@ export default class SSMDocumentListCommand extends BaseCommand {
       });
 
       const documentManager = new DocumentManagerService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),

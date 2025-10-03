@@ -73,6 +73,7 @@ export default class AuthStatusCommand extends BaseCommand {
    * Execute the auth status command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(AuthStatusCommand);

@@ -66,6 +66,7 @@ export default class SQSListQueuesCommand extends BaseCommand {
    * Execute the SQS list queues command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(SQSListQueuesCommand);

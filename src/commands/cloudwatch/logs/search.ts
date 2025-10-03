@@ -163,6 +163,7 @@ export default class CloudWatchLogsSearchCommand extends BaseCommand {
    * Execute the CloudWatch Logs search command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CloudWatchLogsSearchCommand);

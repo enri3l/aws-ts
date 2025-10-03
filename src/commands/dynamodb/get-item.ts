@@ -93,6 +93,7 @@ export default class DynamoDBGetItemCommand extends BaseCommand {
    * Execute the DynamoDB get item command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(DynamoDBGetItemCommand);

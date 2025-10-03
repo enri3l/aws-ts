@@ -151,6 +151,7 @@ export default class DoctorCommand extends BaseCommand {
    * with optional auto-repair capabilities and multiple output formats.
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(DoctorCommand);

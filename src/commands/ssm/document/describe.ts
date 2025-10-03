@@ -58,6 +58,7 @@ export default class SSMDocumentDescribeCommand extends BaseCommand {
    * Execute the SSM describe document command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(SSMDocumentDescribeCommand);
@@ -73,7 +74,7 @@ export default class SSMDocumentDescribeCommand extends BaseCommand {
       });
 
       const documentManager = new DocumentManagerService({
-        enableDebugLogging: input.verbose || false,
+        enableDebugLogging: input.verbose ?? false,
         enableProgressIndicators: true,
         clientConfig: {
           ...(input.region && { region: input.region }),
@@ -100,7 +101,7 @@ export default class SSMDocumentDescribeCommand extends BaseCommand {
 
       // Display document details
       if (input.format === "table") {
-        this.displayDocumentTable(document, input.verbose || false);
+        this.displayDocumentTable(document, input.verbose ?? false);
       } else {
         this.displaySingleObject(document, input.format);
       }

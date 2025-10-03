@@ -99,6 +99,7 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
    * Execute the CloudWatch Logs interactive query command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(CloudWatchLogsInteractiveQueryCommand);
@@ -618,7 +619,8 @@ export default class CloudWatchLogsInteractiveQueryCommand extends BaseCommand {
         this.log(`\n... and ${results.length - 20} more results (showing first 20)`);
       }
     } else {
-      // For other formats, just show a summary
+      // Non-table formats display summary message because the regular query command
+      // provides proper formatting for JSON/CSV/JSONL output
       this.log(
         `Results available in ${format} format. Use the regular query command to see full output.`,
       );

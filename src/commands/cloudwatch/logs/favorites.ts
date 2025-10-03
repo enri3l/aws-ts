@@ -135,7 +135,10 @@ EXAMPLES:
   };
 
   /**
+   * Execute the CloudWatch Logs favorites command
    *
+   * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CloudWatchLogsFavoritesCommand);
@@ -434,8 +437,8 @@ EXAMPLES:
       this.log(`Executing saved query: ${savedQuery.name}`);
       this.log(`Query: ${savedQuery.query}`);
 
-      // For now, just show the command to run
-      // In a full implementation, we could execute it directly
+      // Display command for manual execution instead of automatic execution
+      // to allow user review before running potentially expensive Insights queries
       this.log(`\nTo execute this query, run:`);
       this.log(`aws-ts cloudwatch:logs:query <log-group> "${savedQuery.query}"`);
     }

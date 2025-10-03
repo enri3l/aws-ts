@@ -61,6 +61,7 @@ export default class AuthLogoutCommand extends BaseCommand {
    * Execute the auth logout command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(AuthLogoutCommand);

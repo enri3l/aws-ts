@@ -137,6 +137,7 @@ export default class LambdaUpdateFunctionCodeCommand extends BaseCommand {
    * Execute the Lambda update function code command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(LambdaUpdateFunctionCodeCommand);

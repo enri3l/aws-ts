@@ -134,6 +134,7 @@ export default class ApigwGetApiConfigCommand extends BaseCommand {
    * Execute the API Gateway get API configuration command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ApigwGetApiConfigCommand);
