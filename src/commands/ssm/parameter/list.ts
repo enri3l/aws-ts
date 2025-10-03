@@ -67,6 +67,7 @@ export default class SSMParameterListCommand extends BaseCommand {
    * Execute the SSM list parameters command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(SSMParameterListCommand);

@@ -79,6 +79,7 @@ export default class LambdaListFunctionsCommand extends BaseCommand {
    * Execute the Lambda list functions command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { flags } = await this.parse(LambdaListFunctionsCommand);

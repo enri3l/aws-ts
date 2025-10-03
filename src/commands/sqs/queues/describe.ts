@@ -48,6 +48,7 @@ export default class SQSDescribeQueueCommand extends BaseCommand {
    * Execute the SQS describe queue command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(SQSDescribeQueueCommand);

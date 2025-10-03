@@ -44,6 +44,7 @@ export default class SQSStartMessageMoveTaskCommand extends BaseCommand {
    * Execute the SQS start message move task command
    *
    * @returns Promise resolving when command execution is complete
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(SQSStartMessageMoveTaskCommand);

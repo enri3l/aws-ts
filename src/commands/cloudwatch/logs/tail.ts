@@ -146,6 +146,7 @@ export default class CloudWatchLogsTailCommand extends BaseCommand {
    * Execute the CloudWatch Logs tail command
    *
    * @returns Promise resolving when command execution is complete or interrupted
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CloudWatchLogsTailCommand);

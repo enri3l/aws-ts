@@ -159,6 +159,7 @@ export default class CloudWatchLogsFollowCommand extends BaseCommand {
    * Execute the CloudWatch Logs follow command
    *
    * @returns Promise resolving when command execution is complete or interrupted
+   * @throws When validation fails or AWS operation encounters an error
    */
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CloudWatchLogsFollowCommand);
